@@ -122,49 +122,6 @@ typedef struct {
 /*===========================================================================*/
 
 /**
- * @name    Threads
- * @{
- */
-/**
- * @brief   Data part of a static thread descriptor initializer.
- * @details This macro should be used when statically initializing a
- *          thread descriptor that is part of a bigger structure.
- *
- * @param[in] name      name of the thread descriptor variable
- * @param[in] tn        thread name
- * @param[in] wb        working area base address
- * @param[in] ws        working area size
- * @param[in] p         thread priority
- * @param[in] fp        thread function pointer
- * @param[in] fa        thread function argument
- * @param[in] oi        owner OS instance or @p NULL
- */
-#define __THD_DESC_DATA(name, tn, wb, ws, p, fp, fa, oi) {                  \
-  .tname        = (tn),                                                     \
-  .wa           = __MEM_AREA_DATA(name.wa, wb, ws),                         \
-  .prio         = (p),                                                      \
-  .funcp        = (fp),                                                     \
-  .arg          = (fa),                                                     \
-  .owner        = (oi)                                                      \
-}
-
-/**
- * @brief   Static thread descriptor initializer.
- *
- * @param[in] name      name of the thread descriptor variable
- * @param[in] tn        thread name
- * @param[in] wb        working area base address
- * @param[in] ws        working area size
- * @param[in] p         thread priority
- * @param[in] fp        thread function pointer
- * @param[in] fa        thread function argument
- * @param[in] oi        owner OS instance or @p NULL
- */
-#define THD_DESC_DECL(name, tn, wb, ws, p, fp, fa, oi)                      \
-  thread_descriptor_new_t name = __THD_DESC_DATA(name, tn, wb, ws, p, fp, fa, oi)
-/** @} */
-
-/**
  * @name    Threads queues
  * @{
  */
@@ -515,7 +472,6 @@ static inline thread_t *chThdStartI(thread_t *tp) {
  *                      - @a TIME_INFINITE the thread enters an infinite sleep
  *                        state.
  *                      - @a TIME_IMMEDIATE this value is not allowed.
- *                      .
  *
  * @sclass
  */
