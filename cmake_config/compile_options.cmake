@@ -46,19 +46,6 @@ set(THUMB_FLAGS "-mthumb -DTHUMB -DTHUMB_PRESENT -mno-thumb-interwork -DTHUMB_NO
 # Some definitions are not needed for ARM or linker, but it doesn't matter so they are all included :)
 # Omitted flags from Makefiles: -MD -MP -MF .build/dep/(filename).d (For .d files generation)
 
-# Startup LD directory and LD file
-
-if (${BOARD_NAME} STREQUAL rm_board_2017)
-    set(STARTUP_LD_DICT ${PROJECT_SOURCE_DIR}/os/common/startup/ARMCMx/compilers/GCC/ld)
-    set(STARTUP_LD_FILE ${STARTUP_LD_DICT}/STM32F429xI.ld)
-elseif (${BOARD_NAME} STREQUAL rm_board_2018_a)
-    set(STARTUP_LD_DICT ${PROJECT_SOURCE_DIR}/os/common/startup/ARMCMx/compilers/GCC/ld)
-    set(STARTUP_LD_FILE ${STARTUP_LD_DICT}/STM32F429xI.ld)
-else ()
-    message(FATAL_ERROR "[ERROR] Dev board \"${BOARD_NAME}\" is not configured." )
-endif ()
-
-
 # SET FLAGS TO CMAKE
 
 set(CMAKE_ASM_FLAGS "-x assembler-with-cpp ${MCU_FLAGS} ${OPT_FLAGS} ${ASM_DEFS} ${THUMB_FLAGS}" CACHE INTERNAL "asm compiler flags" FORCE)

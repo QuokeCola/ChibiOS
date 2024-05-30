@@ -16,12 +16,9 @@
 
 #include "ch.hpp"
 #include "hal.h"
+
 using namespace chibios_rt;
 
-/*
- * Message server thread class. It receives messages and does nothing except
- * reply after the specified time.
- */
 
 /*
  * Application entry point.
@@ -37,14 +34,6 @@ int main(void) {
    */
   halInit();
   System::init();
-
-  /*
-   * Activates the serial driver 2 using the driver default configuration.
-   * PA2(TX) and PA3(RX) are routed to USART2.
-   */
-
-  palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(7));
-  palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(7));
 
   /*
    * Serves timer events.
