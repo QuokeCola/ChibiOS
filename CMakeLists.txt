@@ -24,6 +24,8 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)  # Enable this if you want to see verbose log
 
 include(os/ch.cmake)  # add files and directories from ChibiOS
 
+include(modules.cmake)
+
 add_subdirectory(lib/cmsis_dsp)
 
 # Reuse ChibiOS object files (without linking) to avoid repeat compile

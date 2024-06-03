@@ -34,7 +34,7 @@
  * Board identifier.
  */
 #define BOARD_RM_2017
-#define BOARD_NAME                  "RM_Board_2017"
+#define BOARD_NAME                  "RM_board_2017"
 
 /*
  * Board oscillators-related settings.

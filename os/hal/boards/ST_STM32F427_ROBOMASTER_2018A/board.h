@@ -33,8 +33,8 @@
 /*
  * Board identifier.
  */
-#define BOARD_ST_STM32F429I_DISCOVERY
-#define BOARD_NAME                  "STMicroelectronics STM32F429I-Discovery"
+#define BOARD_RM_2018A
+#define BOARD_NAME                  "RM_board_2018A"
 
 /*
  * Board oscillators-related settings.

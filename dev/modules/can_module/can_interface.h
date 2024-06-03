@@ -15,6 +15,7 @@
 
 #include "ch.hpp"
 #include "hal.h"
+#include "common_macro.h"
 
 #if defined(BOARD_RM_2018_A)
 // CAN1_RX - PD0, CAN1_TX - PD1
