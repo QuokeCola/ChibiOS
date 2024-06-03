@@ -32,6 +32,10 @@
  */
 
 #define STM32F4xx_MCUCONF
+#define STM32F405_MCUCONF
+#define STM32F415_MCUCONF
+#define STM32F407_MCUCONF
+#define STM32F417_MCUCONF
 #define STM32F427_MCUCONF
 
 /*
@@ -48,7 +52,7 @@
 #define STM32_CLOCK48_REQUIRED              TRUE
 #define STM32_SW                            STM32_SW_PLL
 #define STM32_PLLSRC                        STM32_PLLSRC_HSE
-#define STM32_PLLM_VALUE                    8
+#define STM32_PLLM_VALUE                    12
 #define STM32_PLLN_VALUE                    336
 #define STM32_PLLP_VALUE                    2
 #define STM32_PLLQ_VALUE                    7
@@ -104,6 +108,8 @@
 #define STM32_IRQ_UART4_PRIORITY            12
 #define STM32_IRQ_UART5_PRIORITY            12
 #define STM32_IRQ_USART6_PRIORITY           12
+#define STM32_IRQ_UART7_PRIORITY            12
+#define STM32_IRQ_UART8_PRIORITY            12
 
 /*
  * ADC driver system settings.
@@ -305,6 +311,8 @@
 #define STM32_UART_USE_UART4                FALSE
 #define STM32_UART_USE_UART5                FALSE
 #define STM32_UART_USE_USART6               FALSE
+#define STM32_UART_USE_UART7                TRUE
+#define STM32_UART_USE_UART8                TRUE
 #define STM32_UART_USART1_RX_DMA_STREAM     STM32_DMA_STREAM_ID(2, 5)
 #define STM32_UART_USART1_TX_DMA_STREAM     STM32_DMA_STREAM_ID(2, 7)
 #define STM32_UART_USART2_RX_DMA_STREAM     STM32_DMA_STREAM_ID(1, 5)
@@ -317,12 +325,18 @@
 #define STM32_UART_UART5_TX_DMA_STREAM      STM32_DMA_STREAM_ID(1, 7)
 #define STM32_UART_USART6_RX_DMA_STREAM     STM32_DMA_STREAM_ID(2, 2)
 #define STM32_UART_USART6_TX_DMA_STREAM     STM32_DMA_STREAM_ID(2, 7)
+#define STM32_UART_UART7_RX_DMA_STREAM      STM32_DMA_STREAM_ID(1, 3)
+#define STM32_UART_UART7_TX_DMA_STREAM      STM32_DMA_STREAM_ID(1, 1)
+#define STM32_UART_UART8_RX_DMA_STREAM      STM32_DMA_STREAM_ID(1, 6)
+#define STM32_UART_UART8_TX_DMA_STREAM      STM32_DMA_STREAM_ID(1, 0)
 #define STM32_UART_USART1_DMA_PRIORITY      0
 #define STM32_UART_USART2_DMA_PRIORITY      0
 #define STM32_UART_USART3_DMA_PRIORITY      0
 #define STM32_UART_UART4_DMA_PRIORITY       0
 #define STM32_UART_UART5_DMA_PRIORITY       0
 #define STM32_UART_USART6_DMA_PRIORITY      0
+#define STM32_UART_UART7_DMA_PRIORITY       0
+#define STM32_UART_UART8_DMA_PRIORITY       0
 #define STM32_UART_DMA_ERROR_HOOK(uartp)    osalSysHalt("DMA failure")
 
 /*
