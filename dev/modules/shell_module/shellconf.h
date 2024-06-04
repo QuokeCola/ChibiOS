@@ -12,6 +12,8 @@
 /*===========================================================================*/
 /* ChibiOS Shell related settings.                                           */
 /*===========================================================================*/
+// Enables
+#define SHELL_ENABLE_USB                    TRUE
 
 // Disable shell test commands, so we don't rely on ChibiOS's test codes
 #define SHELL_CMD_TEST_ENABLED              FALSE

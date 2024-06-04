@@ -18,6 +18,7 @@
 #include "hal.h"
 
 #include "shellconf.h"
+#include "usb_serial_interface.h"
 
 #include "common_macro.h"
 
@@ -30,8 +31,11 @@
 #else
 #error "Shell has not been defined for selected board"
 #endif
+#if SHELL_ENABLE_USB
+#define SerialDriver USBSerialIF::SDU
+#else
 #define SerialDriver SD6
-
+#endif
 
 #define SHELL_RX_WORK_AREA_SIZE 2048
 

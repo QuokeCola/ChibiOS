@@ -52,6 +52,8 @@ set(CHIBIOS_C_SRC ${CHIBIOS_C_SRC}
         ${CHIBIOS}/os/hal/src/hal_sio.c
         ${CHIBIOS}/os/hal/src/hal_spi.c
         ${CHIBIOS}/os/hal/src/hal_st.c
+        ${CHIBIOS}/os/hal/src/hal_uart.c
+        ${CHIBIOS}/os/hal/src/hal_usb.c
         ${CHIBIOS}/os/hal/src/hal_spi_v1.inc
         ${CHIBIOS}/os/hal/src/hal_spi_v2.inc)
 

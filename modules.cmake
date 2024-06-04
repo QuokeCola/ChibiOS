@@ -4,13 +4,16 @@ set(BUZZER_SRC
 set(CAN_SRC
         dev/modules/can_module/can_interface.cpp)
 set(SHELL_SRC
+        dev/modules/usb_serial_module/usb_serial_interface.cpp
         dev/modules/shell_module/shell_base.c
         dev/modules/shell_module/shell_base_cmd.c
         dev/modules/shell_module/shell_dbg_cmd.cpp
-        dev/modules/shell_module/shell.cpp)
+        dev/modules/shell_module/shell.cpp
+        dev/modules/shell_module/printf.c
+)
 
 include_directories(dev/modules/buzzer_module)
 include_directories(dev/modules/can_module)
 include_directories(dev/modules/shell_module)
-include_directories(dev/modules/usb_serial)
+include_directories(dev/modules/usb_serial_module)
 include_directories(dev/common_files)

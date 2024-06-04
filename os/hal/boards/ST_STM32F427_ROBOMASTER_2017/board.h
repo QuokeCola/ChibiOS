@@ -36,6 +36,8 @@
 #define BOARD_RM_2017
 #define BOARD_NAME                  "RM_board_2017"
 
+#define BOARD_OTG_NOVBUSSENS  // Disable VBUS sense
+
 /*
  * Board oscillators-related settings.
  * NOTE: LSE not fitted.

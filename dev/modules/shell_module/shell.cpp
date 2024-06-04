@@ -60,7 +60,7 @@ bool Shell::start(tprio_t prio) {
             , (char **) completion
 #endif
     };
-#if ENABLE_USB_SHELL == TRUE
+#if SHELL_ENABLE_USB == TRUE
     USBSerialIF::init();
 #else
     sdStart(&SerialDriver, &SHELL_SERIAL_CONFIG);

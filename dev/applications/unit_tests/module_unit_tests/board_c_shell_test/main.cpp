@@ -17,7 +17,6 @@
 #include "ch.hpp"
 #include "hal.h"
 #include "shell.h"
-#include "usb_serial.h"
 
 #ifndef BOARD_RM_C
 #error This target is only for Robomaster Board C. Please add -DBOARD_NAME="rm_board_c" to your cmake options
@@ -41,6 +40,9 @@ int main(void) {
     System::init();
 
     chThdSleepMilliseconds(1000);
+
+    Shell::start(NORMALPRIO);
+
     // See chconf.h for what this #define means.
 #if CH_CFG_NO_IDLE_THREAD
     // ChibiOS idle thread has been disabled,

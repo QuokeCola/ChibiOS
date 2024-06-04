@@ -136,7 +136,9 @@ static bool cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
         return false;
     }
     n = chHeapStatus(NULL, &total, &largest);
-    chprintf(chp, "core free memory : %u bytes" SHELL_NEWLINE_STR, chCoreGetStatusX());
+    memory_area_t map;
+    chCoreGetStatusX(&map);
+    chprintf(chp, "core free memory : %u bytes" SHELL_NEWLINE_STR, map.size);
     chprintf(chp, "heap fragments   : %u" SHELL_NEWLINE_STR, n);
     chprintf(chp, "heap free total  : %u bytes" SHELL_NEWLINE_STR, total);
     chprintf(chp, "heap free largest: %u bytes" SHELL_NEWLINE_STR, largest);
@@ -163,7 +165,7 @@ static bool cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 #endif
         chprintf(chp, "%08lx %08lx %08lx %4lu %4lu %9s %12s" SHELL_NEWLINE_STR,
                  stklimit, (uint32_t)tp->ctx.sp, (uint32_t)tp,
-                 (uint32_t)tp->refs - 1, (uint32_t)tp->prio, states[tp->state],
+                 (uint32_t)tp->refs - 1, (uint32_t)tp->realprio, states[tp->state],
                  tp->name == NULL ? "" : tp->name);
         tp = chRegNextThread(tp);
     } while (tp != NULL);
