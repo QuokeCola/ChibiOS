@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeSharedSettings">
+    <configurations>
+      <configuration PROFILE_NAME="rm_board_2017" ENABLED="true" CONFIG_NAME="Release" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_2017&quot;" />
+      <configuration PROFILE_NAME="rm_board_2018_a" ENABLED="true" CONFIG_NAME="Release" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_2018_a&quot;" />
+      <configuration PROFILE_NAME="rm_board_c" ENABLED="true" CONFIG_NAME="Release" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_c&quot;" />
+    </configurations>
+  </component>
+</project>
