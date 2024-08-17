@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2020 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -182,6 +182,7 @@
 
 #define STM32_IRQ_FDCAN1_PRIORITY           10
 #define STM32_IRQ_FDCAN2_PRIORITY           10
+#define STM32_IRQ_FDCAN3_PRIORITY           10
 
 #define STM32_IRQ_MDMA_PRIORITY             9
 
@@ -235,6 +236,7 @@
  */
 #define STM32_CAN_USE_FDCAN1                FALSE
 #define STM32_CAN_USE_FDCAN2                FALSE
+#define STM32_CAN_USE_FDCAN3                FALSE
 
 /*
  * DAC driver system settings.
@@ -281,6 +283,9 @@
 #define STM32_I2C_I2C2_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_I2C_I2C3_RX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_I2C_I2C3_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
+#define STM32_I2C_I2C4_USE_BDMA             FALSE
+#define STM32_I2C_I2C4_RX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
+#define STM32_I2C_I2C4_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_I2C_I2C4_RX_BDMA_STREAM       STM32_BDMA_STREAM_ID_ANY
 #define STM32_I2C_I2C4_TX_BDMA_STREAM       STM32_BDMA_STREAM_ID_ANY
 #define STM32_I2C_I2C1_IRQ_PRIORITY         5
@@ -404,6 +409,9 @@
 #define STM32_SPI_SPI4_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_SPI_SPI5_RX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_SPI_SPI5_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
+#define STM32_SPI_SPI6_USE_BDMA             FALSE
+#define STM32_SPI_SPI6_RX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
+#define STM32_SPI_SPI6_TX_DMA_STREAM        STM32_DMA_STREAM_ID_ANY
 #define STM32_SPI_SPI6_RX_BDMA_STREAM       STM32_BDMA_STREAM_ID_ANY
 #define STM32_SPI_SPI6_TX_BDMA_STREAM       STM32_BDMA_STREAM_ID_ANY
 #define STM32_SPI_SPI1_DMA_PRIORITY         1
