@@ -83,12 +83,6 @@ typedef struct {
    * @brief         OS instance affinity or @p NULL for current one.
    */
   os_instance_t                 *owner;
-#if (CH_CFG_USE_DYNAMIC == TRUE) || defined(__DOXYGEN__)
-  /**
-   * @brief   Pointer to a thread dispose function or @p NULL.
-   */
-  thread_dispose_t              dispose;
-#endif
 } thread_descriptor_t;
 
 /*===========================================================================*/
@@ -151,6 +145,23 @@ typedef struct {
 #define THD_STACK(s, n)                                                     \
   CC_ALIGN_DATA(PORT_WORKING_AREA_ALIGN)                                    \
   stkalign_t s[THD_STACK_SIZE(n) / sizeof (stkalign_t)]
+
+/**
+ * @brief   Base of a thread Working Area casted to the correct type.
+ * @note    Equivalent to @p THD_WORKING_AREA_BASE().
+ *
+ * @param[in] s         name of the working area
+ */
+#define THD_STACK_BASE(s) ((stkalign_t *)(s))
+
+/**
+ * @brief   End of a thread Working Area casted to the correct type.
+ * @note    Equivalent to @p THD_WORKING_AREA_END().
+ *
+ * @param[in] s         name of the working area
+ */
+#define THD_STACK_END(s) (THD_STACK_BASE(s) +                               \
+                          (sizeof (s) / sizeof (stkalign_t)))
 
 /**
  * @brief   Calculates the thread Working Area size.
@@ -218,7 +229,6 @@ typedef struct {
  * @name    Threads initializers
  * @{
  */
-#if (CH_CFG_USE_DYNAMIC == TRUE) || defined(__DOXYGEN__)
 /**
  * @brief   Data part of a static thread descriptor initializer.
  * @details This macro should be used when statically initializing a
@@ -231,31 +241,16 @@ typedef struct {
  * @param[in] tfunc     thread function pointer
  * @param[in] targ      thread function argument
  * @param[in] towner    thread owner OS instance or @p NULL
- * @param[in] tdispose  thread dispose structure pointer or @p NULL
  */
-#define __THD_DECL_DATA(tname, twbase, twend, tprio,                        \
-                              tfunc, targ, towner, tdispose) {              \
+#define __THD_DECL_DATA(tname, twbase, twend, tprio, tfunc, targ, towner) { \
   .name         = (tname),                                                  \
   .wbase        = (stkalign_t *)(void *)(twbase),                           \
   .wend         = (stkalign_t *)(void *)(twend),                            \
   .prio         = (tprio),                                                  \
   .funcp        = (tfunc),                                                  \
   .arg          = (targ),                                                   \
-  .owner        = (towner),                                                 \
-  .dispose      = (tdispose)                                                \
+  .owner        = (towner)                                                  \
 }
-#else
-#define __THD_DECL_DATA(tname, twbase, twend, tprio,                        \
-                        tfunc, targ, towner, tdispose) {                    \
-  .name         = (tname),                                                  \
-  .wbase        = (stkalign_t *)(void *)(twbase),                           \
-  .wend         = (stkalign_t *)(void *)(twend),                            \
-  .prio         = (tprio),                                                  \
-  .funcp        = (tfunc),                                                  \
-  .arg          = (targ),                                                   \
-  .owner        = (towner),                                                 \
-}
-#endif
 
 /**
  * @brief   Thread descriptor initializer.
@@ -268,13 +263,12 @@ typedef struct {
  * @param[in] tfunc     thread function pointer
  * @param[in] targ      thread function argument
  * @param[in] towner    thread owner OS instance or @p NULL
- * @param[in] tdispose  thread dispose structure pointer or @p NULL
  */
 #define THD_DECL(var, tname, twbase, twend, tprio,                          \
-                 tfunc, targ, towner, tdispose)                             \
+                 tfunc, targ, towner)                                       \
   thread_descriptor_t var = __THD_DECL_DATA(tname, twbase, twend,           \
                                             tprio, tfunc, targ,             \
-                                            towner, tdispose)
+                                            towner)
 
 /**
  * @brief   Static thread descriptor initializer.
@@ -297,7 +291,7 @@ typedef struct {
                                             THD_WORKING_AREA_BASE(twname),  \
                                             THD_WORKING_AREA_END(twname),   \
                                             tprio, tfunc, targ,             \
-                                            towner, NULL)
+                                            towner)
 
 /**
  * @brief   Data part of a static thread descriptor initializer.
@@ -311,6 +305,8 @@ typedef struct {
  * @param[in] tfunc     thread function pointer
  * @param[in] targ      thread function argument
  * @param[in] towner    thread owner OS instance or @p NULL
+ *
+ * @deprecated
  */
 #define __THD_DESC_DATA(tname, twbase, twend, tprio,                        \
                         tfunc, targ, towner, tdispose) {                    \
@@ -335,6 +331,8 @@ typedef struct {
  * @param[in] targ      thread function argument
  * @param[in] towner    thread owner OS instance or @p NULL
  * @param[in] tdispose  thread dispose function or @p NULL
+ *
+ * @deprecated
  */
 #define THD_DESC_DECL(var, tname, twbase, twend, tprio,                     \
                       tfunc, targ, towner, tdispose)                        \
@@ -486,6 +484,25 @@ extern "C" {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
+
+#if (CH_CFG_USE_DYNAMIC == TRUE) || defined(__DOXYGEN__)
+/**
+ * @brief  Associates a dispose callback and an object to a thread.
+ *
+ * @param[in] tp        pointer to the thread
+ * @param[in] dispose   callback to be associated to the thread or @p NULL
+ * @param[in] object    object to be associated to the thread or @p NULL
+ *
+ * @xclass
+ */
+static inline void chThdSetCallbackX(thread_t *tp,
+                                     thread_dispose_t dispose,
+                                     void *object) {
+
+  tp->dispose = dispose;
+  tp->object  = object;
+}
+#endif
 
 /**
  * @brief   Returns a pointer to the current @p thread_t.

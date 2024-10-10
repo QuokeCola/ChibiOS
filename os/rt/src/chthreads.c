@@ -123,10 +123,6 @@ thread_t *chThdObjectInit(thread_t *tp,
   tp->wabase = (void *)tdp->wbase;
   tp->waend  = (void *)tdp->wend;
 
-  /* Setting up the port-dependent part of the working area.*/
-  /* TODO: Remove redundant parameters.*/
-  PORT_SETUP_CONTEXT(tp, tp->wabase, tp->waend, tdp->funcp, tdp->arg);
-
   /* Thread-related fields.*/
   tp->hdr.pqueue.prio   = tdp->prio;
   tp->state             = CH_STATE_WTSTART;
@@ -138,10 +134,8 @@ thread_t *chThdObjectInit(thread_t *tp,
     tp->owner           = currcore;
   }
 #if CH_CFG_USE_DYNAMIC == TRUE
-  tp->dispose           = tdp->dispose;
-#if CH_CFG_USE_MEMPOOLS == TRUE
-  tp->mpool             = NULL;
-#endif
+  tp->dispose           = NULL;
+  tp->object            = NULL;
 #endif
 #if CH_CFG_TIME_QUANTUM > 0
   tp->ticks             = (tslices_t)CH_CFG_TIME_QUANTUM;
@@ -250,8 +244,18 @@ thread_t *chThdSpawnSuspendedI(thread_t *tp,
   chDbgCheck(tp != NULL);
   chDbgCheck(tdp != NULL);
 
+  /* Checks related to the working area geometry.*/
+  chDbgCheck((tdp != NULL) &&
+             MEM_IS_ALIGNED(tdp->wbase, PORT_WORKING_AREA_ALIGN) &&
+             MEM_IS_ALIGNED(tdp->wend, PORT_STACK_ALIGN) &&
+             (tdp->wend > tdp->wbase) &&
+             (((size_t)tdp->wend - (size_t)tdp->wbase) >= THD_STACK_SIZE(0)));
+
   /* Thread object initialization.*/
   tp = chThdObjectInit(tp, tdp);
+
+  /* Setting up the port-dependent part of the working area.*/
+  PORT_SETUP_CONTEXT(tp, tp->wabase, tp->waend, tdp->funcp, tdp->arg);
 
   /* Registry-related fields.*/
 #if CH_CFG_USE_REGISTRY == TRUE
@@ -374,7 +378,7 @@ thread_t *chThdCreateSuspendedI(const thread_descriptor_t *tdp) {
   chDbgCheckClassI();
 
   /* Checks related to the working area geometry.*/
-  chDbgCheck((tdp != NULL)&&
+  chDbgCheck((tdp != NULL) &&
              MEM_IS_ALIGNED(tdp->wbase, PORT_WORKING_AREA_ALIGN) &&
              MEM_IS_ALIGNED(tdp->wend, PORT_STACK_ALIGN) &&
              (tdp->wend > tdp->wbase) &&
@@ -548,7 +552,7 @@ thread_t *chThdCreateStatic(void *wbase, size_t wsize,
   tp = threadref(wend - MEM_ALIGN_NEXT(sizeof (thread_t), PORT_STACK_ALIGN));
 
   /* Initializing the thread_t structure using the passed parameters.*/
-  THD_DESC_DECL(desc, "noname", wbase, wend, prio, func, arg, currcore, 0);
+  THD_DESC_DECL(desc, "noname", wbase, wend, prio, func, arg, currcore, NULL);
   tp = chThdObjectInit(tp, &desc);
 
   /* Setting up the port-dependent part of the working area.*/

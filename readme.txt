@@ -32,7 +32,8 @@
   |  |  +--lib/                 - HAL libraries.
   |  |  |  +--complex/          - HAL collection of complex drivers.
   |  |  |  |  +--mfs/           - HAL managed flash storage driver.
-  |  |  |  |  +--serial_nor/    - HAL managed flash storage driver.
+  |  |  |  |  +--serial_nor/    - HAL legacy SNOR stack.
+  |  |  |  |  +--xsnor/         - HAL improved SNOR stack.
   |  |  |  +--fallback/         - HAL fall back software drivers.
   |  |  |  +--peripherals/      - HAL peripherals interfaces.
   |  |  |  +--streams/          - HAL streams.
@@ -74,6 +75,20 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Improved LFS support, now it is possible to make an LFS file system
+       at arbitrary positions in flash.
+- NEW: New XSNOR framework replacing the old serial_nor. It allows multiple
+       device types on multiple interfaces and devices auto-detection.
+       STM32-WSPI-MFS demo modified to showcase the new capabilities.
+       The old serial_nor is still available but no more developed.
+- NEW: New XShell specific for the new RT, it leverages the new thread
+       dispose feature.
+- NEW: New RT threads spawning API decoupling the thread stack from the
+       thread_t structure as required in NUMA multicore devices. Old
+       "create" API is still present and supported, long term it could be
+       removed.
+- NEW: Added capability to associate a "dispose" functions to threads,
+       dynamic API modified to use this mechanism.
 - NEW: ADCv4 now can use regular DMA also for ADC3 unit.
 - NEW: Recursive locks in RT and NIL made optional, only enabled if the
        underlying port supports the capability.
