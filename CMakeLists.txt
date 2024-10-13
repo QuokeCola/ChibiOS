@@ -42,9 +42,6 @@ set(ELF_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build)
 set(ELF_OUTPUT_NAME meta.elf)
 add_definitions(-DBUILD_TARGET_NAME="$<TARGET_PROPERTY:NAME>")
 
-#get_property(subdirs DIRECTORY ${PROJECT_SOURCE_DIR}/dev/applications TARGET_LIST__ IMPORTED_TARGETS)
-#get_directory_property(TARGET_LIST BUILDSYSTEM_TARGETS)
-
 get_directory_property(TARGET_LIST BUILDSYSTEM_TARGETS)
 
 foreach (target ${TARGET_LIST})

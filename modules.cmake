@@ -3,6 +3,9 @@ set(BUZZER_SRC
         dev/modules/buzzer_module/buzzer_scheduler.cpp)
 set(CAN_SRC
         dev/modules/can_module/can_interface.cpp)
+set(RM_MOTOR_SRC
+        dev/modules/rm_motor_interface/can_motor_feedback.cpp
+        dev/modules/rm_motor_interface/can_motor_interface.cpp)
 set(SHELL_SRC
         dev/modules/usb_serial_module/usb_serial_interface.cpp
         dev/modules/shell_module/shell_base.c
@@ -16,4 +19,6 @@ include_directories(dev/modules/buzzer_module)
 include_directories(dev/modules/can_module)
 include_directories(dev/modules/shell_module)
 include_directories(dev/modules/usb_serial_module)
+include_directories(dev/modules/rm_motor_interface)
+include_directories(dev/modules/pid_controller)
 include_directories(dev/common_files)

@@ -17,8 +17,8 @@
 #include "ch.hpp"
 #include "hal.h"
 
-#ifndef BOARD_RM_C
-#error "This target is only for Robomaster Board Type C. Please add '-DBOARD_NAME=\"rm_board_c\" to your cmake options"
+#ifndef BOARD_ST_STM32F4_DISCOVERY
+#error "This target is only for Discovery board STM32F4. Please add '-DBOARD_NAME=\"st_stm32f407_discovery\" to your cmake options"
 #endif
 
 

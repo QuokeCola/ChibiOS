@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeSharedSettings">
+    <configurations>
+      <configuration PROFILE_NAME="rm-board-c" ENABLED="true" CONFIG_NAME="Debug" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_c&quot;" />
+      <configuration PROFILE_NAME="rm-board-2018a" ENABLED="true" CONFIG_NAME="Release" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_2018_a&quot;" />
+      <configuration PROFILE_NAME="st-board-f407-discovery" ENABLED="true" CONFIG_NAME="Release" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;st_stm32f407_discovery&quot;" />
+      <configuration PROFILE_NAME="rm-board-2017" ENABLED="true" CONFIG_NAME="RelWithDebInfo" GENERATION_OPTIONS="-G &quot;MinGW Makefiles&quot; -DBOARD_NAME=&quot;rm_board_2017&quot;" />
+    </configurations>
+  </component>
+</project>
