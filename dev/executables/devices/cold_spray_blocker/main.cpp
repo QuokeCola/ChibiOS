@@ -67,22 +67,22 @@ class PIDThread : public BaseStaticThread<512>
                 if        (!previous_button_status[0] && current_button_status[0]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
-                    valve_on_duration = 1000; // ms
+                    valve_on_duration = 2000; // ms
                     target_angle = on_angle_position;
                 } else if (!previous_button_status[1] && current_button_status[1]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
-                    valve_on_duration = 1500; // ms
+                    valve_on_duration = 4000; // ms
                     target_angle = on_angle_position;
                 } else if (!previous_button_status[2] && current_button_status[2]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
-                    valve_on_duration = 2000; // ms
+                    valve_on_duration = 6000; // ms
                     target_angle = on_angle_position;
                 } else if (!previous_button_status[3] && current_button_status[3]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
-                    valve_on_duration = 2500; // ms
+                    valve_on_duration = 8000; // ms
                     target_angle = on_angle_position;
                 }
             } else {

@@ -53,10 +53,10 @@ void CANMotorIF::init(CANInterface *can1_, CANInterface *can2_) {
 
     // Brief explanation on  what is a can field
     // for example, there are these SIDs on CAN1: 0x201 0x202 0x204 0x205, 0x208 then
-    // can_SID_fi| i
-    // eld_list  | x |  0  |  1  |  2  | 3
-    //     j     | 0 |0x201|0x204|0x208|...
-    //           | 1 |0x202|0x205|0x208|...
+    // can_SID_field_list     |   i
+    //                    | x |   0   |   1   |   2   | 3
+    //          j         | 0 | 0x201 | 0x204 | 0x208 |...
+    //                    | 1 | 0x202 | 0x205 | 0x208 |...
     int can_SID_field_list[6][2];
     int can_SID_field_count = 0;
     // Detect fields' upper and lower bounds and register the callback function.
