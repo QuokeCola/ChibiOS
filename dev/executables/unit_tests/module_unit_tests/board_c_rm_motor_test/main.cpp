@@ -35,21 +35,21 @@ CANInterface can2(&CAND2);
 
 class PIDThread : public BaseStaticThread<512>
 {
-    PIDController pid1;
+    PIDController pid_v2i;
     int target_current = 0;
     float target_velocity = 0.0f;
     void main() final
     {
         setName("PID Thread");
 
-        pid1.change_parameters({20.0f, 0.1f, 0.0f, 6000.0,   10000.0});
+        pid_v2i.change_parameters({20.0f, 0.1f, 0.0f, 6000.0, 10000.0});
         while (!shouldTerminate())
         {
             if (target_velocity < 360.0f*10)
             {
                 target_velocity += 0.08f;
             }
-            target_current = static_cast<int>(pid1.calc(CANMotorIF::motor_feedback[0].actual_velocity, target_velocity));
+            target_current = static_cast<int>(pid_v2i.calc(CANMotorIF::motor_feedback[0].actual_velocity, target_velocity));
             CANMotorIF::set_current(CANMotorCFG::MOTOR_1, target_current);
             CANMotorIF::post_target_current(CANMotorFeedback::can_channel_1,0x1FF);
 
