@@ -41,58 +41,71 @@ class PIDThread : public BaseStaticThread<512>
     float target_velocity, target_angle = 0.0f;
 
     // IO Variables
-    bool  previous_button_status[4] = {false};
-    bool  current_button_status[4]  = {false};
+    bool  previous_button_status[5] = {false};
+    bool  current_button_status[5]  = {false};
 
     // State and target
     bool  valve_is_on       = false;  // true - valve on.
-    float on_angle_position = 90.0f;  // deg
+    float on_angle_position = 7.5f;  // deg
+    float off_angle_position = 0.0f;
     time_msecs_t valve_on_duration = 0;      // ms
     time_msecs_t  valve_on_time     = 0;
 
     void main() final
     {
         setName("PID Thread");
-        pid_a2v.change_parameters({20.0f, 0.1f, 0.0f, 6000.0, 10000.0});
-        pid_v2i.change_parameters({10, 0, 0.2, 100, 500});
+        pid_v2i.change_parameters({70.0f, 1.0f, 0.0f, 6000.0, 10000.0});
+        pid_a2v.change_parameters({30, 0.0, 1.0, 100, 500});
+        off_angle_position = CANMotorIF::motor_feedback[CANMotorCFG::MOTOR_1].accumulate_angle();
+        target_angle = off_angle_position;
         while (!shouldTerminate())
         {
             // Update button
-            current_button_status[0] = palReadPad(GPIOE, GPIOE_PIN9 );
-            current_button_status[1] = palReadPad(GPIOE, GPIOE_PIN11);
-            current_button_status[2] = palReadPad(GPIOE, GPIOE_PIN13);
-            current_button_status[3] = palReadPad(GPIOE, GPIOE_PIN14);
+            current_button_status[0] = !palReadPad(GPIOE, GPIOE_PIN9 );
+            current_button_status[1] = !palReadPad(GPIOE, GPIOE_PIN11);
+            current_button_status[2] = !palReadPad(GPIOE, GPIOE_PIN13);
+            current_button_status[3] = !palReadPad(GPIOE, GPIOE_PIN14);
+            current_button_status[4] = !palReadPad(GPIOC, GPIOC_PIN6);
 
             if (!valve_is_on) {
                 if        (!previous_button_status[0] && current_button_status[0]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
                     valve_on_duration = 2000; // ms
-                    target_angle = on_angle_position;
+                    target_angle = on_angle_position+off_angle_position;
+                    palSetPad(GPIOH, GPIOH_LED_R);
                 } else if (!previous_button_status[1] && current_button_status[1]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
                     valve_on_duration = 4000; // ms
-                    target_angle = on_angle_position;
+                    target_angle = on_angle_position+off_angle_position;
+                    palSetPad(GPIOH, GPIOH_LED_G);
                 } else if (!previous_button_status[2] && current_button_status[2]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
                     valve_on_duration = 6000; // ms
-                    target_angle = on_angle_position;
-                } else if (!previous_button_status[3] && current_button_status[3]) {
-                    valve_is_on = true;
-                    valve_on_time = SYSTIME;
-                    valve_on_duration = 8000; // ms
-                    target_angle = on_angle_position;
+                    target_angle = on_angle_position+off_angle_position;
+                    palSetPad(GPIOH, GPIOH_LED_B);
+                }
+                if (current_button_status[3]){
+                    off_angle_position += 0.01f;
+                    target_angle=off_angle_position;
+                }
+                if (current_button_status[4]){
+                    off_angle_position -= 0.01f;
+                    target_angle=off_angle_position;
                 }
             } else {
                 if (SYSTIME - valve_on_time > valve_on_duration) {
                     valve_is_on = false;
-                    target_angle = 0;
+                    target_angle = off_angle_position;
+                    palClearPad(GPIOH, GPIOH_LED_R);
+                    palClearPad(GPIOH, GPIOH_LED_G);
+                    palClearPad(GPIOH, GPIOH_LED_B);
                 }
             }
             // PID
-            target_velocity = pid_a2v.calc(CANMotorIF::motor_feedback[0].actual_angle, target_angle);
+            target_velocity = pid_a2v.calc(CANMotorIF::motor_feedback[0].accumulate_angle(), target_angle);
             target_current = static_cast<int>(pid_v2i.calc(CANMotorIF::motor_feedback[0].actual_velocity, target_velocity));
             CANMotorIF::set_current(CANMotorCFG::MOTOR_1, target_current);
             CANMotorIF::post_target_current(CANMotorFeedback::can_channel_1,0x1FF);
@@ -131,10 +144,11 @@ int main(void) {
     palClearPad(GPIOH, GPIOH_LED_B);
 
     // Input for buttons
-    palSetPadMode(GPIOE, GPIOE_PIN9,  PAL_MODE_INPUT); // TIM1_CHI1, C1
-    palSetPadMode(GPIOE, GPIOE_PIN11, PAL_MODE_INPUT); // TIM1_CHI2, C2
-    palSetPadMode(GPIOE, GPIOE_PIN13, PAL_MODE_INPUT); // TIM1_CHI3, C3
-    palSetPadMode(GPIOE, GPIOE_PIN14, PAL_MODE_INPUT); // TIM1_CHI4, C4
+    palSetPadMode(GPIOE, GPIOE_PIN9,  PAL_MODE_INPUT_PULLUP); // TIM1_CHI1, C1
+    palSetPadMode(GPIOE, GPIOE_PIN11, PAL_MODE_INPUT_PULLUP); // TIM1_CHI2, C2
+    palSetPadMode(GPIOE, GPIOE_PIN13, PAL_MODE_INPUT_PULLUP); // TIM1_CHI3, C3
+    palSetPadMode(GPIOE, GPIOE_PIN14, PAL_MODE_INPUT_PULLUP); // TIM1_CHI4, C4
+    palSetPadMode(GPIOC, GPIOE_PIN6,  PAL_MODE_INPUT_PULLUP); // TIM8_CHI1, C5
 
     CANMotorIF::init(&can1, &can2);
     chThdSleepMilliseconds(1000);
