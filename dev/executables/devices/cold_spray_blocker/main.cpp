@@ -46,7 +46,7 @@ class PIDThread : public BaseStaticThread<512>
 
     // State and target
     bool  valve_is_on       = false;  // true - valve on.
-    float on_angle_position = 7.5f;  // deg
+    float on_angle_position = -7.5f;  // deg
     float off_angle_position = 0.0f;
     time_msecs_t valve_on_duration = 0;      // ms
     time_msecs_t  valve_on_time     = 0;
@@ -68,7 +68,7 @@ class PIDThread : public BaseStaticThread<512>
             current_button_status[4] = !palReadPad(GPIOC, GPIOC_PIN6);
 
             if (!valve_is_on) {
-                if        (!previous_button_status[0] && current_button_status[0]) {
+                if        (!previous_button_status[2] && current_button_status[2]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
                     valve_on_duration = 2000; // ms
@@ -80,7 +80,7 @@ class PIDThread : public BaseStaticThread<512>
                     valve_on_duration = 4000; // ms
                     target_angle = on_angle_position+off_angle_position;
                     palSetPad(GPIOH, GPIOH_LED_G);
-                } else if (!previous_button_status[2] && current_button_status[2]) {
+                } else if (!previous_button_status[0] && current_button_status[0]) {
                     valve_is_on = true;
                     valve_on_time = SYSTIME;
                     valve_on_duration = 6000; // ms
