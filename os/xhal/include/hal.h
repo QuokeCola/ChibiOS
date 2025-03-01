@@ -25,11 +25,13 @@
 #ifndef HAL_H
 #define HAL_H
 
+#include <sys/types.h>
+
 #include "ccportab.h"
 
 #include "osal.h"
 #include "board.h"
-#include "halconf.h"
+#include "xhalconf.h"
 
 /*===========================================================================*/
 /* Driver constants.                                                         */
@@ -52,12 +54,12 @@
 /**
  * @brief   HAL version string.
  */
-#define CH_HAL_VERSION          "9.0.0"
+#define CH_HAL_VERSION          "10.0.0"
 
 /**
  * @brief   HAL version major number.
  */
-#define CH_HAL_MAJOR            9
+#define CH_HAL_MAJOR            10
 
 /**
  * @brief   HAL version minor number.
@@ -134,11 +136,11 @@
 /*===========================================================================*/
 
 /* Configuration file checks.*/
-#if !defined(_CHIBIOS_HAL_CONF_)
+#if !defined(__CHIBIOS_XHAL_CONF__)
 #error "invalid configuration file"
 #endif
 
-#if !defined(_CHIBIOS_HAL_CONF_VER_8_4_)
+#if !defined(__CHIBIOS_XHAL_CONF_VER_1_0__)
 #error "obsolete or unknown configuration file"
 #endif
 
@@ -167,6 +169,10 @@
 #define HAL_USE_EFL                         FALSE
 #endif
 
+#if !defined(HAL_USE_ETH)
+#define HAL_USE_ETH                         FALSE
+#endif
+
 #if !defined(HAL_USE_GPT)
 #define HAL_USE_GPT                         FALSE
 #endif
@@ -181,10 +187,6 @@
 
 #if !defined(HAL_USE_ICU)
 #define HAL_USE_ICU                         FALSE
-#endif
-
-#if !defined(HAL_USE_MAC)
-#define HAL_USE_MAC                         FALSE
 #endif
 
 #if !defined(HAL_USE_PWM)
@@ -235,6 +237,16 @@
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
 
+/**
+ * @brief   Type of a clock point identifier.
+ */
+typedef unsigned halclkpt_t;
+
+/**
+ * @brief   Type of a clock point frequency in Hz.
+ */
+typedef uint32_t halfreq_t;
+
 /*===========================================================================*/
 /* Driver macros.                                                            */
 /*===========================================================================*/
@@ -258,6 +270,22 @@ extern "C" {
 /* Driver inline functions.                                                  */
 /*===========================================================================*/
 
+/**
+ * @brief   Returns the frequency of a clock point in Hz.
+ *
+ * @param[in] clkpt     clock point to be returned
+ * @return              The clock point frequency in Hz or zero if the
+ *                      frequency is unknown.
+ *
+ * @xclass
+ */
+static inline halfreq_t halClockGetPointX(halclkpt_t clkpt) {
+
+  (void)clkpt;  /* LLD macro could not use it.*/
+
+  return hal_lld_get_clock_point(clkpt);
+}
+
 #if defined(HAL_LLD_USE_CLOCK_MANAGEMENT) || defined(__DOXYGEN__)
 /**
  * @brief   Switches to a different clock configuration
@@ -272,20 +300,6 @@ extern "C" {
 static inline bool halClockSwitchMode(const halclkcfg_t *ccp) {
 
   return hal_lld_clock_switch_mode(ccp);
-}
-
-/**
- * @brief   Returns the frequency of a clock point in Hz.
- *
- * @param[in] clkpt     clock point to be returned
- * @return              The clock point frequency in Hz or zero if the
- *                      frequency is unknown.
- *
- * @xclass
- */
-static inline halfreq_t halClockGetPointX(halclkpt_t clkpt) {
-
-  return hal_lld_get_clock_point(clkpt);
 }
 #endif /* defined(HAL_LLD_USE_CLOCK_MANAGEMENT) */
 
@@ -317,11 +331,11 @@ static inline halfreq_t halClockGetPointX(halclkpt_t clkpt) {
 //#include "hal_crypto.h"
 //#include "hal_dac.h"
 //#include "hal_efl.h"
+#include "hal_eth.h"
 //#include "hal_gpt.h"
 //#include "hal_i2c.h"
 //#include "hal_i2s.h"
 //#include "hal_icu.h"
-//#include "hal_mac.h"
 //#include "hal_pwm.h"
 //#include "hal_rtc.h"
 //#include "hal_serial.h"

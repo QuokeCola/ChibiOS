@@ -309,6 +309,7 @@ size_t vfs_path_match_element(const char *path, const char *match, size_t size) 
 
 /**
  * @brief   Normalizes an absolute path.
+ * @note    The normalized path is guaranteed to not have a final separator.
  * @note    The destination buffer can be the same of the source buffer.
  *
  * @param[out] dst              The destination buffer.
@@ -386,6 +387,43 @@ size_t vfs_path_normalize(char *dst, const char *src, size_t size) {
     *dst++ = '/';
     n++;
   }
+}
+
+/**
+ * @brief   Builds an absolute normalized path.
+ *
+ * @param[out] dst              The destination buffer.
+ * @param[in] src               The source path, must be absolute.
+ * @param[in[ size              Destination buffer size.
+ * @param[in[ cwd               Current directory, must be an absolute path.
+ * @return                      The size of the absolute path.
+ * @retval 0                    Path error or buffer overflow.
+ */
+size_t vfs_path_make_absolute(char *dst, const char *src,
+                              size_t size, const char *cwd) {
+
+  /* Cwd must be an absolute path.*/
+  if (cwd[0] != '/') {
+    return (size_t)0;
+  }
+
+  /* Initial destination state, empty string.*/
+  *dst = '\0';
+
+  /* Relative paths handling.*/
+  if (!vfs_path_is_separator(*src)) {
+    if (vfs_path_append(dst, cwd, size) == (size_t)0) {
+      return (size_t)0;
+    }
+  }
+
+  /* Adding the specified path.*/
+  if (vfs_path_append(dst, src, size) == (size_t)0) {
+    return (size_t)0;
+  }
+
+  /* Normalization of the absolute path.*/
+  return vfs_path_normalize(dst, dst, size);
 }
 
 /** @} */

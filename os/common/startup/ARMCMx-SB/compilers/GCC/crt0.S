@@ -80,6 +80,16 @@
 #define CRT0_CALL_DESTRUCTORS               TRUE
 #endif
 
+/**
+ * @brief   Reserve heap space.
+ * @brief   This option can be used for programs dynamically loaded in
+ *          RAM in order to reserve a minimum space for the heap (sbrK()
+ *          guaranteed growing area).
+ */
+#if !defined(CRT0_RESERVE_HEAP) || defined(__DOXYGEN__)
+#define CRT0_RESERVE_HEAP                   0
+#endif
+
 /*===========================================================================*/
 /* Code section.                                                             */
 /*===========================================================================*/
@@ -103,6 +113,12 @@ __sandbox:      .long       0xFE9154C0
                 .long       __crt0_vrq
                 .long       0
                 .long       0
+
+                .section    .heap_rsvd, "aw"
+
+#if CRT0_RESERVE_HEAP > 0
+                .ds.b       CRT0_RESERVE_HEAP
+#endif
 
                 .bss
 
@@ -133,7 +149,7 @@ __crt0_vrq:
                 .global     __crt0_exit
 __crt0_exit:
                 svc         #129    /* SB_SYSC_EXIT */
-.exitloop:      b           .exitloop
+.Lexitloop:      b           .Lexitloop
 
                 /* Default entry point, note, the "nop" is meant to be there
                    the loader could overwrite it with a "bkpt".*/
@@ -159,11 +175,11 @@ __crt0_entry:
                 ldr     r0, =CRT0_STACKS_FILL_PATTERN
                 ldr     r1, =__user_psp_base__
                 ldr     r2, =__user_psp_end__
-upsloop:
+.Lupsloop:
                 cmp     r1, r2
                 itt     lo
                 strlo   r0, [r1], #4
-                blo     upsloop
+                blo     .Lupsloop
 #endif /* CRT0_INIT_STACKS == TRUE */
 
 #if CRT0_INIT_DATA == TRUE
@@ -172,12 +188,12 @@ upsloop:
                 ldr     r1, =__textdata_base__
                 ldr     r2, =__data_base__
                 ldr     r3, =__data_end__
-dloop:
+.Ldloop:
                 cmp     r2, r3
                 ittt    lo
                 ldrlo   r0, [r1], #4
                 strlo   r0, [r2], #4
-                blo     dloop
+                blo     .Ldloop
 #endif /* CRT0_INIT_DATA == TRUE */
 
 #if CRT0_INIT_BSS == TRUE
@@ -186,11 +202,11 @@ dloop:
                 movs    r0, #0
                 ldr     r1, =__bss_base__
                 ldr     r2, =__bss_end__
-bloop:
+.Lbloop:
                 cmp     r1, r2
                 itt     lo
                 strlo   r0, [r1], #4
-                blo     bloop
+                blo     .Lbloop
 #endif /* CRT0_INIT_BSS == TRUE */
 
                 /* Storing the sandbox parameters block.*/
@@ -201,13 +217,13 @@ bloop:
                 /* Constructors invocation.*/
                 ldr     r4, =__init_array_base__
                 ldr     r5, =__init_array_end__
-initloop:
+.Linitloop:
                 cmp     r4, r5
-                bge     endinitloop
+                bge     .Lendinitloop
                 ldr     r1, [r4], #4
                 blx     r1
-                b       initloop
-endinitloop:
+                b       .Linitloop
+.Lendinitloop:
 #endif /* CRT0_CALL_CONSTRUCTORS == TRUE */
 
                 /* Main program invocation, r0 contains the returned value.*/
@@ -225,14 +241,14 @@ _exit:
                 mov     r6, r0
                 ldr     r4, =__fini_array_base__
                 ldr     r5, =__fini_array_end__
-finiloop:
+.Lfiniloop:
                 cmp     r4, r5
-                bge     endfiniloop
+                bge     .Lendfiniloop
                 ldr     r1, [r4], #4
                 blx     r1
-                b       finiloop
+                b       .Lfiniloop
                 mov     r0, r6
-endfiniloop:
+.Lendfiniloop:
 #endif /* CRT0_CALL_DESTRUCTORS == TRUE */
                 ldr     r1, =__sandbox
                 ldr     r2, [r1, #16]           /* Predefined exit vector.*/

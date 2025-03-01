@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -110,6 +110,15 @@
 #if !defined(SIO_USE_BUFFERING) || defined(__DOXYGEN__)
 #define SIO_USE_BUFFERING                   TRUE
 #endif
+
+/**
+ * @brief       Support for SIO user configurations.
+ * @note        When enabled the user must provide a variable named @p
+ *              sio_configurations of type @p sio_configurations_t.
+ */
+#if !defined(SIO_USE_CONFIGURATIONS) || defined(__DOXYGEN__)
+#define SIO_USE_CONFIGURATIONS              FALSE
+#endif
 /** @} */
 
 /*===========================================================================*/
@@ -134,6 +143,11 @@
 /* Checks on SIO_USE_BUFFERING configuration.*/
 #if (SIO_USE_BUFFERING != FALSE) && (SIO_USE_BUFFERING != TRUE)
 #error "invalid SIO_USE_BUFFERING value"
+#endif
+
+/* Checks on SIO_USE_CONFIGURATIONS configuration.*/
+#if (SIO_USE_CONFIGURATIONS != FALSE) && (SIO_USE_CONFIGURATIONS != TRUE)
+#error "invalid SIO_USE_CONFIGURATIONS value"
 #endif
 
 /*===========================================================================*/
@@ -514,6 +528,25 @@ struct hal_sio_config {
 };
 
 /**
+ * @brief       Type of user-provided SIO configurations.
+ */
+typedef struct sio_configurations sio_configurations_t;
+
+/**
+ * @brief       Structure representing user-provided SIO configurations.
+ */
+struct sio_configurations {
+  /**
+   * @brief       Number of configurations in the open array.
+   */
+  unsigned                  cfgsnum;
+  /**
+   * @brief       User SIO configurations.
+   */
+  hal_sio_config_t          cfgs[];
+};
+
+/**
  * @class       hal_sio_driver_c
  * @extends     base_object_c, hal_base_driver_c, hal_cb_driver_c.
  * @implements  asynchronous_channel_i
@@ -538,11 +571,10 @@ struct hal_sio_driver_vmt {
   /* From hal_base_driver_c.*/
   msg_t (*start)(void *ip);
   void (*stop)(void *ip);
-  const void * (*doconf)(void *ip, const void *config);
+  const void * (*setcfg)(void *ip, const void *config);
+  const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
   void (*setcb)(void *ip, drv_cb_t cb);
-  drv_status_t (*gsts)(void *ip);
-  drv_status_t (*gcsts)(void *ip, drv_status_t mask);
   /* From hal_sio_driver_c.*/
 };
 
@@ -652,7 +684,8 @@ struct hal_buffered_sio_vmt {
   /* From hal_base_driver_c.*/
   msg_t (*start)(void *ip);
   void (*stop)(void *ip);
-  const void * (*doconf)(void *ip, const void *config);
+  const void * (*setcfg)(void *ip, const void *config);
+  const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_buffered_serial_c.*/
   /* From hal_buffered_sio_c.*/
 };
@@ -732,7 +765,8 @@ extern "C" {
   void __sio_dispose_impl(void *ip);
   msg_t __sio_start_impl(void *ip);
   void __sio_stop_impl(void *ip);
-  const void *__sio_doconf_impl(void *ip, const void *config);
+  const void *__sio_setcfg_impl(void *ip, const void *config);
+  const void *__sio_selcfg_impl(void *ip, unsigned cfgnum);
   void sioWriteEnableFlags(void *ip, sioevents_t mask);
   void sioSetEnableFlags(void *ip, sioevents_t mask);
   void sioClearEnableFlags(void *ip, sioevents_t mask);
@@ -752,7 +786,7 @@ extern "C" {
   void __bsio_dispose_impl(void *ip);
   msg_t __bsio_start_impl(void *ip);
   void __bsio_stop_impl(void *ip);
-  const void *__bsio_doconf_impl(void *ip, const void *config);
+  const void *__bsio_setcfg_impl(void *ip, const void *config);
   /* Regular functions.*/
   void sioInit(void);
 #ifdef __cplusplus

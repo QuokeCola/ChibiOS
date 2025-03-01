@@ -73,6 +73,7 @@ extern "C" {
   msg_t sbElfLoadFile(vfs_driver_c *drvp,
                       const char *path,
                       const memory_area_t *map);
+  msg_t sbElfGetAllocation(vfs_file_node_c *fnp, size_t *sizep);
 #ifdef __cplusplus
 }
 #endif

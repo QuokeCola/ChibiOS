@@ -17,9 +17,9 @@
 #include "ch.h"
 #include "hal.h"
 #include "sb.h"
-#include "chprintf.h"
 
-#include "nullstreams.h"
+#include "oop_chprintf.h"
+#include "oop_nullstreams.h"
 
 #include "startup_defs.h"
 
@@ -53,10 +53,10 @@ static vio_uart_units_t uart_units1 = {
   }
 };
 
-static vio_uart_configs_t uart_configs1 = {
-  .n            = 1U,
+static sio_configurations_t uart_configs1 = {
+  .cfgsnum      = 1U,
   .cfgs         = {
-    [0]         = {NULL}
+    [0]         = SIO_DEFAULT_CONFIGURATION
   }
 };
 
@@ -74,8 +74,8 @@ static vio_uart_units_t uart_units2 = {
   .n            = 0U
 };
 
-static vio_uart_configs_t uart_configs2 = {
-  .n            = 0U
+static sio_configurations_t uart_configs2 = {
+  .cfgsnum      = 0U
 };
 
 static vio_conf_t vio_config2 = {
@@ -107,73 +107,20 @@ static null_stream_c nullstream;
 
 /* Stream to be exposed under /dev as files.*/
 static const drv_streams_element_t streams[] = {
-  {"VSIO1", (BaseSequentialStream *)oopGetIf(&SIOD1, chn)},
-  {"null", (BaseSequentialStream *)oopGetIf(&nullstream, stm)},
-  {NULL, NULL}
+//  {"VSIO1", (BaseSequentialStream *)oopGetIf(&SIOD1, chn), VFS_MODE_S_IFCHR},
+  {"null", (BaseSequentialStream *)oopGetIf(&nullstream, stm), VFS_MODE_S_IFCHR},
+  {NULL, NULL, 0}
 };
 
 /*===========================================================================*/
 /* SB-related.                                                               */
 /*===========================================================================*/
 
-/* Working areas for sandboxes.*/
-static THD_WORKING_AREA(waUnprivileged1, 512);
-static THD_WORKING_AREA(waUnprivileged2, 512);
+/* Privileged stacks for sandboxes.*/
+static SB_STACK(sbx1stk);
+static SB_STACK(sbx2stk);
 
-/* Sandbox 1 configuration.*/
-static const sb_config_t sb_config1 = {
-  .thread           = {
-    .name           = "sbx1",
-    .wsp            = waUnprivileged1,
-    .size           = sizeof (waUnprivileged1),
-    .prio           = NORMALPRIO - 10,
-    .vrq_prio       = NORMALPRIO - 1
-  },
-  .code_region      = 0U,
-  .data_region      = 1U,
-  .regions          = {
-    [0] = {
-      .area         = {STARTUP_FLASH1_BASE, STARTUP_FLASH1_SIZE},
-      .used         = true,
-      .writeable    = false
-    },
-    [1] = {
-      .area         = {STARTUP_RAM1_BASE,   STARTUP_RAM1_SIZE},
-      .used         = true,
-      .writeable    = true
-    }
-  },
-  .vfs_driver       = NULL,
-  .vioconf          = &vio_config1
-};
-
-/* Sandbox 2 configuration.*/
-static const sb_config_t sb_config2 = {
-  .thread           = {
-    .name           = "sbx2",
-    .wsp            = waUnprivileged2,
-    .size           = sizeof (waUnprivileged2),
-    .prio           = NORMALPRIO - 20,
-    .vrq_prio       = NORMALPRIO - 2
-  },
-  .code_region      = 0U,
-  .data_region      = 1U,
-  .regions          = {
-    [0] = {
-      .area         = {STARTUP_FLASH2_BASE, STARTUP_FLASH2_SIZE},
-      .used         = true,
-      .writeable    = false
-    },
-    [1] = {
-      .area         = {STARTUP_RAM2_BASE,   STARTUP_RAM2_SIZE},
-      .used         = true,
-      .writeable    = true
-    }
-  },
-  .vfs_driver       = (vfs_driver_c *)&root_overlay_driver,
-  .vioconf          = &vio_config2
-};
-
+/* Arguments and environments for SB1.*/
 static const char *sbx1_argv[] = {
   "sbx1",
   NULL
@@ -183,6 +130,7 @@ static const char *sbx1_envp[] = {
   NULL
 };
 
+/* Arguments and environments for SB2.*/
 static const char *sbx2_argv[] = {
   "sbx2",
   NULL
@@ -200,7 +148,7 @@ static void start_sb1(void) {
   thread_t *utp;
 
   /* Starting sandboxed thread 1.*/
-  utp = sbStartThread(&sbx1, sbx1_argv, sbx1_envp);
+  utp = sbStart(&sbx1, NORMALPRIO-10, sbx1stk, sbx1_argv, sbx1_envp);
   if (utp == NULL) {
     chSysHalt("sbx1 failed");
   }
@@ -213,7 +161,7 @@ static void start_sb2(void) {
 
   /*
    * Associating standard input, output and error to sandbox 2.*/
-  ret = vfsOpen("/dev/VSIO1", 0, &np);
+  ret = vfsOpen("/dev/null", 0, &np);
   if (CH_RET_IS_ERROR(ret)) {
     chSysHalt("VFS");
   }
@@ -223,7 +171,7 @@ static void start_sb2(void) {
   vfsClose(np);
 
   /* Starting sandboxed thread 2.*/
-  utp = sbStartThread(&sbx2, sbx2_argv, sbx2_envp);
+  utp = sbStart(&sbx2, NORMALPRIO-20, sbx2stk, sbx2_argv, sbx2_envp);
   if (utp == NULL) {
     chSysHalt("sbx2 failed");
   }
@@ -274,11 +222,6 @@ int main(void) {
   nullstmObjectInit(&nullstream);
 
   /*
-   * Creating a messenger thread.
-   */
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO+10, Thread1, NULL);
-
-  /*
    * Initializing an overlay VFS object as a root, no overlaid driver,
    * registering a streams VFS driver on the VFS overlay root as "/dev".
    */
@@ -292,10 +235,18 @@ int main(void) {
   }
 
   /*
-   * Sandbox objects initialization.
+   * Sandbox objects initialization, regions are statically assigned.
    */
-  sbObjectInit(&sbx1, &sb_config1);
-  sbObjectInit(&sbx2, &sb_config2);
+  sbObjectInit(&sbx1);
+  sbSetRegion(&sbx1, 0, STARTUP_FLASH1_BASE, STARTUP_FLASH1_SIZE, SB_REG_IS_CODE);
+  sbSetRegion(&sbx1, 1, STARTUP_RAM1_BASE,   STARTUP_RAM1_SIZE, SB_REG_IS_DATA);
+  sbSetVirtualIO(&sbx1, &vio_config1);
+
+  sbObjectInit(&sbx2);
+  sbSetRegion(&sbx2, 0, STARTUP_FLASH2_BASE, STARTUP_FLASH2_SIZE, SB_REG_IS_CODE);
+  sbSetRegion(&sbx2, 1, STARTUP_RAM2_BASE,   STARTUP_RAM2_SIZE, SB_REG_IS_DATA);
+  sbSetVirtualIO(&sbx2, &vio_config2);
+  sbSetFileSystem(&sbx2, (vfs_driver_c *)&root_overlay_driver);
 
   /*
    * Creating **static** boxes using MPU.
@@ -320,6 +271,11 @@ int main(void) {
   start_sb2();
 
   /*
+   * Creating a messenger thread.
+   */
+  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO+10, Thread1, NULL);
+
+  /*
    * Listening to sandbox events.
    */
   chEvtRegister(&sb.termination_es, &el1, (eventid_t)0);
@@ -330,16 +286,18 @@ int main(void) {
   while (true) {
 
     /* Waiting for a sandbox event or timeout.*/
-    if (chEvtWaitOneTimeout(ALL_EVENTS, TIME_MS2I(500)) != (eventmask_t)0) {
+    if (chEvtWaitAnyTimeout(ALL_EVENTS, TIME_MS2I(500)) != (eventmask_t)0) {
 
       if (!sbIsThreadRunningX(&sbx1)) {
-        chprintf(oopGetIf(&SIOD1, chn), "SB1 terminated\r\n");
+        msg_t msg = sbWait(&sbx1);
+        chprintf(oopGetIf(&SIOD1, chn), "SB1 terminated: 0x%08x\r\n", msg);
         chThdSleepMilliseconds(100);
         start_sb1();
       }
 
       if (!sbIsThreadRunningX(&sbx2)) {
-        chprintf(oopGetIf(&SIOD1, chn), "SB2 terminated\r\n");
+        msg_t msg = sbWait(&sbx2);
+        chprintf(oopGetIf(&SIOD1, chn), "SB2 terminated: 0x%08x\r\n", msg);
         chThdSleepMilliseconds(100);
         start_sb2();
       }

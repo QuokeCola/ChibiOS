@@ -43,7 +43,7 @@
         Alternate="11" />
       <pin2
         ID="RMII_MDIO"
-        Type="PushPull"
+        Type="OpenDrain"
         Level="High"
         Speed="Maximum"
         Resistor="PullUp"
@@ -111,7 +111,7 @@
         Level="High"
         Speed="Maximum"
         Resistor="Floating"
-        Mode="PullUp"
+        Mode="Input"
         Alternate="0" />
       <pin11
         ID="USB_DM"

@@ -19,8 +19,10 @@
   |  |  |  +--cmsis_os/         - CMSIS OS emulation layer for RT.
   |  |  |  +--nasa_osal/        - NASA Operating System Abstraction Layer.
   |  |  +--ext/                 - Vendor files used by the OS.
+  |  |  +--oop/                 - Object-oriented framework.
   |  |  +--ports/               - RTOS ports usable by both RT and NIL.
   |  |  +--startup/             - Startup support.
+  |  |  +--utils/               - Generic and portable C modules.
   |  +--ex/                     - EX component.
   |  |  +--dox/                 - EX documentation resources.
   |  |  +--include/             - EX header files.
@@ -75,6 +77,17 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Support for STM32G0B0xx.
+- NEW: Added chRegGarbageCollect() function to registry for simplified
+       dynamic threads management.
+- NEW: Added integration demos for VFS+LittleFS/FatFS+XSHELL.
+- NEW: Added faster context switch modes to ARMv7-M and ARMv8-M ports. The
+       new modes allow to avoid saving FP context for threads that do not
+       use the FPU.
+- NEW: Added new ARMv8-M port aligned with features of then ARMv7-M port for
+       sandboxing.
+- NEW: Added XShell support for change prompt, multi-command per line, line 
+       editing, user definable extra fields, init and execution hooks.
 - NEW: Improved LFS support, now it is possible to make an LFS file system
        at arbitrary positions in flash.
 - NEW: New XSNOR framework replacing the old serial_nor. It allows multiple
@@ -142,6 +155,14 @@
        instead of a simple size.
 - NEW: RT and NIL upgraded to support the enhanced OSLIB.
 - NEW: Memory areas/pointers checker functions added to OSLIB.
+- FIX: Wrong .ld used in STM32G071 ADC testhal project.
+- FIX: Fixed ADCv5 wait for CCRDY after setting CHSELR.
+- FIX: Fixed DMA2 not firing on STM32G431 (bug 1295)
+       (backported to 20.3.5)(backported to 21.11.4).
+- FIX: Fixed wrong STM32 ADCv2 stop method (bug 1294)
+       (backported to 20.3.5)(backported to 21.11.4).
+- FIX: Fixed STM32 OTGv1 driver does not re-enables endpoints on wakeup
+       (bug 1293)(backported to 20.3.5)(backported to 21.11.4).
 - FIX: Fixed missing assertion in OSLIB factory module (bug 1292)
        (backported to 20.3.5)(backported to 21.11.4).
 - FIX: Fixed problem in recursive locks functions (bug #1288)

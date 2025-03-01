@@ -75,6 +75,12 @@
         <brief>Support for buffering wrapper class.</brief>
         <assert invalid="($N != FALSE) &amp;&amp; ($N != TRUE)" />
       </config>
+      <config name="SIO_USE_CONFIGURATIONS" default="FALSE">
+        <brief>Support for SIO user configurations.</brief>
+        <note>When enabled the user must provide a variable named
+          @p sio_configurations of type @p sio_configurations_t.</note>
+        <assert invalid="($N != FALSE) &amp;&amp; ($N != TRUE)" />
+      </config>
     </configs>
     <macros>
       <macro name="sioIsRXEmptyX">
@@ -441,6 +447,21 @@ sio_lld_config_fields;]]></verbatim>
             <verbatim><![CDATA[
 SIO_CONFIG_EXT_FIELDS]]></verbatim>
           </condition>
+        </fields>
+      </struct>
+      <typedef name="sio_configurations_t">
+        <brief>Type of user-provided SIO configurations.</brief>
+        <basetype ctype="struct sio_configurations" />
+      </typedef>
+      <struct name="sio_configurations">
+        <brief>Structure representing user-provided SIO configurations.</brief>
+        <fields>
+          <field name="cfgsnum" ctype="unsigned">
+            <brief>Number of configurations in the open array.</brief>
+          </field>
+          <field name="cfgs" ctype="hal_sio_config_t$I$N[]">
+            <brief>User SIO configurations.</brief>
+          </field>
         </fields>
       </struct>
       <class type="regular" name="hal_sio_driver" namespace="sio"
@@ -927,10 +948,15 @@ osalThreadResumeI(&self->sync_txend, MSG_RESET);
 osalOsRescheduleS();
 #endif]]></implementation>
             </method>
-            <method shortname="doconf">
+            <method shortname="setcfg">
               <implementation><![CDATA[
 
-return (const void *)sio_lld_configure(self, (const hal_sio_config_t *)config);]]></implementation>
+return (const void *)sio_lld_setcfg(self, (const hal_sio_config_t *)config);]]></implementation>
+            </method>
+            <method shortname="selcfg">
+              <implementation><![CDATA[
+
+return (const void *)sio_lld_selcfg(self, cfgnum);]]></implementation>
             </method>
           </override>
         </methods>
@@ -967,44 +993,30 @@ self->siop = siop;]]></implementation>
               <implementation><![CDATA[
 msg_t msg;
 
-/* Start is a slow operation in this driver, we need to switch to the
-   HAL_DRV_STATE_STARTING state.*/
-self->state = HAL_DRV_STATE_STARTING;
-osalSysUnlock();
-
 /* Starting the undelying SIO driver.*/
-msg = drvStart(self->siop);
+msg = drvStartS(self->siop);
 if (msg == HAL_RET_SUCCESS) {
   drvSetCallbackX(self->siop, &__bsio_default_cb);
   sioWriteEnableFlagsX(self->siop, SIO_EV_ALL_EVENTS);
 }
 
-/* Back into the critical section and return.*/
-osalSysLock();
 return msg;]]></implementation>
             </method>
             <method shortname="stop">
               <implementation><![CDATA[
 
-/* Start is a slow operation in this driver, we need to switch to the
-   HAL_DRV_STATE_STOPPING state.*/
-self->state = HAL_DRV_STATE_STOPPING;
-osalSysUnlock();
-
-drvStop(self->siop);
-
-/* Back into the critical section and return.*/
-osalSysLock();]]></implementation>
+drvStopS(self->siop);]]></implementation>
             </method>
-            <method shortname="doconf">
+            <method shortname="setcfg">
               <implementation><![CDATA[
 
 /* Configuring the underlying SIO driver.*/
-return __sio_doconf_impl(self->siop, config);]]></implementation>
+return __sio_setcfg_impl(self->siop, config);]]></implementation>
             </method>
           </override>
         </methods>
       </class>
+      
     </types>
     <functions>
       <function name="sioInit" ctype="void">

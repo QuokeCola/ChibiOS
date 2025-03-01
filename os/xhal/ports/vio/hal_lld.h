@@ -60,8 +60,8 @@
 /*
  * Configuration-related checks.
  */
-#if !defined(SANDBOX_MCUCONF)
-#error "Using a wrong mcuconf.h file, SANDBOX_MCUCONF not defined"
+#if !defined(__VIO_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, __VIO_XMCUCONF__ not defined"
 #endif
 
 /*===========================================================================*/
@@ -88,6 +88,18 @@ typedef unsigned halclkpt_t;
  * @return              The formatted VIO call 1st parameter.
  */
 #define VIO_CALL(c, u) (((uint32_t)(u) << 24) | (uint32_t)(c))
+
+/**
+ * @brief   Returns the frequency of a clock point in Hz.
+ * @note    Static implementation.
+ *
+ * @param[in] clkpt     clock point to be returned
+ * @return              The clock point frequency in Hz or zero if the
+ *                      frequency is unknown.
+ *
+ * @notapi
+ */
+#define hal_lld_get_clock_point(clkpt) 0U
 
 /*===========================================================================*/
 /* External declarations.                                                    */

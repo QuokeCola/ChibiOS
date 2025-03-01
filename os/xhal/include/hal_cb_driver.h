@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -35,8 +35,10 @@
  * @name    Callback-related driver states
  * @{
  */
-#define HAL_DRV_STATE_COMPLETE              6U
-#define HAL_DRV_STATE_ERROR                 7U
+#define HAL_DRV_STATE_HALF                  6U
+#define HAL_DRV_STATE_FULL                  7U
+#define HAL_DRV_STATE_COMPLETE              8U
+#define HAL_DRV_STATE_ERROR                 9U
 /** @} */
 
 /*===========================================================================*/
@@ -91,16 +93,69 @@
       self->state = (endstate);                                             \
     }                                                                       \
   } while (false)
+
+/**
+ * @brief       Callback invocation with @p HAL_DRV_STATE_HALF transient state.
+ * @note        After invoking the callback the driver is returned to the @p
+ *              HAL_DRV_STATE_ACTIVE state.
+ *
+ * @param[in,out] self          Pointer to driver instance.
+ *
+ * @notapi
+ */
+#define __cbdrv_invoke_half_cb(self)                                        \
+  __cbdrv_invoke_cb_with_transition(self,                                   \
+                                    HAL_DRV_STATE_HALF,                     \
+                                    HAL_DRV_STATE_ACTIVE);
+
+/**
+ * @brief       Callback invocation with @p HAL_DRV_STATE_FULL transient state.
+ * @note        After invoking the callback the driver is returned to the @p
+ *              HAL_DRV_STATE_ACTIVE state.
+ *
+ * @param[in,out] self          Pointer to driver instance.
+ *
+ * @notapi
+ */
+#define __cbdrv_invoke_full_cb(self)                                        \
+  __cbdrv_invoke_cb_with_transition(self,                                   \
+                                    HAL_DRV_STATE_FULL,                     \
+                                    HAL_DRV_STATE_ACTIVE);
+
+/**
+ * @brief       Callback invocation with @p HAL_DRV_STATE_COMPLETE transient
+ *              state.
+ * @note        After invoking the callback the driver is returned to the @p
+ *              HAL_DRV_STATE_READY state.
+ *
+ * @param[in,out] self          Pointer to driver instance.
+ *
+ * @notapi
+ */
+#define __cbdrv_invoke_complete_cb(self)                                    \
+  __cbdrv_invoke_cb_with_transition(self,                                   \
+                                    HAL_DRV_STATE_COMPLETE,                 \
+                                    HAL_DRV_STATE_READY);
+
+/**
+ * @brief       Callback invocation with @p HAL_DRV_STATE_ERROR transient
+ *              state.
+ * @note        After invoking the callback the driver is returned to the @p
+ *              HAL_DRV_STATE_ACTIVE state.
+ *
+ * @param[in,out] self          Pointer to driver instance.
+ *
+ * @notapi
+ */
+#define __cbdrv_invoke_error_cb(self)                                       \
+  __cbdrv_invoke_cb_with_transition(self,                                   \
+                                    HAL_DRV_STATE_ERROR,                    \
+                                    HAL_DRV_STATE_ACTIVE);
 /** @} */
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
 /*===========================================================================*/
-
-/**
- * @brief       Type of driver status.
- */
-typedef eventflags_t drv_status_t;
 
 /**
  * @brief       Driver callback type.
@@ -131,11 +186,10 @@ struct hal_cb_driver_vmt {
   /* From hal_base_driver_c.*/
   msg_t (*start)(void *ip);
   void (*stop)(void *ip);
-  const void * (*doconf)(void *ip, const void *config);
+  const void * (*setcfg)(void *ip, const void *config);
+  const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
   void (*setcb)(void *ip, drv_cb_t cb);
-  drv_status_t (*gsts)(void *ip);
-  drv_status_t (*gcsts)(void *ip, drv_status_t mask);
 };
 
 /**
@@ -197,8 +251,6 @@ extern "C" {
   void *__cbdrv_objinit_impl(void *ip, const void *vmt);
   void __cbdrv_dispose_impl(void *ip);
   void __cbdrv_setcb_impl(void *ip, drv_cb_t cb);
-  drv_status_t __cbdrv_gsts_impl(void *ip);
-  drv_status_t __cbdrv_gcsts_impl(void *ip, drv_status_t mask);
 #ifdef __cplusplus
 }
 #endif
@@ -229,41 +281,6 @@ static inline void drvSetCallbackX(void *ip, drv_cb_t cb) {
 
   self->vmt->setcb(ip, cb);
 }
-
-/**
- * @memberof    hal_cb_driver_c
- * @public
- *
- * @brief       Returns all driver status flags without clearing.
- *
- * @param[in,out] ip            Pointer to a @p hal_cb_driver_c instance.
- *
- * @iclass
- */
-CC_FORCE_INLINE
-static inline drv_status_t drvGetStatusX(void *ip) {
-  hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
-
-  return self->vmt->gsts(ip);
-}
-
-/**
- * @memberof    hal_cb_driver_c
- * @public
- *
- * @brief       Returns the specified driver status flags and clears them.
- *
- * @param[in,out] ip            Pointer to a @p hal_cb_driver_c instance.
- * @param[in]     mask          Flags to be returned and cleared.
- *
- * @xclass
- */
-CC_FORCE_INLINE
-static inline drv_status_t drvGetAndClearStatusI(void *ip, drv_status_t mask) {
-  hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
-
-  return self->vmt->gcsts(ip, mask);
-}
 /** @} */
 
 /**
@@ -291,10 +308,37 @@ static inline drv_cb_t drvGetCallbackX(void *ip) {
  * @memberof    hal_cb_driver_c
  * @public
  *
+ * @brief       Checks for @p HAL_DRV_STATE_HALF state.
+ * @details     The @p HAL_DRV_STATE_HALF state is used by those drivers
+ *              triggering multiple callbacks for a single asynchronous
+ *              operation, it marks the filling of the first half of the
+ *              tranfer buffer.
+ * @note        This function is meant to be called exclusively from the driver
+ *              callback.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_cb_driver_c instance.
+ * @return                      The check result.
+ * @retval false                If the current state is not @p
+ *                              HAL_DRV_STATE_HALF.
+ * @retval true                 If the current state is @p HAL_DRV_STATE_HALF.
+ *
+ * @xclass
+ */
+CC_FORCE_INLINE
+static inline bool drvStateIsHalfX(void *ip) {
+  hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
+
+  return (bool)(self->state == HAL_DRV_STATE_HALF);
+}
+
+/**
+ * @memberof    hal_cb_driver_c
+ * @public
+ *
  * @brief       Checks for @p HAL_DRV_STATE_COMPLETE state.
  * @details     The @p HAL_DRV_STATE_COMPLETE state is used by those drivers
  *              triggering multiple callbacks for a single asynchronous
- *              operation, it marks the last callback in the sequence.
+ *              operation, it marks the complete filling of the tranfer buffer.
  * @note        This function is meant to be called exclusively from the driver
  *              callback.
  *
@@ -305,10 +349,10 @@ static inline drv_cb_t drvGetCallbackX(void *ip) {
  * @retval true                 If the current state is @p
  *                              HAL_DRV_STATE_COMPLETE.
  *
- * @api
+ * @xclass
  */
 CC_FORCE_INLINE
-static inline bool drvStateIsCompleteI(void *ip) {
+static inline bool drvStateIsCompleteX(void *ip) {
   hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
 
   return (bool)(self->state == HAL_DRV_STATE_COMPLETE);
@@ -332,10 +376,10 @@ static inline bool drvStateIsCompleteI(void *ip) {
  *                              HAL_DRV_STATE_ERROR.
  * @retval true                 If the current state is @p HAL_DRV_STATE_ERROR.
  *
- * @api
+ * @xclass
  */
 CC_FORCE_INLINE
-static inline bool drvStateIsErrorI(void *ip) {
+static inline bool drvStateIsErrorX(void *ip) {
   hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
 
   return (bool)(self->state == HAL_DRV_STATE_ERROR);

@@ -89,17 +89,20 @@
  * @name   Clock points names
  * @{
  */
-#define CLK_SYSCLK              0U
-#define CLK_PLLPCLK             1U
-#define CLK_PLLQCLK             2U
-#define CLK_PLLRCLK             3U
-#define CLK_HCLK                4U
-#define CLK_PCLK1               5U
-#define CLK_PCLK1TIM            6U
-#define CLK_PCLK2               7U
-#define CLK_PCLK2TIM            8U
-#define CLK_MCO                 9U
-#define CLK_ARRAY_SIZE          10U
+#define CLK_HSI16               0U
+#define CLK_HSI48               1U
+#define CLK_HSE                 2U
+#define CLK_SYSCLK              3U
+#define CLK_PLLPCLK             4U
+#define CLK_PLLQCLK             5U
+#define CLK_PLLRCLK             6U
+#define CLK_HCLK                7U
+#define CLK_PCLK1               8U
+#define CLK_PCLK1TIM            9U
+#define CLK_PCLK2               10U
+#define CLK_PCLK2TIM            11U
+#define CLK_MCO                 12U
+#define CLK_ARRAY_SIZE          13U
 /** @} */
 
 /**
@@ -738,36 +741,36 @@
 /*
  * Configuration-related checks.
  */
-#if !defined(STM32G4xx_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G4xx_MCUCONF not defined"
+#if !defined(__STM32G4xx_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, __STM32G4xx_XMCUCONF__ not defined"
 #endif
 
-#if defined(STM32G431xx) && !defined(STM32G431_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G431_MCUCONF not defined"
+#if defined(__STM32G431xx) && !defined(__STM32G431_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G431_XMCUCONF__ not defined"
 
-#elif defined(STM32G441xx) && !defined(STM32G441_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G441_MCUCONF not defined"
+#elif defined(__STM32G441xx) && !defined(__STM32G441_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G441_XMCUCONF__ not defined"
 
-#elif defined(STM32G471xx) && !defined(STM32G471_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G471_MCUCONF not defined"
+#elif defined(__STM32G471xx) && !defined(__STM32G471_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G471_XMCUCONF__ not defined"
 
-#elif defined(STM32G473xx) && !defined(STM32G473_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G473_MCUCONF not defined"
+#elif defined(__STM32G473xx) && !defined(__STM32G473_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G473_XMCUCONF__ not defined"
 
-#elif defined(STM32G483xx) && !defined(STM32G473_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G483_MCUCONF not defined"
+#elif defined(__STM32G483xx) && !defined(__STM32G473_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G483_XMCUCONF__ not defined"
 
-#elif defined(STM32G474xx) && !defined(STM32G474_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G474_MCUCONF not defined"
+#elif defined(__STM32G474xx) && !defined(__STM32G474_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G474_XMCUCONF__ not defined"
 
-#elif defined(STM32G484xx) && !defined(STM32G484_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G484_MCUCONF not defined"
+#elif defined(__STM32G484xx) && !defined(__STM32G484_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G484_XMCUCONF__ not defined"
 
-#elif defined(STM32GBK1CB) && !defined(STM32GBK1CB_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32GBK1CB_MCUCONF not defined"
+#elif defined(__STM32GBK1CB) && !defined(__STM32GBK1CB_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32GBK1CB_XMCUCONF__ not defined"
 
-#elif defined(STM32G491xx) && !defined(STM32G491_MCUCONF)
-#error "Using a wrong mcuconf.h file, STM32G491_MCUCONF not defined"
+#elif defined(__STM32G491xx) && !defined(__STM32G491_XMCUCONF__)
+#error "Using a wrong xmcuconf.h file, STM32G491_XMCUCONF__ not defined"
 
 #endif
 
@@ -910,7 +913,7 @@
 #define STM32_8WS_THRESHOLD             STM32_BOOST_8WS_THRESHOLD
 
 #else /* !STM32_PWR_BOOST */
-#define STM32_SYSCLK_MAX                STM32_VOS1_SYSCLK_MAX_NOBOOST
+#define STM32_SYSCLK_MAX                STM32_VOS1_SYSCLK_MAX
 #define STM32_HSECLK_MAX                STM32_VOS1_HSECLK_MAX
 #define STM32_HSECLK_BYP_MAX            STM32_VOS1_HSECLK_BYP_MAX
 #define STM32_HSECLK_MIN                STM32_VOS1_HSECLK_MIN
@@ -946,7 +949,6 @@
 
 #elif STM32_VOS == STM32_VOS_RANGE2
 #define STM32_SYSCLK_MAX                STM32_VOS2_SYSCLK_MAX
-#define STM32_SYSCLK_MAX_NOBOOST        STM32_VOS2_SYSCLK_MAX_NOBOOST
 #define STM32_HSECLK_MAX                STM32_VOS2_HSECLK_MAX
 #define STM32_HSECLK_BYP_MAX            STM32_VOS2_HSECLK_BYP_MAX
 #define STM32_HSECLK_MIN                STM32_VOS2_HSECLK_MIN
@@ -1684,17 +1686,7 @@
 /* Driver data structures and types.                                         */
 /*===========================================================================*/
 
-/**
- * @brief   Type of a clock point identifier.
- */
-typedef unsigned halclkpt_t;
-
 #if defined(HAL_LLD_USE_CLOCK_MANAGEMENT) || defined(__DOXYGEN__)
-/**
- * @brief   Type of a clock point frequency in Hz.
- */
-typedef uint32_t halfreq_t;
-
 /**
  * @brief   Type of a clock configuration structure.
  */

@@ -126,6 +126,17 @@ void port_init(os_instance_t *oip) {
   /* Starting in a known IRQ configuration.*/
   port_suspend();
 
+#if CORTEX_USE_FPU == TRUE
+  /* Making sure to use the correct settings for FPU-related exception
+     handling, better do not rely on startup settings.*/
+  FPU->FPCCR  = FPU_FPCCR_ASPEN_Msk | FPU_FPCCR_LSPEN_Msk;
+  FPU->FPDSCR = 0U;
+  __set_FPSCR(0U);
+  /* Enforcing CONTROL.FPCA and CONTROL.SPSEL.*/
+  __set_CONTROL(CONTROL_FPCA_Msk | CONTROL_SPSEL_Msk);
+  __ISB();
+#endif
+
   /* Initializing priority grouping.*/
   NVIC_SetPriorityGrouping(CORTEX_PRIGROUP_INIT);
 
@@ -144,7 +155,7 @@ void port_init(os_instance_t *oip) {
 
 #if PORT_ENABLE_GUARD_PAGES == TRUE
   {
-    extern stkalign_t __main_thread_stack_base__;
+    extern stkline_t __main_thread_stack_base__;
 
     /* Setting up the guard page on the main() function stack base
        initially.*/

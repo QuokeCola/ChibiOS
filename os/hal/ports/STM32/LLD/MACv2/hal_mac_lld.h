@@ -97,6 +97,13 @@
 /** @} */
 
 /**
+ * @name    TDES1 constants
+ * @{
+ */
+#define STM32_TDES1_LOCKED          0x01000000 /* NOTE: Pseudo flag.        */
+/** @} */
+
+/**
  * @name    TDES2 constants
  * @{
  */
@@ -135,7 +142,7 @@
  */
 #define MAC_LINK_DYNAMIC            0
 #define MAC_LINK_100_FULLDUPLEX     1
-#define MACLINK_10_FULLDUPLEX       2
+#define MAC_LINK_10_FULLDUPLEX      2
 /** @} */
 
 /*===========================================================================*/
@@ -257,11 +264,7 @@ typedef struct {
   /* Link status flag.*/                                                    \
   bool                          link_up;                                    \
   /* PHY address (pre shifted).*/                                           \
-  uint32_t                      phyaddr;                                    \
-  /* Receive next frame index.*/                                            \
-  uint32_t                      rdindex;                                    \
-  /* Transmit next frame index.*/                                           \
-  uint32_t                      tdindex
+  uint32_t                      phyaddr;
 
 /**
  * @brief   Low level fields of the MAC configuration structure.

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@
 #define STM32_PLL1M_VALUE                   4
 #define STM32_PLL1N_VALUE                   250
 #define STM32_PLL1P_VALUE                   2
-#define STM32_PLL1Q_VALUE                   2
+#define STM32_PLL1Q_VALUE                   4
 #define STM32_PLL1R_VALUE                   2
 #define STM32_PLL2SRC                       STM32_PLL2SRC_HSE
 #define STM32_PLL2M_VALUE                   4
@@ -218,8 +218,8 @@
 #define STM32_ADC_USE_ADC2                  FALSE
 #define STM32_ADC_DUAL_MODE                 FALSE
 #define STM32_ADC_COMPACT_SAMPLES           FALSE
-#define STM32_ADC_ADC1_GPDMA_CHANNEL        STM32_GPDMA1_MASK_FIFO2
-#define STM32_ADC_ADC2_GPDMA_CHANNEL        STM32_GPDMA2_MASK_FIFO2
+#define STM32_ADC_ADC1_GPDMA_CHANNEL        STM32_GPDMA_MASK_FIFO2
+#define STM32_ADC_ADC2_GPDMA_CHANNEL        STM32_GPDMA_MASK_FIFO2
 #define STM32_ADC_ADC1_DMA_PRIORITY         2
 #define STM32_ADC_ADC2_DMA_PRIORITY         2
 #define STM32_ADC_ADC1_IRQ_PRIORITY         5
@@ -232,10 +232,21 @@
 /*
  * CAN driver system settings.
  */
+#define STM32_CAN_USE_FDCAN1                FALSE
+#define STM32_CAN_USE_FDCAN2                FALSE
 
 /*
  * DAC driver system settings.
  */
+#define STM32_DAC_DUAL_MODE                 FALSE
+#define STM32_DAC_USE_DAC1_CH1              FALSE
+#define STM32_DAC_USE_DAC1_CH2              FALSE
+#define STM32_DAC_DAC1_CH1_IRQ_PRIORITY     10
+#define STM32_DAC_DAC1_CH2_IRQ_PRIORITY     10
+#define STM32_DAC_DAC1_CH1_DMA_PRIORITY     2
+#define STM32_DAC_DAC1_CH2_DMA_PRIORITY     2
+#define STM32_DAC_DAC1_CH1_GPDMA_CHANNEL    STM32_GPDMA_MASK_FIFO2
+#define STM32_DAC_DAC1_CH2_GPDMA_CHANNEL    STM32_GPDMA_MASK_FIFO2
 
 /*
  * GPT driver system settings.
@@ -274,6 +285,17 @@
 #define STM32_ICU_USE_TIM17                 FALSE
 
 /*
+ * MAC driver system settings.
+ */
+#define STM32_MAC_TRANSMIT_BUFFERS          2
+#define STM32_MAC_RECEIVE_BUFFERS           4
+#define STM32_MAC_BUFFERS_SIZE              1522
+#define STM32_MAC_PHY_TIMEOUT               100
+#define STM32_MAC_ETH1_CHANGE_PHY_STATE     TRUE
+#define STM32_MAC_ETH1_IRQ_PRIORITY         13
+#define STM32_MAC_IP_CHECKSUM_OFFLOAD       FALSE
+
+/*
  * PWM driver system settings.
  */
 #define STM32_PWM_USE_TIM1                  FALSE
@@ -296,6 +318,13 @@
 /*
  * SDC driver system settings.
  */
+#define STM32_SDC_USE_SDMMC1                FALSE
+#define STM32_SDC_USE_SDMMC2                FALSE
+#define STM32_SDC_SDMMC_UNALIGNED_SUPPORT   TRUE
+#define STM32_SDC_SDMMC_WRITE_TIMEOUT       10000
+#define STM32_SDC_SDMMC_READ_TIMEOUT        10000
+#define STM32_SDC_SDMMC_CLOCK_DELAY         10
+#define STM32_SDC_SDMMC_PWRSAV              TRUE
 
 /*
  * SERIAL driver system settings.
@@ -340,18 +369,18 @@
 #define STM32_SPI_USE_SPI4                  TRUE
 #define STM32_SPI_USE_SPI5                  TRUE
 #define STM32_SPI_USE_SPI6                  TRUE
-#define STM32_SPI_SPI1_RX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI1_TX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI2_RX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
-#define STM32_SPI_SPI2_TX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
-#define STM32_SPI_SPI3_RX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI3_TX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI4_RX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
-#define STM32_SPI_SPI4_TX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
-#define STM32_SPI_SPI5_RX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI5_TX_GPDMA_CHANNEL     STM32_GPDMA1_MASK_FIFO2
-#define STM32_SPI_SPI6_RX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
-#define STM32_SPI_SPI6_TX_GPDMA_CHANNEL     STM32_GPDMA2_MASK_FIFO2
+#define STM32_SPI_SPI1_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI1_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI2_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI2_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI3_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI3_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI4_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI4_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI5_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI5_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI6_RX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
+#define STM32_SPI_SPI6_TX_GPDMA_CHANNEL     STM32_GPDMA_MASK_FIFO2
 #define STM32_SPI_SPI1_DMA_PRIORITY         1
 #define STM32_SPI_SPI2_DMA_PRIORITY         1
 #define STM32_SPI_SPI3_DMA_PRIORITY         1
@@ -375,6 +404,7 @@
 /*
  * TRNG driver system settings.
  */
+#define STM32_TRNG_USE_RNG1                 FALSE
 
 /*
  * UART driver system settings.
@@ -383,6 +413,10 @@
 /*
  * USB driver system settings.
  */
+#define STM32_USB_USE_USB1                  FALSE
+#define STM32_USB_LOW_POWER_ON_SUSPEND      FALSE
+#define STM32_USB_USB1_HP_IRQ_PRIORITY      13
+#define STM32_USB_USB1_LP_IRQ_PRIORITY      14
 
 /*
  * WDG driver system settings.

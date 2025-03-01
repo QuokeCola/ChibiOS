@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O0 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -Og -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -94,12 +94,17 @@ CONFDIR  := ./cfg/stm32l4r9ai_discovery
 BUILDDIR := ./build/stm32l4r9ai_discovery
 DEPDIR   := ./.dep/stm32l4r9ai_discovery
 
+# Required modules.
+OOPSELECT := base referenced
+UTILSSELECT :=
+
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
-# Common files.
-include $(CHIBIOS)/os/common/oop/oop.mk
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32l4xx.mk
+# Common files.
+include $(CHIBIOS)/os/common/oop/oop.mk
+include $(CHIBIOS)/os/common/utils/utils.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32L4xx+/platform.mk
@@ -114,11 +119,12 @@ include $(CHIBIOS)/os/vfs/vfs_syscalls.mk
 # Auto-build files in ./source recursively.
 include $(CHIBIOS)/tools/mk/autobuild.mk
 # Other files (optional).
-include $(CHIBIOS)/os/test/test.mk
-include $(CHIBIOS)/test/rt/rt_test.mk
-include $(CHIBIOS)/test/oslib/oslib_test.mk
+#include $(CHIBIOS)/os/test/test.mk
+#include $(CHIBIOS)/test/rt/rt_test.mk
+#include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
-include $(CHIBIOS)/os/various/shell/shell.mk
+#include $(CHIBIOS)/os/various/shell/shell.mk
+include $(CHIBIOS)/os/various/xshell/xshell.mk
 include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
 
 # Define linker script file here.
@@ -159,7 +165,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DSHELL_CMD_FILES_ENABLED=1
+UDEFS = -DXSHELL_CMD_TEST_ENABLED=FALSE -DXSHELL_CMD_FILES_ENABLED=TRUE
 
 # Define ASM defines here
 UADEFS =

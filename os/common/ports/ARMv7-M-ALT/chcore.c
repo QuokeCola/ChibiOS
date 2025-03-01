@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -65,11 +64,10 @@ CC_NO_INLINE void port_syslock_noinline(void) {
 
 CC_NO_INLINE uint32_t port_get_s_psp(void) {
 
-  return (uint32_t)__port_syscall_get_s_psp(__sch_get_currthread());
+  return (uint32_t)__sch_get_currthread()->waend;
 }
 
-CC_WEAK void __port_do_fastcall_entry(struct port_extctx *ectxp,
-                                      uint32_t n) {
+CC_WEAK void __port_do_fastcall_entry(uint32_t n, struct port_extctx *ectxp) {
 
   (void)ectxp;
   (void)n;
@@ -77,8 +75,7 @@ CC_WEAK void __port_do_fastcall_entry(struct port_extctx *ectxp,
   chSysHalt("unimplemented fastcall");
 }
 
-CC_WEAK void __port_do_syscall_entry(struct port_extctx *ectxp,
-                                     uint32_t n) {
+CC_WEAK void __port_do_syscall_entry(uint32_t n, struct port_extctx *ectxp) {
 
   (void)ectxp;
   (void)n;
@@ -88,7 +85,7 @@ CC_WEAK void __port_do_syscall_entry(struct port_extctx *ectxp,
 
 CC_WEAK void __port_do_syscall_return(void) {
 
-  __set_PSP(__port_syscall_get_u_psp(__sch_get_currthread()));
+  chSysHalt("unimplemented syscall return");
 }
 #endif /* PORT_USE_SYSCALL == TRUE */
 
@@ -148,8 +145,34 @@ void port_init(os_instance_t *oip) {
   /* Starting in a known IRQ configuration.*/
   port_suspend();
 
+#if CORTEX_USE_FPU == TRUE
+  {
+    uint32_t control;
+
+    /* Making sure to use the correct settings for FPU-related exception
+       handling, better do not rely on startup settings.*/
+    FPU->FPDSCR = 0U;
+    __set_FPSCR(0U);
+#if PORT_USE_FPU_FAST_SWITCHING == 0
+    /* No lazy context saving, always long exception context.*/
+    control = CONTROL_FPCA_Msk | CONTROL_SPSEL_Msk;
+    FPU->FPCCR = 0U;
+#elif PORT_USE_FPU_FAST_SWITCHING == 1
+    /* Lazy context saving enabled, always long exception context.*/
+    control = CONTROL_FPCA_Msk | CONTROL_SPSEL_Msk;
+    FPU->FPCCR = FPU_FPCCR_LSPEN_Msk;
+#else /*PORT_USE_FPU_FAST_SWITCHING >= 2 */
+    /* Lazy context saving enabled, automatic FPCA control.*/
+    control = CONTROL_SPSEL_Msk;
+    FPU->FPCCR = FPU_FPCCR_ASPEN_Msk | FPU_FPCCR_LSPEN_Msk;
+#endif
+    __set_CONTROL(control);
+    __ISB();
+  }
+#endif /* CORTEX_USE_FPU == TRUE */
+
   /* Initializing priority grouping.*/
-  NVIC_SetPriorityGrouping(CORTEX_PRIGROUP_INIT);
+  NVIC_SetPriorityGrouping(PORT_PRIGROUP_INIT);
 
   /* DWT cycle counter enable.*/
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
@@ -164,7 +187,7 @@ void port_init(os_instance_t *oip) {
 
 #if PORT_ENABLE_GUARD_PAGES == TRUE
   {
-    extern stkalign_t __main_thread_stack_base__;
+    extern stkline_t __main_thread_stack_base__;
 
     /* Setting up the guard page on the main() function stack base
        initially.*/
@@ -177,7 +200,8 @@ void port_init(os_instance_t *oip) {
   }
 #endif
 
-#if (PORT_ENABLE_GUARD_PAGES == TRUE) || (PORT_USE_SYSCALL == TRUE)
+#if (PORT_MPU_ENABLED == TRUE) || (PORT_SWITCHED_REGIONS_NUMBER > 0) ||     \
+    (PORT_ENABLE_GUARD_PAGES == TRUE)
   /* MPU is enabled.*/
   mpuEnable(MPU_CTRL_PRIVDEFENA);
 #endif

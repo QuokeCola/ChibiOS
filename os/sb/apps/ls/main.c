@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2022 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,315 +22,246 @@
 #include <errno.h>
 #include <dirent.h>
 
+#include <sys/stat.h>
+
 #define NEWLINE_STR         "\r\n"
-#define TWIDTH              80
+#define TERMWIDTH           80
 
-static char *dotp = ".";
-static void *bufp = NULL;
+/* Option flags, all false initially.*/
+struct {
+  bool              aflg;
+  bool              dflg;
+  bool              fflg;
+  bool              lflg;
+  bool              yflg;
+} options;
 
-static bool Rflg = false;
-static bool aflg = false;
-static bool dflg = false;
-static bool fflg = false;
-static bool lflg = false;
-static bool qflg = false;
-
-struct afile {
+struct diritem {
   char              ftype;
-  long              fnum;
-  short             fnlink;
+  ino_t             fnum;
+//  nlink_t           fnlink;
   mode_t            fflags;
   off_t             fsize;
   char              *fname;
 };
 
-#define ISARG   0x8000      /* extra ``mode'' */
+struct dirlist {
+  char              *path;
+  bool              free_items;
+  size_t            maxlen;
+  int               max;
+  int               n;
+  struct diritem    items[];
+};
 
-struct subdirs {
-  char              *sd_name;
-  struct  subdirs   *sd_next;
-} *subdirs;
+static struct dirlist *toplist;
 
 static void usage(void) {
   fprintf(stderr, "Usage: ls [<opts>] [<file>]..." NEWLINE_STR);
   fprintf(stderr, "Options:" NEWLINE_STR);
-  fprintf(stderr, "  -R                 list subdirectories recursively" NEWLINE_STR);
   fprintf(stderr, "  -a                 do not ignore entries starting with ." NEWLINE_STR);
   fprintf(stderr, "  -d                 list directories themselves, not their contents" NEWLINE_STR);
-  fprintf(stderr, "  -f                 do not sort, enable -a, disable -l" NEWLINE_STR);
+  fprintf(stderr, "  -f                 do not sort, enable -a and -d, disable -l" NEWLINE_STR);
   fprintf(stderr, "  -l                 use a long listing format" NEWLINE_STR);
-  fprintf(stderr, "  -q                 print ? instead of nongraphic characters" NEWLINE_STR);
-}
-
-static void freeall(void) {
-
-  if (bufp != NULL) {
-    free(bufp);
-  }
+  fprintf(stderr, "  -y                 enforce plain text output (non standard option)" NEWLINE_STR);
+  exit(1);
 }
 
 static void error(const char *s) {
 
-  fprintf(stderr, "ls: %s" NEWLINE_STR, s);
+  fprintf(stderr, "ls: fatal error; %s" NEWLINE_STR, s);
   exit(1);
 }
 
-static bool gstat(struct afile *fp, const char *file, bool flag) {
+static void newline(void) {
 
-  memset(fp, 0, sizeof (struct afile));
-  fp->ftype = '-';
-
-  if (flag || lflg) {
-    int ret;
-    struct stat stb;
-
-    ret = stat(file, &stb);
-    if (ret < 0) {
-      fprintf(stderr, "%s not found\n", file);
-      return true;
-    }
-
-    fp->fsize  = stb.st_size;
-    fp->fflags = stb.st_mode & ~S_IFMT;
-    fp->fnlink = stb.st_nlink;
-    switch (stb.st_mode & S_IFMT) {
-    case S_IFDIR:
-      fp->ftype = 'd';
-      break;
-    case S_IFBLK:
-      fp->ftype = 'b';
-      fp->fsize = stb.st_rdev;
-      break;
-    case S_IFCHR:
-      fp->ftype = 'c';
-      fp->fsize = stb.st_rdev;
-      break;
-    case S_IFSOCK:
-      fp->ftype = 's';
-      fp->fsize = 0;
-      break;
-    }
-  }
-
-  return false;
+  printf(NEWLINE_STR);
 }
 
-static char *fmtmode(char *p, mode_t flags) {
+static struct dirlist *dirlist_new(unsigned max, bool free_items) {
+  struct dirlist *dlp;
+  size_t size;
 
-  if ((flags & S_IRUSR) != (mode_t)0) {
-    *p++ = 'r';
+  size = sizeof (struct dirlist) + ((sizeof (struct diritem)) * max);
+  dlp = malloc(size);
+//  memset (dlp, 0, size);
+  if (dlp == NULL) {
+    error("out of memory");
   }
-  if ((flags & S_IWUSR) != (mode_t)0) {
-    *p++ = 'w';
+
+  dlp->path = NULL;
+  dlp->free_items = free_items;
+  dlp->maxlen = (size_t)0;
+  dlp->max = max;
+  dlp->n = 0;
+
+  return dlp;
+}
+
+static void dirlist_free(struct dirlist *dlp) {
+
+  if (dlp->free_items) {
+    int i;
+
+    for (i = 0; i < dlp->n; i++) {
+      free((void *)dlp->items[i].fname);
+    }
   }
-  if ((flags & S_IXUSR) != (mode_t)0) {
-    *p++ = ((flags & S_ISUID) == (mode_t)0) ? 'x' : 's';
+
+  if (dlp->path != NULL) {
+    free(dlp->path);
   }
-  if ((flags & S_IRGRP) != (mode_t)0) {
-    *p++ = 'r';
+
+  free(dlp);
+}
+
+static struct diritem *dirlist_add(struct dirlist **dlpp, char *fname) {
+  struct dirlist *dlp = *dlpp, *newdlp;
+  struct diritem *dip;
+  size_t len;
+
+  if (dlp->n >= dlp->max) {
+    size_t newsize;
+
+    newsize = sizeof (struct dirlist) +
+              ((sizeof (struct diritem)) * dlp->max * 2);
+    newdlp = realloc(dlp, newsize);
+    if (newdlp == NULL) {
+      goto memfail;
+    }
+    else {
+      newdlp->max *= 2;
+      *dlpp = dlp = newdlp;
+    }
   }
-  if ((flags & S_IWGRP) != (mode_t)0) {
-    *p++ = 'w';
+
+  dip = &dlp->items[dlp->n];
+  memset(dip, 0, sizeof (struct diritem));
+
+  len = strlen(fname);
+  if (dlp->free_items) {
+    char *p = malloc(len + 1);
+    if (p == NULL) {
+      goto memfail;
+    }
+    strcpy(p, fname);
+    dip->fname = p;
   }
-  if ((flags & S_IXGRP) != (mode_t)0) {
-    *p++ = ((flags & S_ISGID) == (mode_t)0) ? 'x' : 's';
+  else {
+    dip->fname = fname;
   }
-  if ((flags & S_IROTH) != (mode_t)0) {
-    *p++ = 'r';
+  if (len > dlp->maxlen) {
+    dlp->maxlen = len;
   }
-  if ((flags & S_IWOTH) != (mode_t)0) {
-    *p++ = 'w';
+  dlp->n++;
+
+  return dip;
+
+memfail:
+  dirlist_free(dlp);
+  error("out of memory");
+  return NULL;
+}
+
+static void dirlist_undo(struct dirlist **dlpp) {
+
+  (*dlpp)->n--;
+}
+
+static char *new_append_path(char *dir, char *file) {
+  char *p;
+  size_t ld, lf;
+
+  ld = strlen(dir);
+  lf = strlen(file);
+  p = malloc(ld + 1 + lf + 1);
+  if (p == NULL) {
+    error("out of memory");
   }
-  if ((flags & S_IXOTH) != (mode_t)0) {
-    *p++ = 'x';
+
+  if (!strcmp(dir, "") || !strcmp(dir, ".")) {
+    strcpy(p, file);
+  }
+  else {
+    strcpy(p, dir);
+    if ((dir[ld - 1] != '/') && (file[0] != '/')) {
+      strcat(p, "/");
+    }
+    strcat(p, file);
   }
 
   return p;
 }
 
-static char *fmtlstuff(const struct afile *p) {
-  static char lstuffbuf[TWIDTH];
-  static char gname[32], uname[32], fsize[32], ftime[32];
-  char *lp = lstuffbuf;
-  int n;
+static char *new_path(char *path) {
+  char *p;
+  size_t l;
 
-  n = TWIDTH;
-
-  /* type mode uname gname fsize ftime */
-  /* get uname */
-  {
-    char *cp = /*getname(p->fuid)*/"root";
-    if (cp)
-      n -= snprintf(uname, n, "%-9.9s", cp);
-    else
-      n -= snprintf(uname, n, "%-9d",/* p->fuid*/0);
+  l = strlen(path);
+  p = malloc(l + 1);
+  if (p == NULL) {
+    error("out of memory");
   }
+  strcpy(p, path);
 
-  /* get gname */
-  {
-    char *cp = /*getgroup(p->fgid)*/"root";
-    if (cp)
-      n -= snprintf(gname, n, "%-9.9s", cp);
-    else
-      n -= snprintf(gname, n, "%-9d", /*p->fgid*/0);
-  }
-
-  /* get fsize */
-  if (p->ftype == 'b' || p->ftype == 'c') {
-    n -= snprintf(fsize, n, "%3d,%4d", /*major(p->fsize)*/0, /*minor(p->fsize)*/0);
-  }
-  else if (p->ftype == 's') {
-    n -= snprintf(fsize, n, "%8d", 0);
-  }
-  else {
-    n -= snprintf(fsize, n, "%8d", (int)p->fsize);
-  }
-
-  /* get ftime */
-  {
-#if 0
-    char *cp = ctime(&p->fmtime);
-    if ((p->fmtime < sixmonthsago) || (p->fmtime > now))
-      (void)sprintf(ftime, " %-7.7s %-4.4s ", cp + 4, cp + 20);
-    else
-      (void)sprintf(ftime, " %-12.12s ", cp + 4);
-#endif
-    n += snprintf(ftime, n, " %-7.7s %-4.4s ", "Jan   1", "1990");
-  }
-
-  /* splat */
-  *lp++ = p->ftype;
-  lp = fmtmode(lp, p->fflags);
-  (void) snprintf(lp, n, "%3d %s%s%s%s", /*p->fnl*/0, uname, gname, fsize, ftime);
-
-  return lstuffbuf;
+  return p;
 }
 
-static char *fmtentry(const struct afile *fp) {
-  static char fmtres[TWIDTH];
-  register char *cp, *dp;
+static bool dostat( struct dirlist *dlp, struct diritem *dip) {
+  struct stat stb;
+  char *path;
 
-  (void) snprintf(fmtres, TWIDTH, "%s%s%s",
-                  /*iflg ? fmtinum(fp) :*/ "",
-                  /*sflg ? fmtsize(fp) :*/ "",
-                  lflg ? fmtlstuff(fp) : "");
-
-  dp = &fmtres[strlen(fmtres)];
-  for (cp = fp->fname; *cp; cp++) {
-    if (qflg && ((*cp < ' ') || (*cp >= 0x7F))) {
-      *dp++ = '?';
-    }
-    else {
-      *dp++ = *cp;
-    }
-  }
-  *dp++ = 0;
-
-  return fmtres;
-}
-
-static void formatf(const struct afile *fp0, const struct afile *fplast) {
-  int n;
-
-  n = (int)(fplast - fp0);
-  if (n > 0) {
-    const struct afile *fp;
-    int i, j, columns, lines, width;
-
-    /* Determining number and size of columns.*/
-    if (lflg) {
-      columns = 1;
-    }
-    else {
-      width = 0;
-      for (fp = fp0; fp < fplast; fp++) {
-        int len;
-
-        len = (int)strlen(fmtentry(fp));
-        if (len > width) {
-          width = len;
-        }
-        width += 2;
-        columns = TWIDTH / width;
-        if (columns == 0) {
-          columns = 1;
-        }
-      }
-    }
-
-    lines = (n + columns - 1) / columns;
-    for (i = 0; i < lines; i++) {
-      for (j = 0; j < columns; j++) {
-        int w;
-        char *cp;
-
-        fp = fp0 + j * lines + i;
-        cp = fmtentry(fp);
-        printf("%s", cp);
-        if (fp + lines >= fplast) {
-          printf(NEWLINE_STR);
-          break;
-        }
-        w = (int)strlen(cp);
-        while (w < width) {
-          w++;
-          putchar(' ');
-        }
-      }
-    }
+  path = new_append_path(dlp->path, dip->fname);
+  if (stat(path, &stb) < 0) {
+    free(path);
+    fprintf(stderr, "ls: cannot access '%s': %s" NEWLINE_STR, dip->fname, strerror(errno));
+    return false;
   }
 
-#if 0
-    register struct afile *fp;
-    long width = 0, w, nentry = fplast - fp0;
-    int i, j, columns, lines;
-    char *cp;
+  free(path);
 
-    if (fp0 == fplast)
-        return;
-    if (lflg || Cflg == 0)
-        columns = 1;
-    else {
-        for (fp = fp0; fp < fplast; fp++) {
-            long len = strlen(fmtentry(fp));
-
-            if (len > width)
-                width = len;
-        }
-        if (usetabs)
-            width = (width + 8) &~ 7;
-        else
-            width += 2;
-        columns = twidth / (int)width;
-        if (columns == 0)
-            columns = 1;
-    }
-    lines = ((int)nentry + columns - 1) / columns;
-    for (i = 0; i < lines; i++) {
-        for (j = 0; j < columns; j++) {
-            fp = fp0 + j * lines + i;
-            cp = fmtentry(fp);
-            printf("%s", cp);
-            if (fp + lines >= fplast) {
-                printf("\n");
-                break;
-            }
-            w = strlen(cp);
-            while (w < width)
-                if (usetabs) {
-                    w = (w + 8) &~ 7;
-                    putchar('\t');
-                } else {
-                    w++;
-                    putchar(' ');
-                }
-        }
-    }
+  dip->fnum = stb.st_ino;
+  dip->fflags = stb.st_mode & ~S_IFMT;
+  dip->fsize = stb.st_size;
+  switch (stb.st_mode & S_IFMT) {
+#ifndef __MINGW32__
+  case S_IFSOCK:
+    dip->ftype = 's';
+    dip->fsize = 0;
+    break;
+  case S_IFLNK:
+    dip->ftype = 'l';
+    dip->fsize = 0;
+    break;
 #endif
+  case S_IFREG:
+    dip->ftype = 'r';
+    break;
+  case S_IFBLK:
+    dip->ftype = 'b';
+    dip->fsize = 0; //stb.st_rdev;
+    break;
+  case S_IFDIR:
+    dip->ftype = 'd';
+    break;
+  case S_IFCHR:
+    dip->ftype = 'c';
+    dip->fsize = 0; //stb.st_rdev;
+    break;
+  case S_IFIFO:
+    dip->ftype = 'f';
+    dip->fsize = 0;
+    break;
+  default:
+    dip->ftype = '-';
+    dip->fsize = 0;
+  }
+
+  return true;
 }
 
 static int fcmp(const void *a, const void *b) {
-  const struct afile *f1 = a, *f2 = b;
+  const struct diritem *f1 = a, *f2 = b;
 
   /* Directories first then alphabetic order.*/
   if ((f1->ftype == 'd') && (f2->ftype != 'd')) {
@@ -343,106 +274,274 @@ static int fcmp(const void *a, const void *b) {
   return strcmp(f1->fname, f2->fname);
 }
 
-static long getdir(char *dir, struct afile **pfp0, struct afile **pfplast) {
-  struct afile *fp;
-  DIR *dirp;
-  struct dirent *dp;
-  long nb, nent = 20;
+static bool ignore_item(char *p) {
 
-  dirp = opendir(dir);
-  if (dirp == NULL) {
-    *pfp0 = *pfplast = NULL;
-    printf("%s unreadable\n", dir); /* not stderr! */
-    return (0);
-  }
-  fp = *pfp0 = (struct afile*)calloc(nent, sizeof(struct afile));
-  if (fp == 0L) {
-    fprintf(stderr, "ls: out of memory\n");
-    exit(1);
-  }
-  *pfplast = *pfp0 + nent;
-  nb = 0;
-  while ((dp = readdir(dirp)) != NULL) {
-    if (dp->d_ino == 0)
-      continue;
-    if (((aflg == false) && (dp->d_name[0] == '.') && (/*(Aflg == 0)*/false)) ||
-        (dp->d_name[1] == 0) ||
-        ((dp->d_name[1] == '.') && (dp->d_name[2] == 0)))
-      continue;
-    if (gstat(fp, cat(dir, dp->d_name), /*Fflg + */Rflg/*, &nb*/))
-      continue;
-    fp->fnum = dp->d_ino;
-    fp->fname = savestr(dp->d_name);
-    fp++;
-    if (fp == *pfplast) {
-      *pfp0 = (struct afile*)realloc((char*)*pfp0,
-                                     2 * nent * sizeof(struct afile));
-      if (*pfp0 == 0) {
-        fprintf(stderr, "ls: out of memory\n");
-        exit(1);
-      }
-      fp = *pfp0 + nent;
-      *pfplast = fp + nent;
-      nent *= 2;
+  if (p[0] == '.') {
+    /* . and .. always ignored.*/
+    if ((p[1] == '\0') || ((p[1] == '.') && (p[2] == '\0'))) {
+      return true;
+    }
+
+    /* Anything starting with . is ignore unless the -a option is specified.*/
+    if (options.aflg == false) {
+      return true;
     }
   }
-  closedir(dirp);
-  *pfplast = fp;
-  return kbytes(dbtob(nb));
+
+  return false;
 }
 
-static void formatd(char *name, int title) {
-  struct afile *fp;
-  struct subdirs *dp;
-  struct afile *dfp0, *dfplast;
-  long nkb;
+static void build_list_from_args(char *argv[], struct dirlist **dlpp) {
 
-  nkb = getdir(name, &dfp0, &dfplast);
-  if (dfp0 == 0)
-    return;
-  if (fflg == 0)
-    qsort(dfp0, dfplast - dfp0, sizeof(struct afile), fcmp);
-  if (title)
-    printf("%s:\n", name);
-  if (lflg/* || sflg*/)
-    printf("total %ld\n", nkb);
-  formatf(dfp0, dfplast);
-  if (Rflg)
-    for (fp = dfplast - 1; fp >= dfp0; fp--) {
-      if (fp->ftype != 'd' || !strcmp(fp->fname, ".")
-          || !strcmp(fp->fname, ".."))
-        continue;
-      dp = (struct subdirs *)malloc(sizeof(struct subdirs));
-      if (dp == 0L) { /*PATCH GIOV.*/
-        fprintf(stderr, "ls: out of memory\n");
-        exit(1);
-      }
-      dp->sd_name = savestr(cat(name, fp->fname));
-      dp->sd_next = subdirs;
-      subdirs = dp;
+  (*dlpp)->path = new_path(".");
+
+  while (*argv != NULL) {
+    char *p = *argv++;
+    struct diritem *dip = dirlist_add(dlpp,p);
+
+    if (ignore_item(p)) {
+      dirlist_undo(dlpp);
+      continue;
     }
-  for (fp = dfp0; fp < dfplast; fp++) {
-    if ((fp->fflags & ISARG) == 0 && fp->fname)
-      free(fp->fname);
-//    if (fp->flinkto)
-//      free(fp->flinkto);
+
+    if (!dostat(*dlpp, dip)) {
+      dirlist_undo(dlpp);
+    }
   }
-  free((char*)dfp0);
+
+  if (options.fflg == false) {
+    struct dirlist *dlp = *dlpp;
+    qsort(&dlp->items[0], dlp->n, sizeof(struct diritem), fcmp);
+  }
+}
+
+static void build_list_from_path(char *path, struct dirlist **dlpp) {
+  DIR *dirp;
+  struct dirent *dep;
+
+  (*dlpp)->path = path;
+
+  dirp = opendir(path);
+  if (dirp == NULL) {
+    error(strerror(errno));
+  }
+
+  while ((dep = readdir(dirp)) != NULL) {
+    struct diritem *dip = dirlist_add(dlpp, dep->d_name);
+
+    if (ignore_item(dep->d_name)) {
+      dirlist_undo(dlpp);
+      continue;
+    }
+
+#ifndef __MINGW32__
+    /* If the -l option is set or the readdir() is unable to return the
+       file type a stat() is needed.*/
+    if ((options.lflg == true) || (dep->d_type == DT_UNKNOWN))  {
+      if (!dostat(*dlpp, dip)) {
+        dirlist_undo(dlpp);
+      }
+    }
+    else{
+      switch (dep->d_type) {
+      case DT_LNK:
+        dip->ftype = 'l';
+        break;
+      case DT_REG:
+        dip->ftype = 'r';
+        break;
+      case DT_BLK:
+        dip->ftype = 'b';
+        break;
+      case DT_DIR:
+        dip->ftype = 'd';
+        break;
+      case DT_CHR:
+        dip->ftype = 'c';
+        break;
+      case DT_FIFO:
+        dip->ftype = 'f';
+        break;
+      default:
+        dip->ftype = '-';
+      }
+    }
+#else
+    if (!dostat(*dlpp, dip)) {
+      dirlist_undo(dlpp);
+    }
+#endif
+  }
+
+  closedir(dirp);
+
+  if (options.fflg == false) {
+    struct dirlist *dlp = *dlpp;
+    qsort(&dlp->items[0], dlp->n, sizeof(struct diritem), fcmp);
+  }
+}
+
+static void printnames(struct dirlist *dlp, bool listdirs) {
+  int i, j, cols, col;
+
+  col = dlp->maxlen + 1;
+  cols = TERMWIDTH / col;
+  i = 0;
+  while (i < dlp->n) {
+    j = 0;
+    while ((j < cols) && (i < dlp->n)) {
+      struct diritem *dip = &dlp->items[i];
+      if (dip->ftype == 'd') {
+        if (listdirs) {
+          /* Printing subdir.*/
+          struct dirlist *sdlp;
+
+          sdlp = dirlist_new(8, true);
+          build_list_from_path(new_append_path(dlp->path, dip->fname), &sdlp);
+
+          printf("%s:" NEWLINE_STR, dip->fname);
+          printnames(sdlp, false);
+          newline();
+          dirlist_free(sdlp);
+          i++;
+          j = 0;
+          continue;
+        }
+        else {
+          /* Printing dir name only.*/
+          if (options.yflg == false) {
+            printf("\033[1m%-*.*s\033[0m ", col, col, dip->fname);
+          }
+          else  {
+            printf("%-*.*s ", col, col, dip->fname);
+          }
+        }
+      }
+      else {
+        printf("%-*.*s ", col, col, dip->fname);
+      }
+      j++, i++;
+    }
+    newline();
+  }
+}
+
+static void printlist(struct dirlist *dlp, bool listdirs) {
+  int i;
+
+  (void)listdirs; /* Always disabled in current implementation.*/
+
+  i = 0;
+  while (i < dlp->n) {
+    struct diritem *dip = &dlp->items[i];
+
+    /* Type char.*/
+    if (dip->ftype != 'r') {
+      putchar(dip->ftype);
+    }
+    else {
+      putchar('-');
+    }
+
+    /* Modes.*/
+    if ((dip->fflags & S_IRUSR) != (mode_t)0) {
+      putchar('r');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IWUSR) != (mode_t)0) {
+      putchar('w');
+    }
+    else {
+      putchar('-');
+    }
+#ifndef __MINGW32__
+    if ((dip->fflags & S_IXUSR) != (mode_t)0) {
+      putchar(((dip->fflags & S_ISUID) == (mode_t)0) ? 'x' : 's');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IRGRP) != (mode_t)0) {
+      putchar('r');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IWGRP) != (mode_t)0) {
+      putchar('w');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IXGRP) != (mode_t)0) {
+      putchar(((dip->fflags & S_ISGID) == (mode_t)0) ? 'x' : 's');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IROTH) != (mode_t)0) {
+      putchar('r');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IWOTH) != (mode_t)0) {
+      putchar('w');
+    }
+    else {
+      putchar('-');
+    }
+    if ((dip->fflags & S_IXOTH) != (mode_t)0) {
+      putchar('x');
+    }
+    else {
+      putchar('-');
+    }
+#else
+    printf("-------");
+#endif
+
+    /* Links.*/
+//    printf("%3d ", 1);
+
+    /* User and group.*/
+//    printf("root root ");
+
+    /* Size field.*/
+    if ((dip->ftype) == 'b' || (dip->ftype == 'c')) {
+      printf("  %3u,%4u ", /*major(p->fsize)*/0, /*minor(p->fsize)*/0);
+    }
+    else if (dip->ftype == 's') {
+      printf("%9u ", 0);
+    }
+    else {
+      printf("%9u ", (unsigned)dip->fsize);
+    }
+
+    /* File name.*/
+    if (options.yflg == false) {
+      if (dip->ftype == 'd') {
+        printf("\033[1m%s\033[0m" NEWLINE_STR, dip->fname);
+      }
+      else {
+        printf("%s" NEWLINE_STR, dip->fname);
+      }
+    }
+    else {
+      printf("%s" NEWLINE_STR, dip->fname);
+    }
+    i++;
+  }
 }
 
 /*
  * Application entry point.
  */
 int main(int argc, char *argv[], char *envp[]) {
-  int i;
-  struct afile *fp, *fp0, *fplast;
 
   (void)envp;
-
-#if 1
-  /* Enable for RAM debug.*/
-  asm volatile ("bkpt");
-#endif
 
   /* Parsing arguments.*/
   argv++;
@@ -451,136 +550,75 @@ int main(int argc, char *argv[], char *envp[]) {
     argv[0]++;
     while (*argv[0] != '\0') {
       switch (*argv[0]) {
-      case 'R':
-        Rflg = true;
-        break;
       case 'a':
-        aflg = true;
+        options.aflg = true;
         break;
       case 'd':
-        dflg = true;
+        options.dflg = true;
         break;
       case 'f':
-        fflg = true;
+        options.fflg = true;
         break;
       case 'l':
-        lflg = true;
+        options.lflg = true;
         break;
-      case 'q':
-        qflg = true;
+      case 'y':
+        options.yflg = true;
         break;
       default:
         usage();
-        return 1;
       }
+      argv[0]++;
     }
-    argv[0]++;
+    argv++;
+    argc--;
   }
 
   /* The "f" flag has side effects.*/
-  if (fflg) {
-    aflg = true;
-    lflg = false;
-    /*sflg = false;*/
-    /*tflg = false*/;
+  if (options.fflg) {
+    options.aflg = true;
+    options.dflg = true;
+    options.lflg = false;
   }
 
-  /* Case where no paths are specified.*/
-  if (argc == 0) {
-    argc++;
-    argv = &dotp;
+  /* The "l" flag also implies "d" for simplicity.*/
+  if (options.lflg) {
+    options.dflg = true;
   }
 
-  /* Allocating a single big buffer for all files.*/
-  bufp = calloc(argc, sizeof (struct afile));
-  fp = (struct afile *)bufp;
-  if (bufp == NULL) {
-    error("out of memory");
-  }
+  if (argc > 0) {
+    /* Allocating the top level list.*/
+    toplist = dirlist_new(8, false);
+    if (toplist == NULL) {
+      error("out of memory");
+    }
 
-  /* Scanning all arguments and populating the array.*/
-  fp0 = fp;
-  for (i = 0; i < argc; i++) {
-      if (!gstat(fp, *argv, true)) {
-          fp->fname = *argv;
-          fp->fflags |= ISARG;
-          fp++;
-      }
-      argv++;
-  }
-  fplast = fp;
-
-  /* Sorting the array, if not disabled.*/
-  if (!fflg) {
-    qsort(fp0, fplast - fp0, sizeof (struct afile), fcmp);
-  }
-
-  if (dflg) {
-    /* Not entering directories.*/
-    formatf(fp0, fplast);
+    build_list_from_args(argv, &toplist);
   }
   else {
-    /* Entering directories. TODO */
-    if (fflg) {
-      fp = fp0;
-    }
-    else {
-      /* Skipping directories.*/
-      for (fp = fp0; fp < fplast && fp->ftype != 'd'; fp++) {
-      }
-      formatf(fp0, fp);
+    /* Allocating the top level list.*/
+    toplist = dirlist_new(8, true);
+    if (toplist == NULL) {
+      error("out of memory");
     }
 
-    if (fp < fplast) {
-      if (fp > fp0) {
-        printf("\n");
-      }
-#if 0
-      for (;;) {
-        formatd(fp->fname, argc > 1);
-        while (subdirs) {
-          struct subdirs *t;
-
-          t = subdirs;
-          subdirs = t->sd_next;
-          printf("\n");
-          formatd(t->sd_name, 1);
-          free((void *)t->sd_name);
-          free((void *)t);
-        }
-        if (++fp == fplast)
-          break;
-        printf("\n");
-      }
-#endif
-    }
+    build_list_from_path(new_path("."), &toplist);
+    options.dflg = true;
   }
 
-  freeall();
-  return 0;
-#if 0
-  if (argc > 2) {
-    fprintf(stderr, "Usage: ls [<dirpath>]" NEWLINE_STR);
-    return 1;
-  }
-
-  if (argc == 1) {
-    path = ".";
+  /* Printing the top level.*/
+  if (options.lflg) {
+    printlist(toplist, !options.dflg);
   }
   else {
-    path = argv[1];
+    printnames(toplist, !options.dflg);
   }
 
-  dirp = opendir(path);
-  if (dirp == NULL) {
-    fprintf(stderr, "ls: %s" NEWLINE_STR, strerror(errno));
-    return 1;
-  }
+  /* Flushing the standard files.*/
+  fflush(NULL);
 
-  while ((dep = readdir(dirp)) != NULL) {
-    printf("%s" NEWLINE_STR, dep->d_name);
-  }
+  /* Not really required, freeing memory.*/
+  dirlist_free(toplist);
 
-  closedir(dirp);
-#endif
+  exit(0);
 }

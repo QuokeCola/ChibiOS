@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -495,8 +495,15 @@ void *__ovldrv_objinit_impl(void *ip, const void *vmt,
 void __ovldrv_dispose_impl(void *ip) {
   vfs_overlay_driver_c *self = (vfs_overlay_driver_c *)ip;
 
-  /* No finalization code.*/
-  (void)self;
+  /* Finalization code.*/
+  unsigned i;
+
+  /* Releasing all registered drivers.*/
+  i = 0U;
+  while (i < self->next_driver) {
+    roRelease(self->drivers[i]);
+    i++;
+  }
 
   /* Finalization of the ancestors-defined parts.*/
   __vfsdrv_dispose_impl(self);
@@ -602,7 +609,7 @@ msg_t __ovldrv_stat_impl(void *ip, const char *path, vfs_stat_t *sp) {
       /* Searching for a match among registered overlays.*/
       ret = match_driver(self, &scanpath, &dp);
       if (!CH_RET_IS_ERROR(ret)) {
-        /* Delegating directory creation to a registered driver.*/
+        /* Delegating information request to a registered driver.*/
         ret = vfsDrvStat((void *)dp, scanpath, sp);
         break;
       }
@@ -626,7 +633,10 @@ msg_t __ovldrv_stat_impl(void *ip, const char *path, vfs_stat_t *sp) {
       ret = vfsDrvStat((void *)self->overlaid_drv, self->buf, sp);
     }
     else {
-      ret = CH_RET_ENOENT;
+      /* This is the root directory.*/
+      sp->size = 0;
+      sp->mode = VFS_MODE_S_IFDIR;
+      ret = CH_RET_SUCCESS;
     }
   } while (false);
 
@@ -978,8 +988,14 @@ const struct vfs_overlay_driver_vmt __vfs_overlay_driver_vmt = {
  * @public
  *
  * @brief       Registers a VFS driver as an overlay.
+ * @note        The overlay becomes the owner of the registered driver, the
+ *              reference is released when dre driver is unregistered or when
+ *              the whole overlay object is disposed.
  *
  * @param[in,out] ip            Pointer to a @p vfs_overlay_driver_c instance.
+ * @param[in]     vdp           Driver object reference to be registered.
+ * @param[in]     name          Name for the new overlay directory, must be
+ *                              alphanumeric.
  * @return                      The operation result.
  *
  * @api
@@ -987,6 +1003,8 @@ const struct vfs_overlay_driver_vmt __vfs_overlay_driver_vmt = {
 msg_t ovldrvRegisterDriver(void *ip, vfs_driver_c *vdp, const char *name) {
   vfs_overlay_driver_c *self = (vfs_overlay_driver_c *)ip;
   msg_t ret;
+
+  chSysLock();
 
   if (self->next_driver >= DRV_CFG_OVERLAY_DRV_MAX) {
     ret = CH_RET_ENOMEM;
@@ -998,7 +1016,60 @@ msg_t ovldrvRegisterDriver(void *ip, vfs_driver_c *vdp, const char *name) {
     ret = CH_RET_SUCCESS;
   }
 
+  chSysUnlock();
+
   return ret;
+}
+
+/**
+ * @memberof    vfs_overlay_driver_c
+ * @public
+ *
+ * @brief       Unregisters a VFS driver.
+ * @note        The reference to the registered driver is released.
+ *
+ * @param[in,out] ip            Pointer to a @p vfs_overlay_driver_c instance.
+ * @param[in]     name          Name of the overlay directory to be
+ *                              unregistered.
+ * @return                      The operation result.
+ *
+ * @api
+ */
+msg_t ovldrvUnregisterDriver(void *ip, const char *name) {
+  vfs_overlay_driver_c *self = (vfs_overlay_driver_c *)ip;
+  unsigned i;
+
+  chSysLock();
+
+  i = 0U;
+  while (i < self->next_driver) {
+
+    /* Is name matching?*/
+    if (strcmp(self->names[i], name) == 0) {
+      vfs_driver_c *vdp = self->drivers[i];
+
+      /* Found match, move following entries down, if any.*/
+      while (i < self->next_driver - 1) {
+        self->drivers[i] = self->drivers[i + 1];
+        self->names[i] = self->names[i + 1];
+        i++;
+      }
+      self->next_driver--;
+
+      chSysUnlock();
+
+      /* Releasing the unregistered object.*/
+      roRelease(vdp);
+
+      return CH_RET_SUCCESS;
+    }
+
+    i++;
+  }
+
+  chSysUnlock();
+
+  return CH_RET_ENOENT;
 }
 /** @} */
 

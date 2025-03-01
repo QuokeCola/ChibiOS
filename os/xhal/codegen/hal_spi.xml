@@ -34,48 +34,22 @@
           <brief>Enables the slave mode.</brief>
         </define>
       </group>
-      <group description="SPI CS modes">
-        <define name="SPI_SELECT_MODE_NONE" value="0">
-          <brief>@p spiSelect() and @p spiUnselect() do nothing.</brief>
-        </define>
-        <define name="SPI_SELECT_MODE_PAD" value="1">
-          <brief>Selection by PAL port and pad number.</brief>
-        </define>
-        <define name="SPI_SELECT_MODE_PORT" value="2">
-          <brief>Selection by port and port mask.</brief>
-        </define>
-        <define name="SPI_SELECT_MODE_LINE" value="3">
-          <brief>Selection by PAL line identifier.</brief>
-        </define>
-        <define name="SPI_SELECT_MODE_LLD" value="4">
-          <brief>Selection by LLD-defined mode.</brief>
-        </define>
-      </group>
-      <group description="SPI status flags">
-        <define name="SPI_STS_FAILED" value="1U">
-          <brief>Last transfer failed because HW error.</brief>
-        </define>
-      </group>
     </definitions_early>
     <configs>
       <config name="SPI_USE_SYNCHRONIZATION" default="TRUE">
         <brief>Support for thread synchronization API.</brief>
         <assert invalid="($N != FALSE) &amp;&amp; ($N != TRUE)" />
       </config>
-      <config name="SPI_SELECT_MODE" default="SPI_SELECT_MODE_PAD">
-        <brief>Handling method for SPI CS line.</brief>
-        <assert
-          invalid="($N &lt; SPI_SELECT_MODE_NONE) || ($N &gt; SPI_SELECT_MODE_LLD)" />
+      <config name="SPI_USE_ASSERT_ON_ERROR" default="FALSE">
+        <brief>Assertions on SPI errors return.</brief>
+        <assert invalid="($N != FALSE) &amp;&amp; ($N != TRUE)" />
       </config>
-      <verbatim><![CDATA[
-/* Some modes have a dependency on the PAL driver, making the required
-   checks here.*/
-#if ((SPI_SELECT_MODE != SPI_SELECT_MODE_PAD)  ||                           \
-     (SPI_SELECT_MODE != SPI_SELECT_MODE_PORT) ||                           \
-     (SPI_SELECT_MODE != SPI_SELECT_MODE_LINE)) &&                          \
-    (HAL_USE_PAL != TRUE)
-#error "current SPI_SELECT_MODE requires HAL_USE_PAL"
-#endif]]></verbatim>
+      <config name="SPI_USE_CONFIGURATIONS" default="FALSE">
+        <brief>Support for SPI user configurations.</brief>
+        <note>When enabled the user must provide a variable named
+          @p sio_configurations of type @p sio_configurations_t.</note>
+        <assert invalid="($N != FALSE) &amp;&amp; ($N != TRUE)" />
+      </config>
     </configs>
     <macros>
       <macro name="__spi_getconf">
@@ -116,6 +90,7 @@
         <brief>Type of structure representing a SPI driver (legacy).</brief>
         <basetype ctype="struct hal_spi_driver" />
       </typedef>
+      
       <verbatim><![CDATA[
 /* Inclusion of LLD header.*/
 #include "hal_spi_lld.h"
@@ -136,32 +111,6 @@
           <field name="mode" ctype="spi_mode_t">
             <brief>SPI transfer mode options.</brief>
           </field>
-          <condition check="SPI_SELECT_MODE == SPI_SELECT_MODE_LINE">
-            <field name="ssline" ctype="ioline_t">
-              <brief>The chip select line.</brief>
-              <note>Only used in master mode.</note>
-            </field>
-          </condition>
-          <condition check="SPI_SELECT_MODE == SPI_SELECT_MODE_PORT">
-            <field name="ssport" ctype="ioportid_t">
-              <brief>The chip select port.</brief>
-              <note>Only used in master mode.</note>
-            </field>
-            <field name="ssmask" ctype="ioportmask_t">
-              <brief>The chip select port mask.</brief>
-              <note>Only used in master mode.</note>
-            </field>
-          </condition>
-          <condition check="SPI_SELECT_MODE == SPI_SELECT_MODE_PAD">
-            <field name="ssport" ctype="ioportid_t">
-              <brief>The chip select port.</brief>
-              <note>Only used in master mode.</note>
-            </field>
-            <field name="sspad" ctype="ioportmask_t">
-              <brief>The chip select pad number.</brief>
-              <note>Only used in master mode.</note>
-            </field>
-          </condition>
           <verbatim><![CDATA[
 /* End of the mandatory fields.*/
 spi_lld_config_fields;]]></verbatim>
@@ -169,7 +118,21 @@ spi_lld_config_fields;]]></verbatim>
             <verbatim><![CDATA[
 SPI_CONFIG_EXT_FIELDS]]></verbatim>
           </condition>
-          
+        </fields>
+      </struct>
+      <typedef name="spi_configurations_t">
+        <brief>Type of user-provided SPI configurations.</brief>
+        <basetype ctype="struct spi_configurations" />
+      </typedef>
+      <struct name="spi_configurations">
+        <brief>Structure representing user-provided SPI configurations.</brief>
+        <fields>
+          <field name="cfgsnum" ctype="unsigned">
+            <brief>Number of configurations in the open array.</brief>
+          </field>
+          <field name="cfgs" ctype="hal_spi_config_t$I$N[]">
+            <brief>User SPI configurations.</brief>
+          </field>
         </fields>
       </struct>
       <class type="regular" name="hal_spi_driver" namespace="spi"
@@ -192,6 +155,9 @@ spi_lld_driver_fields;]]></verbatim>
         <methods>
           <objinit callsuper="true">
             <implementation><![CDATA[
+#if SPI_USE_SYNCHRONIZATION == TRUE
+self->sync_transfer = NULL;
+#endif
 
 /* Optional, user-defined initializer.*/
 #if defined(SPI_DRIVER_EXT_INIT_HOOK)
@@ -498,11 +464,12 @@ osalDbgCheck(self != NULL);
 
 osalDbgAssert((self->state == HAL_DRV_STATE_READY) ||
               (self->state == HAL_DRV_STATE_ACTIVE) ||
+              (self->state == HAL_DRV_STATE_HALF) ||
+              (self->state == HAL_DRV_STATE_FULL) ||
               (self->state == HAL_DRV_STATE_COMPLETE),
               "invalid state");
 
-if ((self->state == HAL_DRV_STATE_ACTIVE) ||
-    (self->state == HAL_DRV_STATE_COMPLETE)) {
+if (self->state != HAL_DRV_STATE_READY) {
 
   /* Stopping transfer at low level.*/
   msg = spi_lld_stop_transfer(self, np);
@@ -677,14 +644,9 @@ return msg;]]></implementation>
                 <note><![CDATA[Buffers are organized as uint8_t arrays for frame
                 sizes below or equal to 8 bits else uint16_t is used.]]></note>
                 <param name="n" ctype="size_t" dir="in">Number of
-                  frames to be
-                  exchanged.
-                </param>
+                  frames to be exchanged.</param>
                 <param name="txbuf" ctype="const void *" dir="in">Pointer
-                  to
-                  the
-                  transmit buffer.
-                </param>
+                  to the transmit buffer.</param>
                 <return>The operation status.</return>
                 <retval value="MSG_OK">If operation completed without
                   errors.
@@ -696,6 +658,8 @@ return msg;]]></implementation>
                 <api />
                 <implementation><![CDATA[
 msg_t msg;
+
+osalSysLock();
 
 msg = spiStartSendI(self, n, txbuf);
 if (msg == MSG_OK) {
@@ -714,9 +678,7 @@ return msg;]]></implementation>
                 <note><![CDATA[Buffers are organized as uint8_t arrays for frame
                 sizes below or equal to 8 bits else uint16_t is used.]]></note>
                 <param name="n" ctype="size_t" dir="in">Number of
-                  frames to be
-                  exchanged.
-                </param>
+                  frames to be exchanged.</param>
                 <param name="rxbuf" ctype="void *" dir="out">Pointer to
                   the
                   receive buffer.
@@ -732,6 +694,8 @@ return msg;]]></implementation>
                 <api />
                 <implementation><![CDATA[
 msg_t msg;
+
+osalSysLock();
 
 msg = spiStartReceiveI(self, n, rxbuf);
 if (msg == MSG_OK) {
@@ -751,63 +715,27 @@ return msg;]]></implementation>
 
 return (size_t)(1U << ((__spi_getfield(self, mode) & SPI_MODE_FSIZE_MASK) >> SPI_MODE_FSIZE_POS));
 ]]></implementation>
-            </method><condition check="SPI_SELECT_MODE == SPI_SELECT_MODE_LLD">
-              <method name="spiSelectX" ctype="void">
-                <brief>Asserts the slave select signal and prepares for
-                  transfers.</brief>
-                <xclass />
-                <implementation><![CDATA[
+            </method>
+            <method name="spiSelectX" ctype="void">
+              <brief>Asserts the slave select signal and prepares for
+                transfers.</brief>
+              <xclass />
+              <implementation><![CDATA[
 
 spi_lld_select(self);]]></implementation>
-              </method>
-              <method name="spiUnselectX" ctype="void">
-                <brief>Deasserts the slave select signal.</brief>
-                <xclass />
-                <implementation><![CDATA[
+            </method>
+            <method name="spiUnselectX" ctype="void">
+              <brief>Deasserts the slave select signal.</brief>
+              <xclass />
+              <implementation><![CDATA[
 
 spi_lld_unselect(self);]]></implementation>
-              </method>
-              <elseif check="SPI_SELECT_MODE == SPI_SELECT_MODE_LINE" />
-              <method name="spiSelectX" ctype="void">
-                <implementation><![CDATA[
-
-palClearLine(__spi_getfield(self, ssline));]]></implementation>
-              </method>
-              <method name="spiUnselectX" ctype="void">
-                <implementation><![CDATA[
-
-palSetLine(__spi_getfield(self, ssline));]]></implementation>
-              </method>
-              <elseif check="SPI_SELECT_MODE == SPI_SELECT_MODE_PORT" />
-              <method name="spiSelectX" ctype="void">
-                <implementation><![CDATA[
-
-palClearPort(__spi_getfield(self, ssport), __spi_getfield(self, ssmask));]]></implementation>
-              </method>
-              <method name="spiUnselectX" ctype="void">
-                <implementation><![CDATA[
-
-palSetPort(__spi_getfield(self, ssport), __spi_getfield(self, ssmask));]]></implementation>
-              </method>
-              <elseif check="SPI_SELECT_MODE == SPI_SELECT_MODE_PAD" />
-              <method name="spiSelectX" ctype="void">
-                <implementation><![CDATA[
-
-palClearPad(__spi_getfield(self, ssport), __spi_getfield(self, sspad));]]></implementation>
-              </method>
-              <method name="spiUnselectX" ctype="void">
-                <implementation><![CDATA[
-
-palSetPad(__spi_getfield(self, ssport), __spi_getfield(self, sspad));]]></implementation>
-              </method>
-            </condition>
+            </method>
             <condition check="SPI_USE_SYNCHRONIZATION == TRUE">
               <method name="__spi_wakeup_isr" ctype="void">
                 <brief>Wakes up the waiting thread.</brief>
                 <note>This function is meant to be used in the low level
-                  drivers
-                  implementations only.
-                </note>
+                  drivers implementations only.</note>
                 <param name="msg" ctype="msg_t" dir="in">The wakeup
                   message.
                 </param>
@@ -827,81 +755,6 @@ osalSysUnlockFromISR();]]></implementation>
 (void)msg;]]></implementation>
               </method>
             </condition>
-            <method name="__spi_isr_complete_code" ctype="void">
-              <brief>Common ISR code in linear mode.</brief>
-              <details>
-                <verbatim><![CDATA[
-This code handles the portable part of the ISR code:
-  - Callback invocation.
-  - Waiting thread wakeup, if any.
-  - Driver state transitions.
-  .
-]]></verbatim>
-              </details>
-              <note>This function is meant to be used in the low level
-                drivers
-                implementations only.
-              </note>
-              <notapi />
-              <implementation><![CDATA[
-
-__cbdrv_invoke_cb_with_transition(self,
-                                  HAL_DRV_STATE_COMPLETE,
-                                  HAL_DRV_STATE_READY);
-__spi_wakeup_isr(self, MSG_OK);]]></implementation>
-            </method>
-            <method name="__spi_isr_half_code" ctype="void">
-              <brief>Half buffer filled ISR code in circular mode.</brief>
-              <details>
-                <verbatim><![CDATA[The callback is invoked with driver
-               state set to @p HAL_DRV_STATE_ACTIVE.]]></verbatim>
-              </details>
-              <note>This function is meant to be used in the low level
-                drivers
-                implementations only.
-              </note>
-              <notapi />
-              <implementation><![CDATA[
-
-__cbdrv_invoke_cb(self);]]></implementation>
-            </method>
-            <method name="__spi_isr_full_code" ctype="void">
-              <brief>Full buffer filled ISR code in circular mode.</brief>
-              <details>
-                <verbatim><![CDATA[The callback is invoked with driver
-               state set to @p HAL_DRV_STATE_COMPLETE.]]></verbatim>
-              </details>
-              <note>This function is meant to be used in the low level
-                drivers
-                implementations only.
-              </note>
-              <notapi />
-              <implementation><![CDATA[
-
-__cbdrv_invoke_cb_with_transition(self,
-                                  HAL_DRV_STATE_COMPLETE,
-                                  HAL_DRV_STATE_ACTIVE);]]></implementation>
-            </method>
-            <method name="__spi_isr_error_code" ctype="void">
-              <brief>ISR error reporting code..</brief>
-              <details>
-                <verbatim><![CDATA[The callback is invoked with driver
-               state set to @p HAL_DRV_STATE_ERROR.]]></verbatim>
-              </details>
-              <note>This function is meant to be used in the low level
-                drivers
-                implementations only.
-              </note>
-              <param name="msg" ctype="msg_t" dir="in">The error code.</param>
-              <notapi />
-              <implementation><![CDATA[
-
-__cbdrv_invoke_cb_with_transition(self,
-                                  HAL_DRV_STATE_ERROR,
-                                  HAL_DRV_STATE_READY);
-__spi_wakeup_isr(self, msg);]]></implementation>
-            </method>
-            
           </inline>
           <override>
             <method shortname="start">
@@ -914,20 +767,15 @@ return spi_lld_start(self);]]></implementation>
 
 spi_lld_stop(self);]]></implementation>
             </method>
-            <method shortname="doconf">
+            <method shortname="setcfg">
               <implementation><![CDATA[
 
-return (const void *)spi_lld_configure(self, (const hal_spi_config_t *)config);]]></implementation>
+return (const void *)spi_lld_setcfg(self, (const hal_spi_config_t *)config);]]></implementation>
             </method>
-            <method shortname="gsts">
+            <method shortname="selcfg">
               <implementation><![CDATA[
 
-return __cbdrv_gsts_impl(self);]]></implementation>
-            </method>
-            <method shortname="gcsts">
-              <implementation><![CDATA[
-
-return __cbdrv_gcsts_impl(self, mask);]]></implementation>
+return (const void *)spi_lld_selcfg(self, cfgnum);]]></implementation>
             </method>
           </override>
         </methods>

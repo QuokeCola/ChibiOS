@@ -36,6 +36,11 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
+/**
+ * @brief    Posix shared syscall handler
+ */
+#define SB_SVC128_HANDLER       sb_sysc_stdio
+
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
@@ -48,6 +53,22 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
+#if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
+/**
+ * @brief   Type of a sandbox I/O structure.
+ */
+typedef struct {
+  /**
+   * @brief   VFS driver associated to the sandbox as root.
+   */
+  vfs_driver_c                  *vfs_driver;
+  /**
+   * @brief   VFS nodes associated to file descriptors.
+   */
+  vfs_node_c                    *vfs_nodes[SB_CFG_FD_NUM];
+} sb_ioblock_t;
+#endif
+
 /*===========================================================================*/
 /* Module macros.                                                            */
 /*===========================================================================*/
@@ -59,22 +80,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  int sb_posix_open(sb_class_t *sbp, const char *path, int flags);
-  int sb_posix_close(sb_class_t *sbp, int fd);
-  int sb_posix_dup(sb_class_t *sbp, int fd);
-  int sb_posix_dup2(sb_class_t *sbp, int oldfd, int newfd);
-  int sb_posix_fstat(sb_class_t *sbp, int fd, struct stat *statbuf);
-  ssize_t sb_posix_read(sb_class_t *sbp, int fd, void *buf, size_t count);
-  ssize_t sb_posix_write(sb_class_t *sbp, int fd, const void *buf, size_t count);
-  off_t sb_posix_lseek(sb_class_t *sbp, int fd, off_t offset, int whence);
-  ssize_t sb_posix_getdents(sb_class_t *sbp, int fd, void *buf, size_t count);
-  int sb_posix_chdir(sb_class_t *sbp, const char *path);
-  int sb_posix_getcwd(sb_class_t *sbp, char *buf, size_t size);
-  int sb_posix_unlink(sb_class_t *sbp, const char *path);
-  int sb_posix_rename(sb_class_t *sbp, const char *oldpath, const char *newpath);
-  int sb_posix_mkdir(sb_class_t *sbp, const char *path, mode_t mode);
-  int sb_posix_rmdir(sb_class_t *sbp, const char *path);
-  int sb_posix_stat(sb_class_t *sbp, const char *path, struct stat *statbuf);
+  void __sb_io_cleanup(sb_class_t *sbp);
+  void sb_sysc_stdio(sb_class_t *sbp, struct port_extctx *ectxp);
 #ifdef __cplusplus
 }
 #endif

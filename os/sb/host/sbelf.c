@@ -56,6 +56,7 @@
 
 /* Supported relocation types.*/
 #define R_ARM_ABS32             2U
+#define R_ARM_REL32             3U
 #define R_ARM_THM_PC22          10U
 #define R_ARM_THM_JUMP24        30U
 #define R_ARM_PREL31            42U
@@ -159,6 +160,11 @@ typedef struct {
 /*===========================================================================*/
 /* Module local variables.                                                   */
 /*===========================================================================*/
+
+static const uint8_t elf32_header[16] = {
+  0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 
 /*===========================================================================*/
 /* Module local functions.                                                   */
@@ -299,7 +305,7 @@ static msg_t reloc_entry(elf_load_context_t *ctxp,
   }
 
   /* Handling the various relocation point types.*/
-  switch (ELF32_R_TYPE(rp->r_info)) {
+  switch (ELF32_R_TYPE(ELF32_R_TYPE(rp->r_info))) {
   case R_ARM_ABS32:
     *((uint32_t *)relocation_address) += (uint32_t)ctxp->map->base;
     break;
@@ -336,6 +342,7 @@ static msg_t reloc_entry(elf_load_context_t *ctxp,
 
     ctxp->rel_movw_found = false;
     break;
+  case R_ARM_REL32: /* ?? */
   case R_ARM_THM_PC22:
   case R_ARM_THM_JUMP24:
   case R_ARM_PREL31:
@@ -418,11 +425,6 @@ msg_t sbElfLoad(vfs_file_node_c *fnp, const memory_area_t *map) {
 
   /* Load context initialization.*/
   {
-    static const uint8_t elf32_header[16] = {
-      0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-
     /* Context fully cleared.*/
     memset((void *)&ctx, 0, sizeof (elf_load_context_t));
 
@@ -549,6 +551,101 @@ msg_t sbElfLoadFile(vfs_driver_c *drvp,
   } while (false);
 
   vfsClose((vfs_node_c *)fnp);
+
+  return ret;
+}
+
+msg_t sbElfGetAllocation(vfs_file_node_c *fnp, size_t *sizep) {
+  msg_t ret;
+  bool zerofound = false;
+
+  /* The file is assumed to be loaded at address zero, one of the loadable
+     sections must start at zero.*/
+  *sizep = (size_t)0;
+
+  /* Large structures not used at same time, the compiler could optimize it
+     but it is still a problem when running the code without optimizations for
+     debug.*/
+  union {
+    elf32_header_t h;
+    elf32_section_header_t sh;
+  } u;
+
+  /* Load context initialization.*/
+  {
+    /* Reading the main ELF header.*/
+    ret = vfsSetFilePosition(fnp, (vfs_offset_t)0, VFS_SEEK_SET);
+    CH_RETURN_ON_ERROR(ret);
+    ret = vfsReadFile(fnp, (void *)&u.h, sizeof (elf32_header_t));
+    CH_RETURN_ON_ERROR(ret);
+
+    /* Checking for the expected header.*/
+    if (memcmp(u.h.e_ident, elf32_header, 16) != 0) {
+      return CH_RET_ENOEXEC;
+    }
+
+    /* Accepting executable files only.*/
+    if (u.h.e_type != ET_EXEC) {
+      return CH_RET_ENOEXEC;
+    }
+
+    /* TODO more consistency checks.*/
+  }
+
+  /* Loading phase, scanning section headers.*/
+  {
+    elf_secnum_t i, sections_num;
+    vfs_offset_t sections_off;
+
+    sections_num = (elf_secnum_t)u.h.e_shnum;
+    sections_off = (vfs_offset_t)u.h.e_shoff;
+    for (i = 0U; i < sections_num; i++) {
+
+      /* Reading the header.*/
+      ret = vfsSetFilePosition(fnp,
+                               sections_off + ((vfs_offset_t)i *
+                                               (vfs_offset_t)sizeof (elf32_section_header_t)),
+                               VFS_SEEK_SET);
+      CH_RETURN_ON_ERROR(ret);
+      ret = vfsReadFile(fnp, (void *)&u.sh, sizeof (elf32_section_header_t));
+      CH_RETURN_ON_ERROR(ret);
+
+      /* Empty sections are not processed.*/
+      if (u.sh.sh_size == 0U) {
+        continue;
+      }
+
+      /* Deciding what to do with the section depending on type.*/
+      switch (u.sh.sh_type) {
+      case SHT_PROGBITS:
+        if (u.sh.sh_addr == 0U) {
+          zerofound = true;
+        }
+        /* Falls through.*/
+      case SHT_NOBITS:
+        /* Allocatable section type, needs to be loaded.*/
+        if ((u.sh.sh_flags & SHF_ALLOC) != 0U) {
+          size_t top;
+
+          top = (size_t)u.sh.sh_addr + (size_t)u.sh.sh_size;
+          if (top > *sizep) {
+            *sizep = top;
+          }
+        }
+        break;
+
+      default:
+        /* Ignoring other section types.*/
+        break;
+      }
+    }
+  }
+
+  /* Consistency check, it is expected that one of the loadable sections
+     starts from virtual address zero.*/
+  if (!zerofound) {
+    ret = CH_RET_ENOEXEC;
+  }
 
   return ret;
 }

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -574,16 +574,32 @@ void __sio_stop_impl(void *ip) {
  * @memberof    hal_sio_driver_c
  * @protected
  *
- * @brief       Override of method @p __drv_do_configure().
+ * @brief       Override of method @p __drv_set_cfg().
  *
  * @param[in,out] ip            Pointer to a @p hal_sio_driver_c instance.
  * @param[in]     config        New driver configuration.
  * @return                      The configuration pointer.
  */
-const void *__sio_doconf_impl(void *ip, const void *config) {
+const void *__sio_setcfg_impl(void *ip, const void *config) {
   hal_sio_driver_c *self = (hal_sio_driver_c *)ip;
 
-  return (const void *)sio_lld_configure(self, (const hal_sio_config_t *)config);
+  return (const void *)sio_lld_setcfg(self, (const hal_sio_config_t *)config);
+}
+
+/**
+ * @memberof    hal_sio_driver_c
+ * @protected
+ *
+ * @brief       Override of method @p __drv_sel_cfg().
+ *
+ * @param[in,out] ip            Pointer to a @p hal_sio_driver_c instance.
+ * @param[in]     cfgnum        Driver configuration number.
+ * @return                      The configuration pointer.
+ */
+const void *__sio_selcfg_impl(void *ip, unsigned cfgnum) {
+  hal_sio_driver_c *self = (hal_sio_driver_c *)ip;
+
+  return (const void *)sio_lld_selcfg(self, cfgnum);
 }
 /** @} */
 
@@ -595,10 +611,9 @@ const struct hal_sio_driver_vmt __hal_sio_driver_vmt = {
   .dispose                  = __sio_dispose_impl,
   .start                    = __sio_start_impl,
   .stop                     = __sio_stop_impl,
-  .doconf                   = __sio_doconf_impl,
-  .setcb                    = __cbdrv_setcb_impl,
-  .gsts                     = __cbdrv_gsts_impl,
-  .gcsts                    = __cbdrv_gcsts_impl
+  .setcfg                   = __sio_setcfg_impl,
+  .selcfg                   = __sio_selcfg_impl,
+  .setcb                    = __cbdrv_setcb_impl
 };
 
 /**
@@ -1012,20 +1027,13 @@ msg_t __bsio_start_impl(void *ip) {
   hal_buffered_sio_c *self = (hal_buffered_sio_c *)ip;
   msg_t msg;
 
-  /* Start is a slow operation in this driver, we need to switch to the
-     HAL_DRV_STATE_STARTING state.*/
-  self->state = HAL_DRV_STATE_STARTING;
-  osalSysUnlock();
-
   /* Starting the undelying SIO driver.*/
-  msg = drvStart(self->siop);
+  msg = drvStartS(self->siop);
   if (msg == HAL_RET_SUCCESS) {
     drvSetCallbackX(self->siop, &__bsio_default_cb);
     sioWriteEnableFlagsX(self->siop, SIO_EV_ALL_EVENTS);
   }
 
-  /* Back into the critical section and return.*/
-  osalSysLock();
   return msg;
 }
 
@@ -1040,32 +1048,24 @@ msg_t __bsio_start_impl(void *ip) {
 void __bsio_stop_impl(void *ip) {
   hal_buffered_sio_c *self = (hal_buffered_sio_c *)ip;
 
-  /* Start is a slow operation in this driver, we need to switch to the
-     HAL_DRV_STATE_STOPPING state.*/
-  self->state = HAL_DRV_STATE_STOPPING;
-  osalSysUnlock();
-
-  drvStop(self->siop);
-
-  /* Back into the critical section and return.*/
-  osalSysLock();
+  drvStopS(self->siop);
 }
 
 /**
  * @memberof    hal_buffered_sio_c
  * @protected
  *
- * @brief       Override of method @p __drv_do_configure().
+ * @brief       Override of method @p __drv_set_cfg().
  *
  * @param[in,out] ip            Pointer to a @p hal_buffered_sio_c instance.
  * @param[in]     config        New driver configuration.
  * @return                      The configuration pointer.
  */
-const void *__bsio_doconf_impl(void *ip, const void *config) {
+const void *__bsio_setcfg_impl(void *ip, const void *config) {
   hal_buffered_sio_c *self = (hal_buffered_sio_c *)ip;
 
   /* Configuring the underlying SIO driver.*/
-  return __sio_doconf_impl(self->siop, config);
+  return __sio_setcfg_impl(self->siop, config);
 }
 /** @} */
 
@@ -1077,7 +1077,8 @@ const struct hal_buffered_sio_vmt __hal_buffered_sio_vmt = {
   .dispose                  = __bsio_dispose_impl,
   .start                    = __bsio_start_impl,
   .stop                     = __bsio_stop_impl,
-  .doconf                   = __bsio_doconf_impl
+  .setcfg                   = __bsio_setcfg_impl,
+  .selcfg                   = NULL /* Method not found.*/
 };
 
 #endif /* HAL_USE_SIO == TRUE */

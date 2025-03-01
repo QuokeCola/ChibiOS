@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2020 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,6 +30,13 @@
 
 #define __CHIBIOS_SB_CONF__
 #define __CHIBIOS_SB_CONF_VER_3_0__
+
+/**
+ * @brief   Sandboxes privileged stack size.
+ */
+#if !defined(SB_CFG_PRIVILEGED_STACK_SIZE) || defined(__DOXYGEN__)
+#define SB_CFG_PRIVILEGED_STACK_SIZE        1024
+#endif
 
 /**
  * @brief   Number of memory regions for each sandbox.
@@ -71,6 +78,15 @@
  */
 #if !defined(SB_CFG_FD_NUM) || defined(__DOXYGEN__)
 #define SB_CFG_FD_NUM                       12
+#endif
+
+/**
+ * @brief   Enables a breakpoint in RAM-executed programs.
+ * @note    This option is only usable during development with an attached
+ *          debug, it causes a crash in stand-alone systems.
+ */
+#if !defined(SB_CFG_EXEC_DEBUG) || defined(__DOXYGEN__)
+#define SB_CFG_EXEC_DEBUG                   FALSE
 #endif
 
 #endif  /* SBCONF_H */

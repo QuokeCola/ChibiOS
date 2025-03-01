@@ -57,6 +57,18 @@
 #elif defined(STM32C031xx)
 #define PLATFORM_NAME           "STM32C0 Entry-level Mainstream MCU"
 
+#elif defined(STM32C051xx)
+#define PLATFORM_NAME           "STM32C0 Entry-level Mainstream MCU"
+
+#elif defined(STM32C071xx)
+#define PLATFORM_NAME           "STM32C0 Entry-level Mainstream MCU with USB"
+
+#elif defined(STM32C091xx)
+#define PLATFORM_NAME           "STM32C0 Entry-level Mainstream MCU with FDCAN"
+
+#elif defined(STM32C092xx)
+#define PLATFORM_NAME           "STM32C0 Entry-level Mainstream MCU with FDCAN"
+
 #else
 #error "STM32C0 device not specified"
 #endif
@@ -76,12 +88,13 @@
 #define CLK_SYSCLK              0U
 #define CLK_HSISYSCLK           1U
 #define CLK_HSIKERCLK           2U
-#define CLK_HCLK                3U
-#define CLK_PCLK                4U
-#define CLK_PCLKTIM             5U
-#define CLK_MCO                 6U
-#define CLK_MCO2                7U
-#define CLK_ARRAY_SIZE          8U
+#define CLK_HSIUSB48CLK         3U
+#define CLK_HCLK                4U
+#define CLK_PCLK                5U
+#define CLK_PCLKTIM             6U
+#define CLK_MCO                 7U
+#define CLK_MCO2                8U
+#define CLK_ARRAY_SIZE          9U
 /** @} */
 
 /**
@@ -118,6 +131,7 @@
 #define STM32_SW_MASK           (7U << 0)
 #define STM32_SW_HSISYS         (0U << 0)
 #define STM32_SW_HSE            (1U << 0)
+#define STM32_SW_HSIUSB48       (2U << 0)
 #define STM32_SW_LSI            (3U << 0)
 #define STM32_SW_LSE            (4U << 0)
 
@@ -129,6 +143,7 @@
 #define STM32_MCO2SEL_HSE       STM32_MCO2SEL_FIELD(4U)
 #define STM32_MCO2SEL_LSI       STM32_MCO2SEL_FIELD(6U)
 #define STM32_MCO2SEL_LSE       STM32_MCO2SEL_FIELD(7U)
+#define STM32_MCO2SEL_HSIUSB48  STM32_MCO2SEL_FIELD(8U)
 
 #define STM32_MCO2PRE_MASK      (7U << 20)
 #define STM32_MCO2PRE_FIELD(n)  ((n) << 20)
@@ -149,6 +164,7 @@
 #define STM32_MCOSEL_HSE        STM32_MCOSEL_FIELD(4U)
 #define STM32_MCOSEL_LSI        STM32_MCOSEL_FIELD(6U)
 #define STM32_MCOSEL_LSE        STM32_MCOSEL_FIELD(7U)
+#define STM32_MCOSEL_HSIUSB48   STM32_MCOSEL_FIELD(8U)
 
 #define STM32_MCOPRE_MASK       (7U << 28)
 #define STM32_MCOPRE_FIELD(n)   ((n) << 28)
@@ -172,6 +188,11 @@
 #define STM32_USART1SEL_HSIKER  (2U << 0)
 #define STM32_USART1SEL_LSE     (3U << 0)
 
+#define STM32_FDCAN1SEL_MASK    (3U << 8)
+#define STM32_FDCAN1SEL_PCLK    (0U << 8)
+#define STM32_FDCAN1SEL_HSIKER  (0U << 8)
+#define STM32_FDCAN1SEL_HSE     (0U << 8)
+
 #define STM32_I2C1SEL_MASK      (3U << 12)
 #define STM32_I2C1SEL_PCLK      (0U << 12)
 #define STM32_I2C1SEL_SYSCLK    (1U << 12)
@@ -185,6 +206,15 @@
 #define STM32_ADCSEL_MASK       (3U << 30)
 #define STM32_ADCSEL_SYSCLK     (0U << 30)
 #define STM32_ADCSEL_HSIKER     (2U << 30)
+/** @} */
+
+/**
+ * @name    RCC_CCIPR2 register bits definitions
+ * @{
+ */
+#define STM32_USBSEL_MASK       (1U << 12)
+#define STM32_USBSEL_HSIUSB48   (0U << 12)
+#define STM32_USBSEL_HSE        (1U << 12)
 /** @} */
 
 /**
@@ -334,6 +364,13 @@
 #endif
 
 /**
+ * @brief   Enables or disables the HSIUSB48 clock source.
+ */
+#if !defined(STM32_HSIUSB48_ENABLED) || defined(__DOXYGEN__)
+#define STM32_HSIUSB48_ENABLED              FALSE
+#endif
+
+/**
  * @brief   Enables or disables the HSE clock source.
  */
 #if !defined(STM32_HSE_ENABLED) || defined(__DOXYGEN__)
@@ -422,6 +459,13 @@
 #endif
 
 /**
+ * @brief   FDCAN1 clock source.
+ */
+#if !defined(STM32_FDCAN1SEL) || defined(__DOXYGEN__)
+#define STM32_FDCAN1SEL                     STM32_FDCAN1SEL_PCLK
+#endif
+
+/**
  * @brief   I2C1 clock source.
  */
 #if !defined(STM32_I2C1SEL) || defined(__DOXYGEN__)
@@ -440,6 +484,13 @@
  */
 #if !defined(STM32_ADCSEL) || defined(__DOXYGEN__)
 #define STM32_ADCSEL                        STM32_ADCSEL_SYSCLK
+#endif
+
+/**
+ * @brief   USB clock source.
+ */
+#if !defined(STM32_USBSEL) || defined(__DOXYGEN__)
+#define STM32_USBSEL                        STM32_USBSEL_HSIUSB48
 #endif
 
 /**
@@ -466,6 +517,18 @@
 
 #elif defined(STM32C031xx) && !defined(STM32C031_MCUCONF)
 #error "Using a wrong mcuconf.h file, STM32C031_MCUCONF not defined"
+
+#elif defined(STM32C051xx) && !defined(STM32C051_MCUCONF)
+#error "Using a wrong mcuconf.h file, STM32C051_MCUCONF not defined"
+
+#elif defined(STM32C071xx) && !defined(STM32C071_MCUCONF)
+#error "Using a wrong mcuconf.h file, STM32C071_MCUCONF not defined"
+
+#elif defined(STM32C091xx) && !defined(STM32C091_MCUCONF)
+#error "Using a wrong mcuconf.h file, STM32C091_MCUCONF not defined"
+
+#elif defined(STM32C092xx) && !defined(STM32C092_MCUCONF)
+#error "Using a wrong mcuconf.h file, STM32C092_MCUCONF not defined"
 
 #endif
 
@@ -507,6 +570,7 @@
 #include "stm32_lse_v3.inc"
 #include "stm32_lsi_v3.inc"
 #include "stm32_hsi48.inc"
+#include "stm32_hsiusb48.inc"
 #include "stm32_hse.inc"
 
 /*
@@ -544,9 +608,40 @@
 #endif /* STM32_RCC_HAS_HSI48 */
 
 /*
+ * HSIUSB48 related checks.
+ */
+#if STM32_RCC_HAS_HSIUSB48
+#if STM32_HSIUSB48_ENABLED
+#else /* !STM32_HSIUSB48_ENABLED */
+
+  #if STM32_SW == STM32_SW_HSIUSB48
+    #error "HSIUSB48 not enabled, required by STM32_SW"
+  #endif
+
+  #if STM32_MCOSEL == STM32_MCOSEL_HSIUSB48
+    #error "HSIUSB48 not enabled, required by STM32_MCOSEL"
+  #endif
+
+  #if STM32_MCO2SEL == STM32_MCO2SEL_HSIUSB48
+    #error "HSIUSB48 not enabled, required by STM32_MCO2SEL"
+  #endif
+
+  #if STM32_USBSEL == STM32_USBSEL_HSIUSB48
+    #error "HSIUSB48 not enabled, required by STM32_USBSEL"
+  #endif
+
+#endif /* !STM32_HSIUSB48_ENABLED */
+#endif /* STM32_RCC_HAS_HSI48 */
+
+/*
  * HSE related checks.
  */
 #if STM32_HSE_ENABLED
+
+  #if STM32_HSECLK == 0
+   #error "HSE oscillator not available on the board"
+  #endif
+
 #else /* !STM32_HSE_ENABLED */
 
   #if STM32_SW == STM32_SW_HSE
@@ -563,6 +658,12 @@
 
   #if STM32_RTCSEL == STM32_RTCSEL_HSEDIV
     #error "HSE not enabled, required by STM32_RTCSEL"
+  #endif
+
+  #if STM32_HAS_USB
+    #if STM32_USBSEL == STM32_USBSEL_HSE
+      #error "HSE not enabled, required by STM32_USBSEL"
+    #endif
   #endif
 
 #endif /* !STM32_HSE_ENABLED */
@@ -595,6 +696,11 @@
  * LSE related checks.
  */
 #if STM32_LSE_ENABLED
+
+  #if STM32_LSECLK == 0
+   #error "LSE oscillator not available on the board"
+  #endif
+
 #else /* !STM32_LSE_ENABLED */
 
   #if STM32_RTCSEL == STM32_RTCSEL_LSE
@@ -876,6 +982,22 @@
 #define STM32_USART2CLK             hal_lld_get_clock_point(CLK_PCLK)
 
 /**
+ * @brief   FDCAN1 clock frequency.
+ */
+#if (STM32_FDCAN1SEL == STM32_FDCAN1SEL_PCLK) || defined(__DOXYGEN__)
+  #define STM32_FDCAN1CLK           hal_lld_get_clock_point(CLK_PCLK)
+
+#elif STM32_FDCAN1SEL == STM32_FDCAN1SELL_HSIKER
+  #define STM32_FDCAN1CLK           hal_lld_get_clock_point(CLK_HSIKERCLK)
+
+#elif STM32_FDCAN1SEL == STM32_FDCAN1SELL_HSE
+  #define STM32_FDCAN1CLK           STM32_HSECLK
+
+#else
+  #error "invalid source selected for FDCAN1 clock"
+#endif
+
+/**
  * @brief   I2C1 clock frequency.
  */
 #if (STM32_I2C1SEL == STM32_I2C1SEL_PCLK) || defined(__DOXYGEN__)
@@ -890,6 +1012,11 @@
 #else
   #error "invalid source selected for I2C1 clock"
 #endif
+
+/**
+ * @brief   I2C2 clock frequency.
+ */
+#define STM32_I2C2CLK               hal_lld_get_clock_point(CLK_PCLK)
 
 /**
  * @brief   I2S1 clock frequency.
@@ -921,6 +1048,19 @@
 
 #else
   #error "invalid source selected for ADC clock"
+#endif
+
+/**
+ * @brief   USB clock frequency.
+ */
+#if (STM32_USBSEL == STM32_USBSEL_HSIUSB48) || defined(__DOXYGEN__)
+  #define STM32_USBCLK              hal_lld_get_clock_point(CLK_HSIUSB48CLK)
+
+#elif STM32_USBSEL == STM32_USBSEL_HSE
+  #define STM32_USBCLK              STM32_HSECLK
+
+#else
+  #error "invalid source selected for USB clock"
 #endif
 
 /**
@@ -977,14 +1117,15 @@ typedef unsigned halclkpt_t;
  * @notapi
  */
 #define hal_lld_get_clock_point(clkpt)                                      \
-  ((clkpt) == CLK_SYSCLK    ? STM32_SYSCLK        :                         \
-   (clkpt) == CLK_HSISYSCLK ? STM32_HSISYSCLK     :                         \
-   (clkpt) == CLK_HSISYSCLK ? STM32_HSIKERCLK     :                         \
-   (clkpt) == CLK_HCLK      ? STM32_HCLK          :                         \
-   (clkpt) == CLK_PCLK      ? STM32_PCLK          :                         \
-   (clkpt) == CLK_PCLKTIM   ? STM32_TIMPCLK       :                         \
-   (clkpt) == CLK_MCO       ? STM32_MCOCLK        :                         \
-   (clkpt) == CLK_MCO2      ? STM32_MCO2CLK       :                         \
+  ((clkpt) == CLK_SYSCLK        ? STM32_SYSCLK      :                       \
+   (clkpt) == CLK_HSISYSCLK     ? STM32_HSISYSCLK   :                       \
+   (clkpt) == CLK_HSIKERCLK     ? STM32_HSIKERCLK   :                       \
+   (clkpt) == CLK_HSIUSB48CLK   ? STM32_HSIUSB48CLK :                       \
+   (clkpt) == CLK_HCLK          ? STM32_HCLK        :                       \
+   (clkpt) == CLK_PCLK          ? STM32_PCLK        :                       \
+   (clkpt) == CLK_PCLKTIM       ? STM32_TIMPCLK     :                       \
+   (clkpt) == CLK_MCO           ? STM32_MCOCLK      :                       \
+   (clkpt) == CLK_MCO2          ? STM32_MCO2CLK     :                       \
    0U)
 
 /*===========================================================================*/

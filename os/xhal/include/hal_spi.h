@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -78,46 +78,6 @@
 #define SPI_MODE_SLAVE                      (1U << 3)
 /** @} */
 
-/**
- * @name    SPI CS modes
- * @{
- */
-/**
- * @brief       @p spiSelect() and @p spiUnselect() do nothing.
- */
-#define SPI_SELECT_MODE_NONE                0
-
-/**
- * @brief       Selection by PAL port and pad number.
- */
-#define SPI_SELECT_MODE_PAD                 1
-
-/**
- * @brief       Selection by port and port mask.
- */
-#define SPI_SELECT_MODE_PORT                2
-
-/**
- * @brief       Selection by PAL line identifier.
- */
-#define SPI_SELECT_MODE_LINE                3
-
-/**
- * @brief       Selection by LLD-defined mode.
- */
-#define SPI_SELECT_MODE_LLD                 4
-/** @} */
-
-/**
- * @name    SPI status flags
- * @{
- */
-/**
- * @brief       Last transfer failed because HW error.
- */
-#define SPI_STS_FAILED                      1U
-/** @} */
-
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
@@ -134,10 +94,19 @@
 #endif
 
 /**
- * @brief       Handling method for SPI CS line.
+ * @brief       Assertions on SPI errors return.
  */
-#if !defined(SPI_SELECT_MODE) || defined(__DOXYGEN__)
-#define SPI_SELECT_MODE                     SPI_SELECT_MODE_PAD
+#if !defined(SPI_USE_ASSERT_ON_ERROR) || defined(__DOXYGEN__)
+#define SPI_USE_ASSERT_ON_ERROR             FALSE
+#endif
+
+/**
+ * @brief       Support for SPI user configurations.
+ * @note        When enabled the user must provide a variable named @p
+ *              sio_configurations of type @p sio_configurations_t.
+ */
+#if !defined(SPI_USE_CONFIGURATIONS) || defined(__DOXYGEN__)
+#define SPI_USE_CONFIGURATIONS              FALSE
 #endif
 /** @} */
 
@@ -150,18 +119,14 @@
 #error "invalid SPI_USE_SYNCHRONIZATION value"
 #endif
 
-/* Checks on SPI_SELECT_MODE configuration.*/
-#if (SPI_SELECT_MODE < SPI_SELECT_MODE_NONE) || (SPI_SELECT_MODE > SPI_SELECT_MODE_LLD)
-#error "invalid SPI_SELECT_MODE value"
+/* Checks on SPI_USE_ASSERT_ON_ERROR configuration.*/
+#if (SPI_USE_ASSERT_ON_ERROR != FALSE) && (SPI_USE_ASSERT_ON_ERROR != TRUE)
+#error "invalid SPI_USE_ASSERT_ON_ERROR value"
 #endif
 
-/* Some modes have a dependency on the PAL driver, making the required
-   checks here.*/
-#if ((SPI_SELECT_MODE != SPI_SELECT_MODE_PAD)  ||                           \
-     (SPI_SELECT_MODE != SPI_SELECT_MODE_PORT) ||                           \
-     (SPI_SELECT_MODE != SPI_SELECT_MODE_LINE)) &&                          \
-    (HAL_USE_PAL != TRUE)
-#error "current SPI_SELECT_MODE requires HAL_USE_PAL"
+/* Checks on SPI_USE_CONFIGURATIONS configuration.*/
+#if (SPI_USE_CONFIGURATIONS != FALSE) && (SPI_USE_CONFIGURATIONS != TRUE)
+#error "invalid SPI_USE_CONFIGURATIONS value"
 #endif
 
 /*===========================================================================*/
@@ -241,42 +206,30 @@ struct hal_spi_config {
    * @brief       SPI transfer mode options.
    */
   spi_mode_t                mode;
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LINE) || defined (__DOXYGEN__)
-  /**
-   * @brief       The chip select line.
-   * @note        Only used in master mode.
-   */
-  ioline_t                  ssline;
-#endif /* SPI_SELECT_MODE == SPI_SELECT_MODE_LINE */
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_PORT) || defined (__DOXYGEN__)
-  /**
-   * @brief       The chip select port.
-   * @note        Only used in master mode.
-   */
-  ioportid_t                ssport;
-  /**
-   * @brief       The chip select port mask.
-   * @note        Only used in master mode.
-   */
-  ioportmask_t              ssmask;
-#endif /* SPI_SELECT_MODE == SPI_SELECT_MODE_PORT */
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_PAD) || defined (__DOXYGEN__)
-  /**
-   * @brief       The chip select port.
-   * @note        Only used in master mode.
-   */
-  ioportid_t                ssport;
-  /**
-   * @brief       The chip select pad number.
-   * @note        Only used in master mode.
-   */
-  ioportmask_t              sspad;
-#endif /* SPI_SELECT_MODE == SPI_SELECT_MODE_PAD */
   /* End of the mandatory fields.*/
   spi_lld_config_fields;
 #if (defined(SPI_CONFIG_EXT_FIELS)) || defined (__DOXYGEN__)
   SPI_CONFIG_EXT_FIELDS
 #endif /* defined(SPI_CONFIG_EXT_FIELS) */
+};
+
+/**
+ * @brief       Type of user-provided SPI configurations.
+ */
+typedef struct spi_configurations spi_configurations_t;
+
+/**
+ * @brief       Structure representing user-provided SPI configurations.
+ */
+struct spi_configurations {
+  /**
+   * @brief       Number of configurations in the open array.
+   */
+  unsigned                  cfgsnum;
+  /**
+   * @brief       User SPI configurations.
+   */
+  hal_spi_config_t          cfgs[];
 };
 
 /**
@@ -303,11 +256,10 @@ struct hal_spi_driver_vmt {
   /* From hal_base_driver_c.*/
   msg_t (*start)(void *ip);
   void (*stop)(void *ip);
-  const void * (*doconf)(void *ip, const void *config);
+  const void * (*setcfg)(void *ip, const void *config);
+  const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
   void (*setcb)(void *ip, drv_cb_t cb);
-  drv_status_t (*gsts)(void *ip);
-  drv_status_t (*gcsts)(void *ip, drv_status_t mask);
   /* From hal_spi_driver_c.*/
 };
 
@@ -382,9 +334,8 @@ extern "C" {
   void __spi_dispose_impl(void *ip);
   msg_t __spi_start_impl(void *ip);
   void __spi_stop_impl(void *ip);
-  const void *__spi_doconf_impl(void *ip, const void *config);
-  drv_status_t __spi_gsts_impl(void *ip);
-  drv_status_t __spi_gcsts_impl(void *ip, drv_status_t mask);
+  const void *__spi_setcfg_impl(void *ip, const void *config);
+  const void *__spi_selcfg_impl(void *ip, unsigned cfgnum);
   msg_t spiStartIgnoreI(void *ip, size_t n);
   msg_t spiStartIgnore(void *ip, size_t n);
   msg_t spiStartExchangeI(void *ip, size_t n, const void *txbuf, void *rxbuf);
@@ -455,7 +406,6 @@ static inline size_t spiGetFrameSizeX(void *ip) {
   return (size_t)(1U << ((__spi_getfield(self, mode) & SPI_MODE_FSIZE_MASK) >> SPI_MODE_FSIZE_POS));
 }
 
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LLD) || defined (__DOXYGEN__)
 /**
  * @memberof    hal_spi_driver_c
  * @public
@@ -490,52 +440,6 @@ static inline void spiUnselectX(void *ip) {
   spi_lld_unselect(self);
 }
 
-#elif SPI_SELECT_MODE == SPI_SELECT_MODE_LINE
-CC_FORCE_INLINE
-static inline void spiSelectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palClearLine(__spi_getfield(self, ssline));
-}
-
-CC_FORCE_INLINE
-static inline void spiUnselectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palSetLine(__spi_getfield(self, ssline));
-}
-
-#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PORT
-CC_FORCE_INLINE
-static inline void spiSelectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palClearPort(__spi_getfield(self, ssport), __spi_getfield(self, ssmask));
-}
-
-CC_FORCE_INLINE
-static inline void spiUnselectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palSetPort(__spi_getfield(self, ssport), __spi_getfield(self, ssmask));
-}
-
-#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PAD
-CC_FORCE_INLINE
-static inline void spiSelectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palClearPad(__spi_getfield(self, ssport), __spi_getfield(self, sspad));
-}
-
-CC_FORCE_INLINE
-static inline void spiUnselectX(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  palSetPad(__spi_getfield(self, ssport), __spi_getfield(self, sspad));
-}
-#endif /* SPI_SELECT_MODE == SPI_SELECT_MODE_LLD */
-
 #if (SPI_USE_SYNCHRONIZATION == TRUE) || defined (__DOXYGEN__)
 /**
  * @memberof    hal_spi_driver_c
@@ -569,102 +473,6 @@ static inline void __spi_wakeup_isr(void *ip, msg_t msg) {
   (void)msg;
 }
 #endif /* SPI_USE_SYNCHRONIZATION == TRUE */
-
-/**
- * @memberof    hal_spi_driver_c
- * @public
- *
- * @brief       Common ISR code in linear mode.
- *              This code handles the portable part of the ISR code:
- *                - Callback invocation.
- *                - Waiting thread wakeup, if any.
- *                - Driver state transitions.
- *                .
- * @note        This function is meant to be used in the low level drivers
- *              implementations only.
- *
- * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
- *
- * @notapi
- */
-CC_FORCE_INLINE
-static inline void __spi_isr_complete_code(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  __cbdrv_invoke_cb_with_transition(self,
-                                    HAL_DRV_STATE_COMPLETE,
-                                    HAL_DRV_STATE_READY);
-  __spi_wakeup_isr(self, MSG_OK);
-}
-
-/**
- * @memberof    hal_spi_driver_c
- * @public
- *
- * @brief       Half buffer filled ISR code in circular mode.
- *              The callback is invoked with driver
- *                             state set to @p HAL_DRV_STATE_ACTIVE.
- * @note        This function is meant to be used in the low level drivers
- *              implementations only.
- *
- * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
- *
- * @notapi
- */
-CC_FORCE_INLINE
-static inline void __spi_isr_half_code(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  __cbdrv_invoke_cb(self);
-}
-
-/**
- * @memberof    hal_spi_driver_c
- * @public
- *
- * @brief       Full buffer filled ISR code in circular mode.
- *              The callback is invoked with driver
- *                             state set to @p HAL_DRV_STATE_COMPLETE.
- * @note        This function is meant to be used in the low level drivers
- *              implementations only.
- *
- * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
- *
- * @notapi
- */
-CC_FORCE_INLINE
-static inline void __spi_isr_full_code(void *ip) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  __cbdrv_invoke_cb_with_transition(self,
-                                    HAL_DRV_STATE_COMPLETE,
-                                    HAL_DRV_STATE_ACTIVE);
-}
-
-/**
- * @memberof    hal_spi_driver_c
- * @public
- *
- * @brief       ISR error reporting code..
- *              The callback is invoked with driver
- *                             state set to @p HAL_DRV_STATE_ERROR.
- * @note        This function is meant to be used in the low level drivers
- *              implementations only.
- *
- * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
- * @param[in]     msg           The error code.
- *
- * @notapi
- */
-CC_FORCE_INLINE
-static inline void __spi_isr_error_code(void *ip, msg_t msg) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  __cbdrv_invoke_cb_with_transition(self,
-                                    HAL_DRV_STATE_ERROR,
-                                    HAL_DRV_STATE_READY);
-  __spi_wakeup_isr(self, msg);
-}
 /** @} */
 
 #endif /* HAL_USE_SPI == TRUE */

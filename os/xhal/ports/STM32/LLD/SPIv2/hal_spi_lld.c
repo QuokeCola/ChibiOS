@@ -127,20 +127,7 @@ SPIDriver SPID6;
 /**
  * @brief   Driver default configuration.
  */
-static const hal_spi_config_t spi_default_config = {
-  .mode             = 0U,
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LINE) || defined (__DOXYGEN__)
-  .ssline           = PAL_LINE(STM32_SPI_DEFAULT_PORT, STM32_SPI_DEFAULT_PAD);
-#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PORT
-  .ssport           = STM32_SPI_DEFAULT_PORT,
-  .ssport           = PAL_PORT_BIT(STM32_SPI_DEFAULT_PAD),
-#elif SPI_SELECT_MODE == SPI_SELECT_MODE_PAD
-  .ssport           = STM32_SPI_DEFAULT_PORT,
-  .sspad            = STM32_SPI_DEFAULT_PAD,
-#endif
-  .cr1              = STM32_SPI_DEFAULT_CR1,
-  .cr2              = STM32_SPI_DEFAULT_CR2
-};
+static const hal_spi_config_t spi_default_config = SPI_DEFAULT_CONFIGURATION;
 
 /*===========================================================================*/
 /* Driver local functions.                                                   */
@@ -271,17 +258,17 @@ static void spi_lld_serve_rx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Reporting the failure.*/
-    spip->sts |= SPI_STS_FAILED | SPI_STS_RXDMA_FAIL;
-    __spi_isr_error_code(spip, HAL_RET_HW_FAILURE);
+    __cbdrv_invoke_error_cb(spip);
+    __spi_wakeup_isr(spip, HAL_RET_HW_FAILURE);
   }
   else if ((__spi_getfield(spip, mode) & SPI_MODE_CIRCULAR) != 0U) {
     if ((flags & STM32_DMA_ISR_HTIF) != 0U) {
       /* Half buffer interrupt.*/
-      __spi_isr_half_code(spip);
+      __cbdrv_invoke_half_cb(spip);
     }
     if ((flags & STM32_DMA_ISR_TCIF) != 0U) {
-      /* End buffer interrupt.*/
-      __spi_isr_full_code(spip);
+      /* Full buffer interrupt.*/
+      __cbdrv_invoke_full_cb(spip);
     }
   }
   else {
@@ -290,7 +277,8 @@ static void spi_lld_serve_rx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Operation finished interrupt.*/
-    __spi_isr_complete_code(spip);
+    __cbdrv_invoke_complete_cb(spip);
+    __spi_wakeup_isr(spip, MSG_OK);
   }
 }
 
@@ -314,8 +302,8 @@ static void spi_lld_serve_tx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Reporting the failure.*/
-    spip->sts |= SPI_STS_FAILED | SPI_STS_TXDMA_FAIL;
-    __spi_isr_error_code(spip, HAL_RET_HW_FAILURE);
+    __cbdrv_invoke_error_cb(spip);
+    __spi_wakeup_isr(spip, HAL_RET_HW_FAILURE);
   }
 }
 
@@ -603,15 +591,13 @@ msg_t spi_lld_start(SPIDriver *spip) {
     osalDbgAssert(false, "invalid SPI instance");
   }
 
-  /* Status cleared.*/
-  spip->sts = (drv_status_t)0;
-
   /* DMA setup.*/
   dmaStreamSetPeripheral(spip->dmarx, &spip->spi->DR);
   dmaStreamSetPeripheral(spip->dmatx, &spip->spi->DR);
 
-  /* Configures the peripheral.*/
-  spi_lld_configure(spip, &spi_default_config);
+  /* Configures the peripheral, it is not supposed to fail.*/
+  spip->config = spi_lld_setcfg(spip, &spi_default_config);
+  osalDbgAssert(spip->config != NULL, "default configuration failed");
 
   return HAL_RET_SUCCESS;
 }
@@ -692,8 +678,8 @@ void spi_lld_stop(SPIDriver *spip) {
  *
  * @notapi
  */
-const hal_spi_config_t *spi_lld_configure(hal_spi_driver_c *spip,
-                                          const hal_spi_config_t *config) {
+const hal_spi_config_t *spi_lld_setcfg(hal_spi_driver_c *spip,
+                                       const hal_spi_config_t *config) {
   uint32_t ds;
   spi_mode_t mode = __spi_getfield(spip, mode);
 
@@ -760,61 +746,33 @@ const hal_spi_config_t *spi_lld_configure(hal_spi_driver_c *spip,
 }
 
 /**
- * @brief       Implementation of method @p drvGetStatusX().
- *
- * @param[in] spip      pointer to the @p hal_spi_driver_c object
- *
- * @notapi
- */
-drv_status_t spi_lld_get_status(hal_spi_driver_c *spip) {
-
-  return spip->sts;
-}
-
-/**
- * @brief       Implementation of method @p drvGetAndClearStatusI().
- *
- * @param[in] spip      pointer to the @p hal_spi_driver_c object
- * @param[in] mask      flags to be returned and cleared
- *
- * @notapi
- */
-drv_status_t spi_lld_get_clear_status(hal_spi_driver_c *spip,
-                                      drv_status_t mask) {
-  drv_status_t sts;
-
-  sts = spip->sts;
-  spip->sts &= ~mask;
-
-  return sts;
-}
-
-#if (SPI_SELECT_MODE == SPI_SELECT_MODE_LLD) || defined(__DOXYGEN__)
-/**
- * @brief   Asserts the slave select signal and prepares for transfers.
+ * @brief       Selects one of the pre-defined SPI configurations.
  *
  * @param[in] spip      pointer to the @p SPIDriver object
+ * @param[in] cfgnum    driver configuration number
+ * @return              The configuration pointer.
  *
  * @notapi
  */
-void spi_lld_select(SPIDriver *spip) {
+const hal_spi_config_t *spi_lld_selcfg(SPIDriver *spip,
+                                       unsigned cfgnum) {
+#if SPI_USE_CONFIGURATIONS == TRUE
+  extern const spi_configurations_t spi_configurations;
 
-  /* No implementation on STM32.*/
-}
+  if (cfgnum >= spi_configurations.cfgsnum) {
+    return NULL;
+  }
 
-/**
- * @brief   Deasserts the slave select signal.
- * @details The previously selected peripheral is unselected.
- *
- * @param[in] spip      pointer to the @p SPIDriver object
- *
- * @notapi
- */
-void spi_lld_unselect(SPIDriver *spip) {
+  return (const void *)spi_lld_setcfg(spip, &spi_configurations.cfgs[cfgnum]);
+#else
 
-  /* No implementation on STM32.*/
-}
+  if (cfgnum > 0U){
+    return NULL;
+  }
+
+  return (const void *)spi_lld_setcfg(spip, NULL);
 #endif
+}
 
 /**
  * @brief   Ignores data on the SPI bus.

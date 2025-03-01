@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -240,6 +240,7 @@ extern "C" {
   msg_t __ovldrv_mkdir_impl(void *ip, const char *path, vfs_mode_t mode);
   msg_t __ovldrv_rmdir_impl(void *ip, const char *path);
   msg_t ovldrvRegisterDriver(void *ip, vfs_driver_c *vdp, const char *name);
+  msg_t ovldrvUnregisterDriver(void *ip, const char *name);
   /* Regular functions.*/
   void __drv_overlay_init(void);
 #ifdef __cplusplus

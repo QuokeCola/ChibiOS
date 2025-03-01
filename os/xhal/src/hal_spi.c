@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -94,6 +94,9 @@ void *__spi_objinit_impl(void *ip, const void *vmt) {
   __cbdrv_objinit_impl(self, vmt);
 
   /* Initialization code.*/
+#if SPI_USE_SYNCHRONIZATION == TRUE
+  self->sync_transfer = NULL;
+#endif
 
   /* Optional, user-defined initializer.*/
 #if defined(SPI_DRIVER_EXT_INIT_HOOK)
@@ -156,45 +159,32 @@ void __spi_stop_impl(void *ip) {
  * @memberof    hal_spi_driver_c
  * @protected
  *
- * @brief       Override of method @p __drv_do_configure().
+ * @brief       Override of method @p __drv_set_cfg().
  *
  * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
  * @param[in]     config        New driver configuration.
  * @return                      The configuration pointer.
  */
-const void *__spi_doconf_impl(void *ip, const void *config) {
+const void *__spi_setcfg_impl(void *ip, const void *config) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
 
-  return (const void *)spi_lld_configure(self, (const hal_spi_config_t *)config);
+  return (const void *)spi_lld_setcfg(self, (const hal_spi_config_t *)config);
 }
 
 /**
  * @memberof    hal_spi_driver_c
  * @protected
  *
- * @brief       Override of method @p drvGetStatusX().
+ * @brief       Override of method @p __drv_sel_cfg().
  *
  * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
+ * @param[in]     cfgnum        Driver configuration number.
+ * @return                      The configuration pointer.
  */
-drv_status_t __spi_gsts_impl(void *ip) {
+const void *__spi_selcfg_impl(void *ip, unsigned cfgnum) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
 
-  return __cbdrv_gsts_impl(self);
-}
-
-/**
- * @memberof    hal_spi_driver_c
- * @protected
- *
- * @brief       Override of method @p drvGetAndClearStatusI().
- *
- * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
- * @param[in]     mask          Flags to be returned and cleared.
- */
-drv_status_t __spi_gcsts_impl(void *ip, drv_status_t mask) {
-  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
-
-  return __cbdrv_gcsts_impl(self, mask);
+  return (const void *)spi_lld_selcfg(self, cfgnum);
 }
 /** @} */
 
@@ -206,10 +196,9 @@ const struct hal_spi_driver_vmt __hal_spi_driver_vmt = {
   .dispose                  = __spi_dispose_impl,
   .start                    = __spi_start_impl,
   .stop                     = __spi_stop_impl,
-  .doconf                   = __spi_doconf_impl,
-  .setcb                    = __cbdrv_setcb_impl,
-  .gsts                     = __spi_gsts_impl,
-  .gcsts                    = __spi_gcsts_impl
+  .setcfg                   = __spi_setcfg_impl,
+  .selcfg                   = __spi_selcfg_impl,
+  .setcb                    = __cbdrv_setcb_impl
 };
 
 /**
@@ -532,11 +521,12 @@ msg_t spiStopTransferI(void *ip, size_t *np) {
 
   osalDbgAssert((self->state == HAL_DRV_STATE_READY) ||
                 (self->state == HAL_DRV_STATE_ACTIVE) ||
+                (self->state == HAL_DRV_STATE_HALF) ||
+                (self->state == HAL_DRV_STATE_FULL) ||
                 (self->state == HAL_DRV_STATE_COMPLETE),
                 "invalid state");
 
-  if ((self->state == HAL_DRV_STATE_ACTIVE) ||
-      (self->state == HAL_DRV_STATE_COMPLETE)) {
+  if (self->state != HAL_DRV_STATE_READY) {
 
     /* Stopping transfer at low level.*/
     msg = spi_lld_stop_transfer(self, np);
@@ -737,6 +727,8 @@ msg_t spiSend(void *ip, size_t n, const void *txbuf) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
   msg_t msg;
 
+  osalSysLock();
+
   msg = spiStartSendI(self, n, txbuf);
   if (msg == MSG_OK) {
     msg = spiSynchronizeS(self, TIME_INFINITE);
@@ -770,6 +762,8 @@ msg_t spiSend(void *ip, size_t n, const void *txbuf) {
 msg_t spiReceive(void *ip, size_t n, void *rxbuf) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
   msg_t msg;
+
+  osalSysLock();
 
   msg = spiStartReceiveI(self, n, rxbuf);
   if (msg == MSG_OK) {

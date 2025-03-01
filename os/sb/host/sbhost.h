@@ -48,6 +48,13 @@
 /* Module macros.                                                            */
 /*===========================================================================*/
 
+/**
+ * @brief   Sandbox stack area declaration.
+ *
+ * @param[in] name      name of the sandbox stack area
+ */
+#define SB_STACK(name) THD_STACK(name, SB_CFG_PRIVILEGED_STACK_SIZE);
+
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -59,23 +66,18 @@ extern "C" {
 #endif
   size_t sb_strv_getsize(const char *v[], int *np);
   void sb_strv_copy(const char *sp[], void *dp, int n);
-  bool sb_is_valid_read_range(sb_class_t *sbp, const void *start, size_t size);
-  bool sb_is_valid_write_range(sb_class_t *sbp, void *start, size_t size);
-  size_t sb_check_string(sb_class_t *sbp, const char *s, size_t max);
-  size_t sb_check_pointers_array(sb_class_t *sbp, const void *pp[], size_t max);
-  size_t sb_check_strings_array(sb_class_t *sbp, const char *pp[], size_t max);
-  void sbObjectInit(sb_class_t *sbp, const sb_config_t *config);
-  thread_t *sbStartThread(sb_class_t *sbp,
-                          const char *argv[],
-                          const char *envp[]);
+  void sbObjectInit(sb_class_t *sbp);
   bool sbIsThreadRunningX(sb_class_t *sbp);
+  thread_t *sbStart(sb_class_t *sbp, tprio_t prio, stkline_t *stkbase,
+                    const char *argv[], const char *envp[]);
 #if SB_CFG_ENABLE_VFS == TRUE
-  msg_t sbExec(sb_class_t *sbp, const char *pathname,
-               const char *argv[], const char *envp[]);
-  void sbRegisterDescriptor(sb_class_t *sbp, int fd, vfs_node_c *np);
+  msg_t sbExecStatic(sb_class_t *sbp, tprio_t prio,
+                     stkline_t *stkbase, const char *path,
+                     const char *argv[], const char *envp[]);
+#if (PORT_SWITCHED_REGIONS_NUMBER > 0) && (CH_CFG_USE_HEAP == TRUE)
+  msg_t sbExecDynamic(sb_class_t *sbp, tprio_t prio, size_t heapsize,
+                      const char *path, const char *argv[], const char *envp[]);
 #endif
-#if CH_CFG_USE_WAITEXIT == TRUE
-  msg_t sbWaitThread(sb_class_t *sbp);
 #endif
 #if CH_CFG_USE_MESSAGES == TRUE
   msg_t sbSendMessageTimeout(sb_class_t *sbp,
@@ -101,6 +103,96 @@ static inline void sbHostInit(void) {
   chEvtObjectInit(&sb.termination_es);
 #endif
 }
+
+/**
+ * @brief   Blocks the execution of the invoking thread until the specified
+ *          sandbox thread terminates then the exit code is returned.
+ * @pre     The configuration option @p CH_CFG_USE_WAITEXIT must be enabled in
+ *          order to use this function.
+ *
+ * @param[in] sbp       pointer to a @p sb_class_t structure
+ * @return              The exit code from the terminated sandbox thread.
+ * @retval MSG_RESET    Sandbox thread not started.
+ *
+ * @api
+ */
+static inline msg_t sbWait(sb_class_t *sbp) {
+  msg_t msg;
+
+  msg = chThdWait(&sbp->thread);
+
+  return msg;
+}
+
+/**
+ * @brief   Associates a memory area to a sandbox region.
+ *
+ * @param[in] sbp       pointer to a @p sb_class_t structure
+ * @param[in] region    region number in range 0..SB_CFG_NUM_REGIONS-1
+ * @param[in] base      memory area base
+ * @param[in] size      memory area size
+ * @param[in] attr      memory area attributes
+ *
+ * @api
+ */
+static inline void sbSetRegion(sb_class_t *sbp, unsigned region,
+                               uint8_t *base, size_t size,
+                               uint32_t attr) {
+  sb_memory_region_t *mrp;
+
+  chDbgCheck((region <= SB_CFG_NUM_REGIONS-1));
+
+  mrp = &sbp->regions[region];
+  mrp->area.base = base;
+  mrp->area.size = size;
+  mrp->attributes = attr;
+}
+
+#if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
+/**
+ * @brief   Associates a VFS file system to a sandbox as root.
+ *
+ * @param[in] sbp       pointer to a @p sb_class_t structure
+ * @param[in] drvp      pointer to a @p vfs_driver_c structure or @p NULL
+ *
+ * @api
+ */
+static inline void sbSetFileSystem(sb_class_t *sbp, vfs_driver_c *drvp) {
+
+  sbp->io.vfs_driver = drvp;
+}
+
+/**
+ * @brief   Registers a file descriptor on a sandbox.
+ *
+ * @param[in] sbp       pointer to a @p sb_class_t structure
+ * @param[in] fd        file descriptor to be assigned
+ * @param[in] np        VFS node to be registered on the file descriptor
+ *
+ * @api
+ */
+static inline void sbRegisterDescriptor(sb_class_t *sbp, int fd, vfs_node_c *np) {
+
+  chDbgAssert(sb_is_available_descriptor(&sbp->io, fd), "invalid file descriptor");
+
+  sbp->io.vfs_nodes[fd]  = np;
+}
+#endif /* SB_CFG_ENABLE_VFS == TRUE */
+
+#if (SB_CFG_ENABLE_VIO == TRUE) || defined(__DOXYGEN__)
+/**
+ * @brief   Associates a VIO configuration to a sandbox.
+ *
+ * @param[in] sbp       pointer to a @p sb_class_t structure
+ * @param[in] vioconf   pointer to a VIO configuration or @p NULL
+ *
+ * @api
+ */
+static inline void sbSetVirtualIO(sb_class_t *sbp, const vio_conf_t *vioconf) {
+
+  sbp->vioconf = vioconf;
+}
+#endif /* SB_CFG_ENABLE_VIO == TRUE */
 
 #if (CH_CFG_USE_MESSAGES == TRUE) || defined(__DOXYGEN__)
 /**
@@ -131,7 +223,7 @@ static inline msg_t sbSendMessage(sb_class_t *sbp, msg_t msg) {
  */
 static inline void sbEvtSignalI(sb_class_t *sbp, eventmask_t events) {
 
-  chEvtSignalI(sbp->tp, events);
+  chEvtSignalI(&sbp->thread, events);
 }
 
 /**
@@ -144,7 +236,7 @@ static inline void sbEvtSignalI(sb_class_t *sbp, eventmask_t events) {
  */
 static inline void sbEvtSignal(sb_class_t *sbp, eventmask_t events) {
 
-  chEvtSignal(sbp->tp, events);
+  chEvtSignal(&sbp->thread, events);
 }
 
 /**
@@ -157,7 +249,7 @@ static inline void sbEvtSignal(sb_class_t *sbp, eventmask_t events) {
  */
 static inline event_source_t *sbGetEventSourceX(sb_class_t *sbp) {
 
-  return &sbp->es;
+  return &sbp->base.es;
 }
 #endif /* CH_CFG_USE_EVENTS == TRUE */
 

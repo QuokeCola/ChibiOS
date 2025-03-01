@@ -164,9 +164,6 @@ thread_t *chThdObjectInit(thread_t *tp,
 #if CH_CFG_USE_REGISTRY == TRUE
   tp->refs              = (trefs_t)1;
   tp->name              = tdp->name;
-//  REG_INSERT(tp->owner, tp);
-#else
-  (void)name;
 #endif
 
   /* Messages-related fields.*/
@@ -374,30 +371,33 @@ thread_t *chThdSpawnRunning(thread_t *tp, const thread_descriptor_t *tdp) {
  */
 thread_t *chThdCreateSuspendedI(const thread_descriptor_t *tdp) {
   thread_t *tp;
+  uint8_t *stkbase, *stktop;
 
   chDbgCheckClassI();
 
   /* Checks related to the working area geometry.*/
   chDbgCheck((tdp != NULL) &&
-             MEM_IS_ALIGNED(tdp->wbase, PORT_WORKING_AREA_ALIGN) &&
-             MEM_IS_ALIGNED(tdp->wend, PORT_STACK_ALIGN) &&
              (tdp->wend > tdp->wbase) &&
              (((size_t)tdp->wend - (size_t)tdp->wbase) >= THD_WORKING_AREA_SIZE(0)));
 
   /* Other checks.*/
   chDbgCheck((tdp->prio <= HIGHPRIO) && (tdp->funcp != NULL));
 
-  /* The thread structure is laid out in the upper part of the thread
-     workspace. The thread position structure is aligned to the required
+  /* Stack area addresses.
+     The thread structure is laid out in the upper part of the thread
+     workspace. The thread position structure must be aligned to the required
      stack alignment because it represents the stack top.*/
-  tp = threadref(((uint8_t *)tdp->wend -
-                 MEM_ALIGN_NEXT(sizeof (thread_t), PORT_STACK_ALIGN)));
+  stkbase = (uint8_t *)tdp->wbase;
+  stktop  = (uint8_t *)tdp->wend -
+            MEM_ALIGN_NEXT(sizeof (thread_t), PORT_STACK_ALIGN);
+  chDbgCheck(MEM_IS_ALIGNED(stkbase, PORT_WORKING_AREA_ALIGN) &&
+             MEM_IS_ALIGNED(stktop, PORT_STACK_ALIGN));
 
   /* The thread object is initialized but not started.*/
-  tp = chThdObjectInit(tp, tdp);
+  tp = chThdObjectInit(threadref(stktop), tdp);
 
   /* Setting up the port-dependent part of the working area.*/
-  PORT_SETUP_CONTEXT(tp, tdp->wabase, tp, tdp->funcp, tdp->arg);
+  PORT_SETUP_CONTEXT(tp, stkbase, tp, tdp->funcp, tdp->arg);
 
 #if CH_CFG_USE_REGISTRY == TRUE
   REG_INSERT(tp->owner, tp);
@@ -519,41 +519,45 @@ thread_t *chThdCreate(const thread_descriptor_t *tdp) {
  *
  * @api
  */
-thread_t *chThdCreateStatic(void *wbase, size_t wsize,
+thread_t *chThdCreateStatic(stkline_t *wbase, size_t wsize,
                             tprio_t prio, tfunc_t func, void *arg) {
   thread_t *tp;
-  uint8_t *wend;
+  uint8_t *wend, *stkbase, *stktop;
 
-  /* Checks related to the working area geometry.*/
+  /* Checks related to the working area size and position.*/
   chDbgCheck((wbase != NULL) &&
-             MEM_IS_ALIGNED(wbase, PORT_WORKING_AREA_ALIGN) &&
-             (wsize >= THD_WORKING_AREA_SIZE(0)) &&
-             MEM_IS_ALIGNED(wsize, PORT_STACK_ALIGN));
+             (wsize >= THD_WORKING_AREA_SIZE(0)));
 
   /* Other checks.*/
   chDbgCheck((prio <= HIGHPRIO) && (func != NULL));
 
+#if CH_CFG_USE_REGISTRY == TRUE
   /* Special situation where the working area is already in use by an
      active thread.*/
   chDbgAssert(chRegFindThreadByWorkingArea(wbase) == NULL,
               "working area in use");
+#endif
 
   /* Working area end address.*/
   wend = (uint8_t *)wbase + wsize;
 
-#if CH_DBG_FILL_THREADS == TRUE
-  /* Filling thread stack area.*/
-  __thd_stackfill((uint8_t *)wbase, (uint8_t *)wend);
-#endif
-
-  /* The thread structure is laid out in the upper part of the thread
-     workspace. The thread position structure is aligned to the required
+  /* Stack area addresses.
+     The thread structure is laid out in the upper part of the thread
+     workspace. The thread position structure must be aligned to the required
      stack alignment because it represents the stack top.*/
-  tp = threadref(wend - MEM_ALIGN_NEXT(sizeof (thread_t), PORT_STACK_ALIGN));
+  stkbase = (uint8_t *)wbase;
+  stktop  = wend - MEM_ALIGN_NEXT(sizeof (thread_t), PORT_STACK_ALIGN);
+  chDbgCheck(MEM_IS_ALIGNED(stkbase, PORT_WORKING_AREA_ALIGN) &&
+             MEM_IS_ALIGNED(stktop, PORT_STACK_ALIGN));
+
+#if CH_DBG_FILL_THREADS == TRUE
+  /* Filling the thread stack area.*/
+  __thd_stackfill(stkbase, stktop);
+#endif
 
   /* Initializing the thread_t structure using the passed parameters.*/
   THD_DESC_DECL(desc, "noname", wbase, wend, prio, func, arg, currcore, NULL);
-  tp = chThdObjectInit(tp, &desc);
+  tp = chThdObjectInit(threadref(stktop), &desc);
 
   /* Setting up the port-dependent part of the working area.*/
   PORT_SETUP_CONTEXT(tp, wbase, tp, func, arg);

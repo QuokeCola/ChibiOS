@@ -23,13 +23,13 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "ch.h"
 #include "hal.h"
+
 #include "xshell.h"
 #include "xshell_cmd.h"
-#include "chprintf.h"
-#include <stdlib.h>
 
 static void *alloc_thread(size_t size, unsigned align);
 
@@ -120,7 +120,7 @@ static char *fetch_argument(char **pp) {
   return ap;
 }
 
-static void list_commands(BaseSequentialStream *chp, const xshell_command_t *scp) {
+static void list_commands(shell_stream_i *chp, const xshell_command_t *scp) {
 
   while (scp->name != NULL) {
     chprintf(chp, "%s ", scp->name);
@@ -129,7 +129,7 @@ static void list_commands(BaseSequentialStream *chp, const xshell_command_t *scp
 }
 
 static bool cmdexec(xshell_manager_t *smp, const xshell_command_t *scp,
-                    BaseSequentialStream *chp,
+                    shell_stream_i *chp,
                     char *name, int argc, char *argv[]) {
 
   while (scp->name != NULL) {
@@ -145,12 +145,12 @@ static bool cmdexec(xshell_manager_t *smp, const xshell_command_t *scp,
 /**
  * @brief   Shell thread function.
  *
- * @param[in] p         pointer to a @p BaseSequentialStream object
+ * @param[in] p         pointer to a @p shell_stream_i object
  */
 static THD_FUNCTION(xshell_thread, p) {
   int n;
   xshell_manager_t *smp = chThdGetSelfX()->object;
-  BaseSequentialStream *stream = p;
+  shell_stream_i *stream = p;
   char *ap, *tokp, line[XSHELL_LINE_LENGTH];
   char *args[XSHELL_MAX_ARGUMENTS + 2];
 
@@ -348,7 +348,7 @@ static bool xshell_is_line_empty(const char *str) {
 #if (XSHELL_LINE_EDITING == TRUE) || (XSHELL_HISTORY_DEPTH > 0) ||            \
                                       defined(__DOXYGEN__)
 static void xshell_reset_line(xshell_manager_t *smp,
-                              BaseSequentialStream *stream) {
+                              shell_stream_i *stream) {
 #if XSHELL_PROMPT_STR_LENGTH > 0
   chprintf(stream, "\033[%dD%s\033[K",
            XSHELL_LINE_LENGTH + strlen(smp->prompt) + 2,
@@ -363,7 +363,7 @@ static void xshell_reset_line(xshell_manager_t *smp,
                                     defined(__DOXYGEN__) */
 
 #if (XSHELL_LINE_EDITING == TRUE)  || defined(__DOXYGEN__)
-static void xshell_move_cursor(BaseSequentialStream *stream, int pos) {
+static void xshell_move_cursor(shell_stream_i *stream, int pos) {
 
   if (pos < 0) {
     pos = abs(pos);
@@ -425,7 +425,7 @@ void xshellObjectInit(xshell_manager_t *smp,
  * @api
  */
 thread_t *xshellSpawn(xshell_manager_t *smp,
-                      BaseSequentialStream *stream,
+                      shell_stream_i *stream,
                       tprio_t prio) {
   thread_t *tp;
 
@@ -500,7 +500,7 @@ thread_t *xshellSpawn(xshell_manager_t *smp,
  *
  * @api
  */
-bool xshellGetLine(xshell_manager_t *smp, BaseSequentialStream *stream,
+bool xshellGetLine(xshell_manager_t *smp, shell_stream_i *stream,
                    char *line, size_t size) {
   char *p;
 

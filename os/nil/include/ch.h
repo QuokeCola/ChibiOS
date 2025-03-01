@@ -400,7 +400,7 @@
  */
 typedef port_rtcnt_t    rtcnt_t;            /**< Realtime counter.          */
 typedef port_syssts_t   syssts_t;           /**< System status word.        */
-typedef port_stkalign_t stkalign_t;         /**< Stack alignment type.      */
+typedef port_stkline_t stkline_t;         /**< Stack alignment type.      */
 
 #if (PORT_ARCH_REGISTERS_WIDTH == 32) || defined(__DOXYGEN__)
 typedef uint8_t         tstate_t;           /**< Thread state.              */
@@ -516,8 +516,8 @@ struct nil_threads_queue {
  */
 struct nil_thread_descriptor {
   const char        *name;      /**< @brief Thread name, for debugging.     */
-  stkalign_t        *wbase;     /**< @brief Thread working area base.       */
-  stkalign_t        *wend;      /**< @brief Thread working area end.        */
+  stkline_t        *wbase;     /**< @brief Thread working area base.       */
+  stkline_t        *wend;      /**< @brief Thread working area end.        */
   tprio_t           prio;       /**< @brief Thread priority slot.           */
   tfunc_t           funcp;      /**< @brief Thread function.                */
   void              *arg;       /**< @brief Thread function argument.       */
@@ -554,7 +554,7 @@ struct nil_thread {
   msg_t                 sntmsg;     /**< @brief Sent message.               */
 #endif
 #if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || defined(__DOXYGEN__)
-  stkalign_t            *wabase;    /**< @brief Thread stack boundary.      */
+  stkline_t            *wabase;    /**< @brief Thread stack boundary.      */
 #endif
   /* Optional extra fields.*/
   CH_CFG_THREAD_EXT_FIELDS
@@ -746,8 +746,8 @@ struct nil_os_instance {
  *
  * @api
  */
-#define THD_WORKING_AREA_SIZE(n) MEM_ALIGN_NEXT(PORT_WA_SIZE(n),            \
-                                                PORT_STACK_ALIGN)
+#define THD_WORKING_AREA_SIZE(n)                                            \
+  MEM_ALIGN_NEXT(PORT_WA_SIZE(n), PORT_STACK_ALIGN)
 
 /**
  * @brief   Static working area allocation.
@@ -759,12 +759,14 @@ struct nil_os_instance {
  *
  * @api
  */
-#define THD_WORKING_AREA(s, n) PORT_WORKING_AREA(s, n)
+#define THD_WORKING_AREA(s, n)                                              \
+  CC_ALIGN_DATA(PORT_WORKING_AREA_ALIGN)                                    \
+  stkline_t s[THD_WORKING_AREA_SIZE(n) / sizeof (stkline_t)]
 /** @} */
 
 /**
  * @brief   Returns the top address of a working area.
- * @note    The parameter is assumed to be an array of @p stkalign_t. The
+ * @note    The parameter is assumed to be an array of @p stkline_t. The
  *          macros is invalid for anything else.
  *
  * @param[in] wa        working area array
@@ -772,7 +774,7 @@ struct nil_os_instance {
  * @api
  */
 #define THD_WORKING_AREA_END(wa)                                            \
-  ((wa) + ((sizeof wa) / sizeof (stkalign_t)))
+  ((wa) + ((sizeof wa) / sizeof (stkline_t)))
 
 /**
  * @name    Threads abstraction macros
@@ -1421,7 +1423,7 @@ struct nil_os_instance {
 
 #if !defined(__DOXYGEN__)
 #if (CH_DBG_ENABLE_STACK_CHECK == TRUE) || defined(__DOXYGEN__)
-extern stkalign_t __main_thread_stack_base__, __main_thread_stack_end__;
+extern stkline_t __main_thread_stack_base__, __main_thread_stack_end__;
 #endif
 extern os_instance_t nil;
 extern const thread_descriptor_t nil_thd_configs[];

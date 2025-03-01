@@ -92,6 +92,11 @@
 #endif
 
 /* Checks on configuration options.*/
+
+#if !defined(SB_CFG_PRIVILEGED_STACK_SIZE) || defined(__DOXYGEN__)
+#error "SB_CFG_PRIVILEGED_STACK_SIZE not defined in sbconf.h"
+#endif
+
 #if !defined(SB_CFG_NUM_REGIONS) || defined(__DOXYGEN__)
 #error "SB_CFG_NUM_REGIONS not defined in sbconf.h"
 #endif
@@ -143,21 +148,43 @@
 #error "SandBox requires CH_CFG_INTERVALS_SIZE == 32"
 #endif
 
+#if CH_CFG_USE_WAITEXIT != TRUE
+#error "SandBox requires CH_CFG_USE_WAITEXIT == TRUE"
+#endif
+
+#if CH_CFG_USE_DYNAMIC != TRUE
+#error "SandBox requires CH_CFG_USE_DYNAMIC == TRUE"
+#endif
+
 #if CH_CFG_USE_MEMCHECKS == FALSE
 #error "SandBox requires CH_CFG_USE_MEMCHECKS == TRUE"
+#endif
+
+#if (!defined(PORT_ARCHITECTURE_ARM_V7M) &&                                 \
+     !defined(PORT_ARCHITECTURE_ARM_V7ME) &&                                \
+     !defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE)) ||                       \
+     !defined(PORT_USE_SYSCALL)
+#error "unsupported port"
 #endif
 
 #if PORT_USE_SYSCALL == FALSE
 #error "SandBox requires PORT_USE_SYSCALL == TRUE"
 #endif
 
-#if (SB_CFG_NUM_REGIONS < 1) || (SB_CFG_NUM_REGIONS > 4)
-#error "invalid SB_CFG_NUM_REGIONS value"
+#if defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE) &&                          \
+    (PORT_MPU_INITIALIZE == FALSE)
+/* Because MPU_MAIRx registers are initialized by the port layer in this
+   architecture.*/
+#error "SandBox requires PORT_MPU_INITIALIZE == TRUE"
 #endif
 
-#if (PORT_SWITCHED_REGIONS_NUMBER > 0) &&                                   \
-    (PORT_SWITCHED_REGIONS_NUMBER != SB_CFG_NUM_REGIONS)
-#error "SB_CFG_NUM_REGIONS not matching PORT_SWITCHED_REGIONS_NUMBER"
+#if (SB_CFG_PRIVILEGED_STACK_SIZE < 64) ||                                  \
+    ((SB_CFG_PRIVILEGED_STACK_SIZE % PORT_STACK_ALIGN) != 0)
+#error "invalid SB_CFG_PRIVILEGED_STACK_SIZE value"
+#endif
+
+#if (SB_CFG_NUM_REGIONS < 1) || (SB_CFG_NUM_REGIONS > 4)
+#error "invalid SB_CFG_NUM_REGIONS value"
 #endif
 
 #if (SB_CFG_ALARM_VRQ < 0) || (SB_CFG_ALARM_VRQ > 31)
@@ -168,21 +195,13 @@
 /* Module data structures and types.                                         */
 /*===========================================================================*/
 
-
 /**
  * @brief   Type of a sandbox object.
  */
 typedef struct sb_class sb_class_t;
 
-/**
- * @brief   Type of a mask of Virtual IRQs.
- */
-typedef uint32_t sb_vrqmask_t;
-
-/**
- * @brief   Type of a Virtual IRQs.
- */
-typedef uint32_t sb_vrqnum_t;
+#include "sbregions.h"
+#include "sbapi.h"
 
 #if (SB_CFG_ENABLE_VRQ == TRUE) || defined (__DOXYGEN__)
 #include "sbvrq.h"
@@ -190,6 +209,10 @@ typedef uint32_t sb_vrqnum_t;
 
 #if (SB_CFG_ENABLE_VIO == TRUE) || defined (__DOXYGEN__)
 #include "sbvio.h"
+#endif
+
+#if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
+#include "sbposix.h"
 #endif
 
 /**
@@ -205,93 +228,29 @@ typedef struct {
 } sb_t;
 
 /**
- * @brief   Type of a sandbox memory region.
+ * @brief   Structure representing a sandbox object.
  */
-typedef struct {
+struct sb_class {
   /**
-   * @brief   Associated memory area.
+   * @brief   Indicates that the sandbox is dynamically allocated from heap.
    */
-  memory_area_t                 area;
-  /**
-   * @brief   Memory region in use.
-   */
-  bool                          used;
-  /**
-   * @brief   Writable memory range.
-   */
-  bool                          writeable;
-} sb_memory_region_t;
-
-#if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
-/**
- * @brief   Type of a sandbox I/O structure.
- */
-typedef struct {
-  /**
-   * @brief   VFS nodes associated to file descriptors.
-   */
-  vfs_node_c                    *vfs_nodes[SB_CFG_FD_NUM];
-} sb_ioblock_t;
-#endif
-
-/**
- * @brief   Type of a sandbox configuration structure.
- */
-typedef struct {
-  /**
-   * @brief   Thread-related configurations.
-   */
-  struct {
-    /**
-     * @brief   Thread name.
-     */
-    const char                  *name;
-    /**
-     * @brief   Thread working area.
-     */
-    void                        *wsp;
-    /**
-     * @brief   Working area size.
-     */
-    size_t                      size;
-    /**
-     * @brief   Thread priority.
-     */
-    tprio_t                     prio;
-    /**
-     * @brief   Thread priority while serving a VRQ.
-     */
-    tprio_t                     vrq_prio;
-  } thread;
-  /**
-   * @brief   Memory region for code.
-   * @note    It is used to locate the startup header.
-   */
-  uint32_t                      code_region;
-  /**
-   * @brief   Memory region for data and stack.
-   * @note    It is used for initial PSP placement.
-   */
-  uint32_t                      data_region;
+  bool                          is_dynamic;
   /**
    * @brief   SandBox regions.
-   * @note    The following memory regions are used only for pointers
-   *          validation, not for MPU setup.
+   * @note    Region zero is always used for code execution. The data
+   *          region is assumed to be the first region in the list with
+   *          attribute @p SB_REG_WRITABLE.
    */
   sb_memory_region_t            regions[SB_CFG_NUM_REGIONS];
-#if (PORT_SWITCHED_REGIONS_NUMBER == SB_CFG_NUM_REGIONS) || defined(__DOXYGEN__)
   /**
-   * @brief   MPU regions initialization values.
-   * @note    Regions initialization values must be chosen to be
-   *          consistent with the values in the "regions" field.
+   * @brief   Saved unprivileged PSP position.
    */
-  mpureg_t                      mpuregs[SB_CFG_NUM_REGIONS];
-#endif
-#if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
+  uint32_t                      u_psp;
+#if (PORT_SAVE_PSPLIM == TRUE) || defined(__DOXYGEN__)
   /**
-   * @brief   VFS driver associated to the sandbox as root.
+   * @brief   Saved unprivileged PSPLIM position.
    */
-  vfs_driver_c                  *vfs_driver;
+  uint32_t                      u_psplim;
 #endif
 #if (SB_CFG_ENABLE_VIO == TRUE) || defined(__DOXYGEN__)
   /**
@@ -299,68 +258,26 @@ typedef struct {
    */
   const vio_conf_t              *vioconf;
 #endif
-} sb_config_t;
-
-/**
- * @brief   Structure representing a sandbox object.
- */
-struct sb_class {
   /**
-   * @brief   Pointer to the sandbox configuration data.
+   * @brief   Base API-related fields.
    */
-  const sb_config_t             *config;
-  /**
-   * @brief   Thread running in the sandbox.
-   */
-  thread_t                      *tp;
-  /**
-   * @brief   Pointer to the image header.
-   */
-  const sb_header_t             *sbhp;
-  /**
-   * @brief   Virtual timer used for alarms.
-   */
-  virtual_timer_t               alarm_vt;
-#if (CH_CFG_USE_MESSAGES == TRUE) || defined(__DOXYGEN__)
-  /**
-   * @brief   Thread sending a message to the sandbox.
-   */
-  thread_t                      *msg_tp;
-#endif
-#if (CH_CFG_USE_EVENTS == TRUE) || defined(__DOXYGEN__)
-  /**
-   * @brief   Sandbox events source.
-   */
-  event_source_t                es;
-#endif
+  sb_apiblock_t                 base;
 #if (SB_CFG_ENABLE_VRQ == TRUE) || defined(__DOXYGEN__)
   /**
-   * @brief   Global virtual IRQ status register.
+   * @brief   VRQ-related fields.
    */
-  uint32_t                      vrq_isr;
-  /**
-   * @brief   Mask of enabled virtual IRQ flags.
-   */
-  sb_vrqmask_t                  vrq_enmask;
-  /**
-   * @brief   Mask of pending virtual IRQ flags.
-   */
-  sb_vrqmask_t                  vrq_wtmask;
-  /**
-   * @brief   Reference to sh SB thread while waiting for VRQs.
-   */
-  thread_reference_t            vrq_trp;
-  /**
-   * @brief   Status flags associated to each VRQ.
-   */
-  uint32_t                      vrq_flags[32];
+  sb_vrqblock_t                 vrq;
 #endif
 #if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
   /**
-   * @brief   VFS bindings for Posix API.
+   * @brief   Posix IO-related fields.
    */
   sb_ioblock_t                  io;
 #endif
+  /**
+   * @brief   Thread running in the sandbox.
+   */
+  thread_t                      thread;
 };
 
 /*===========================================================================*/
@@ -383,10 +300,9 @@ extern "C" {
 /* Module inline functions.                                                  */
 /*===========================================================================*/
 
-#include "sbelf.h"
-#include "sbposix.h"
-#include "sbapi.h"
 #include "sbhost.h"
+#include "sbsyscall.h"
+#include "sbelf.h"
 
 #endif /* SBHOST_H */
 

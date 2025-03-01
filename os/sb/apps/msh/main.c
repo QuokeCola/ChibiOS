@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2022 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,8 +22,10 @@
 #include "sbuser.h"
 #include "paths.h"
 
+#include "dirent.h"
 #include "sglob.h"
 
+#define SHELL_HISTORY_DEPTH         8
 #define SHELL_MAX_LINE_LENGTH       128
 #define SHELL_MAX_ARGUMENTS         20
 #define SHELL_PROMPT_STR            "> "
@@ -32,13 +34,32 @@
 #define SHELL_DEFAULT_PATH          "/bin"
 #define SHELL_EXECUTABLE_EXTENSION  ".elf"
 
-static const char *prompt;
-static char pathbuf[1024];
+#define CTRL(c) (char)((c) - 0x40)
+
+static struct {
+  const char        *prompt;
+  char              *history_head;
+  char              *history_current;
+  char              history_buffer[SHELL_HISTORY_DEPTH][SHELL_MAX_LINE_LENGTH];
+  char              pathbuf[1024];
+} state;
+
+static void shell_putc(char c) {
+
+  (void) write(STDOUT_FILENO, &c, 1);
+}
 
 static void shell_write(const char *s) {
   size_t n = strlen(s);
 
   (void) write(STDOUT_FILENO, s, n);
+}
+
+static void shell_writeln(const char *s) {
+  size_t n = strlen(s);
+
+  (void) write(STDOUT_FILENO, s, n);
+  (void) write(STDOUT_FILENO, SHELL_NEWLINE_STR, 2);
 }
 
 static void shell_error(const char *s) {
@@ -47,36 +68,131 @@ static void shell_error(const char *s) {
   (void) write(STDERR_FILENO, s, n);
 }
 
-static void shell_putc(char c) {
+static void shell_errorln(const char *s) {
+  size_t n = strlen(s);
 
-  (void) write(STDOUT_FILENO, &c, 1);
+  (void) write(STDERR_FILENO, s, n);
+  (void) write(STDERR_FILENO, SHELL_NEWLINE_STR, 2);
 }
 
 static void shell_usage(const char *s) {
 
   shell_error("usage: ");
-  shell_error(s);
-  shell_error(SHELL_NEWLINE_STR);
+  shell_errorln(s);
 }
 
-bool shell_getline(char *line, size_t size) {
-  char *p = line;
+static void shell_save_history(char *line) {
 
+  strcpy(state.history_head, line);
+  state.history_head += SHELL_MAX_LINE_LENGTH;
+  if (state.history_head >= state.history_buffer[SHELL_HISTORY_DEPTH]) {
+    state.history_head = state.history_buffer[0];
+  }
+}
+
+static size_t shell_get_history_prev(char *line) {
+  size_t len;
+  char *p;
+
+  p = state.history_current - SHELL_MAX_LINE_LENGTH;
+    if (p < state.history_buffer[0]) {
+      p = state.history_buffer[SHELL_HISTORY_DEPTH - 1];
+  }
+  if ((len = strlen(p)) > (size_t)0) {
+    state.history_current = p;
+  }
+  strcpy(line, p);
+
+  return len;
+}
+
+static size_t shell_get_history_next(char *line) {
+  size_t len;
+  char *p;
+
+  p = state.history_current + SHELL_MAX_LINE_LENGTH;
+    if (p > state.history_buffer[SHELL_HISTORY_DEPTH - 1]) {
+      p = state.history_buffer[0];
+  }
+  if ((len = strlen(p)) > (size_t)0) {
+    state.history_current = p;
+  }
+  strcpy(line, p);
+
+  return len;
+}
+
+static void shell_reset_line(void) {
+
+  shell_write("\r");
+  shell_write(state.prompt);
+  shell_write("\033[K");
+}
+
+static bool shell_getline(char *line, size_t size) {
+  char *p = line;
+  int seq;
+
+  state.history_current = state.history_head;
+  seq = 0;;
   while (true) {
     char c;
 
     if (read(STDIN_FILENO, &c, 1) == 0)
       return true;
 
-    if ((c == 4) && (p == line)) {
+    /* Escape sequences decoding.*/
+    switch (seq) {
+    case 0:
+      if (c == 27) {
+        seq = 1;
+        continue;
+      }
+      break;
+    case 1:
+      if (c == '[') {
+        seq = 2;
+        continue;
+      }
+      if (c == 27) {
+        /* ESC+ESC clears the line.*/
+        continue;
+      }
+      seq = 0;
+      break;
+    case 2:
+      seq = 0;
+      if (c == 'A') {
+        /* Cursor up.*/
+        size_t len = shell_get_history_prev(line);
+
+        if (len > (size_t)0) {
+          shell_reset_line();
+          shell_write(line);
+          p = line + len;
+        }
+        continue;
+      }
+      if (c == 'B') {
+        /* Cursor down.*/
+        size_t len = shell_get_history_next(line);
+
+        if (len > (size_t)0) {
+          shell_reset_line();
+          shell_write(line);
+          p = line + len;
+        }
+        continue;
+      }
+    }
+
+    if ((c == CTRL('D')) && (p == line)) {
       return true;
     }
 
-    if ((c == 8) || (c == 127)) {
+    if ((c == CTRL('H')) || (c == 127)) {
       if (p != line) {
-        shell_putc(8);
-        shell_putc(' ');
-        shell_putc(8);
+        shell_write("\010 \010");
         p--;
       }
       continue;
@@ -84,10 +200,13 @@ bool shell_getline(char *line, size_t size) {
     if (c == '\r') {
       shell_write(SHELL_NEWLINE_STR);
       *p = 0;
+      if (strlen(line) != 0) {
+        shell_save_history(line);
+      }
       return false;
     }
 
-    if (c < 0x20)
+    if (c < ' ')
       continue;
 
     if (p < line + size - 1) {
@@ -143,7 +262,7 @@ static void cmd_cd(int argc, char *argv[]) {
   ret = chdir(argv[1]);
   if (ret == -1) {
     shell_error(argv[1]);
-    shell_error(": No such file or directory" SHELL_NEWLINE_STR);
+    shell_errorln(": No such file or directory");
   }
 }
 
@@ -157,10 +276,9 @@ static void cmd_pwd(int argc, char *argv[]) {
     return;
   }
 
-  p = getcwd(pathbuf, sizeof pathbuf);
+  p = getcwd(state.pathbuf, sizeof state.pathbuf);
   if (p != NULL) {
-    shell_write(pathbuf);
-    shell_write(SHELL_NEWLINE_STR);
+    shell_writeln(state.pathbuf);
   }
 }
 
@@ -187,8 +305,7 @@ static void cmd_env(int argc, char *argv[]) {
 
   pp = environ;
   while (*pp != NULL) {
-    shell_write(*pp++);
-    shell_write(SHELL_NEWLINE_STR);
+    shell_writeln(*pp++);
   }
 }
 
@@ -209,6 +326,38 @@ static void cmd_exit(int argc, char *argv[]) {
   _exit(msg);
 }
 
+#if 0
+static void cmd_dir(int argc, char *argv[]) {
+  DIR *dirp;
+  struct dirent *dep;
+
+  if (argc > 2) {
+    shell_usage("dir [path]");
+    return;
+  }
+
+  if (argc == 1) {
+    dirp = opendir(".");
+  }
+  else {
+    dirp = opendir(argv[1]);
+  }
+  if (dirp == NULL) {
+    shell_error(argv[1]);
+    shell_errorln(": No such file or directory");
+    return;
+  }
+
+  while ((dep = readdir(dirp)) != NULL) {
+    shell_write(dep->d_name);
+    shell_write(" ");
+  }
+  shell_write(SHELL_NEWLINE_STR);
+
+  closedir(dirp);
+}
+#endif
+
 static void cmd_mkdir(int argc, char *argv[]) {
   int ret;
 
@@ -220,7 +369,7 @@ static void cmd_mkdir(int argc, char *argv[]) {
   ret = mkdir(argv[1], 0777);
   if (ret == -1) {
     shell_error(argv[1]);
-    shell_error(": Creation failed" SHELL_NEWLINE_STR);
+    shell_errorln(": Creation failed");
   }
 }
 
@@ -235,7 +384,7 @@ static void cmd_mv(int argc, char *argv[]) {
   ret = rename(argv[1], argv[2]);
   if (ret == -1) {
     shell_error(argv[1]);
-    shell_error(": No such file or directory" SHELL_NEWLINE_STR);
+    shell_errorln(": No such file or directory");
   }
 }
 
@@ -251,8 +400,7 @@ static void cmd_path(int argc, char *argv[]) {
 
   s = getenv("PATH");
   if (s != NULL) {
-    shell_write(s);
-    shell_write(SHELL_NEWLINE_STR);
+    shell_writeln(s);
   }
 }
 
@@ -267,7 +415,7 @@ static void cmd_rm(int argc, char *argv[]) {
   ret = unlink(argv[1]);
   if (ret == -1) {
     shell_error(argv[1]);
-    shell_error(": No such file or directory" SHELL_NEWLINE_STR);
+    shell_errorln(": No such file or directory");
   }
 }
 
@@ -282,31 +430,53 @@ static void cmd_rmdir(int argc, char *argv[]) {
   ret = rmdir(argv[1]);
   if (ret == -1) {
     shell_error(argv[1]);
-    shell_error(": Remove failed" SHELL_NEWLINE_STR);
+    shell_errorln(": Remove failed");
   }
+}
+
+static void cmd_help(int argc, char *argv[]);
+
+static const struct builtins {
+  const char *name;
+  void (*cmdf)(int argc, char *argv[]);
+} builtins[] = {
+  {"cd",      cmd_cd},
+//  {"dir",     cmd_dir},
+  {"echo",    cmd_echo},
+  {"env",     cmd_env},
+  {"exit",    cmd_exit},
+  {"help",    cmd_help},
+  {"mkdir",   cmd_mkdir},
+  {"mv",      cmd_mv},
+  {"path",    cmd_path},
+  {"pwd",     cmd_pwd},
+  {"rm",      cmd_rm},
+  {"rmdir",   cmd_rmdir},
+  {NULL,      NULL}
+};
+
+static void cmd_help(int argc, char *argv[]) {
+  const struct builtins *bip = builtins;
+
+  (void)argv;
+
+  if (argc != 1) {
+    shell_usage("help");
+    return;
+  }
+
+  while (bip->name != NULL) {
+    shell_write(bip->name);
+    shell_write(" ");
+    bip++;
+  }
+  shell_write(SHELL_NEWLINE_STR);
 }
 
 static bool shell_execute(int argc, char *argv[]) {
   extern int runelf(int argc, char *argv[], char *envp[]);
   char *fname = argv[0];
   int i, ret;
-
-  static const struct {
-    const char *name;
-    void (*cmdf)(int argc, char *argv[]);
-  } builtins[] = {
-    {"cd",      cmd_cd},
-    {"echo",    cmd_echo},
-    {"env",     cmd_env},
-    {"exit",    cmd_exit},
-    {"mkdir",   cmd_mkdir},
-    {"mv",      cmd_mv},
-    {"path",    cmd_path},
-    {"pwd",     cmd_pwd},
-    {"rm",      cmd_rm},
-    {"rmdir",   cmd_rmdir},
-    {NULL,      NULL}
-  };
 
   i = 0;
   while (builtins[i].name != NULL) {
@@ -344,7 +514,7 @@ static bool shell_execute(int argc, char *argv[]) {
       }
 
       /* Error if the path is too long.*/
-      if (n >= sizeof pathbuf) {
+      if (n >= sizeof state.pathbuf) {
         errno = ERANGE;
         break;
       }
@@ -352,24 +522,24 @@ static bool shell_execute(int argc, char *argv[]) {
       /* Non absolute paths are ignored.*/
       if (*p == '/') {
         /* Building combined path, error on path buffer overflow.*/
-        memmove(pathbuf, p, n);
-        pathbuf[n] = '\0';
-        if (path_append(pathbuf, fname, sizeof pathbuf) == 0U) {
+        memmove(state.pathbuf, p, n);
+        state.pathbuf[n] = '\0';
+        if (path_append(state.pathbuf, fname, sizeof state.pathbuf) == 0U) {
           errno = ERANGE;
           break;
         }
 
         /* Enforcing an executable file extension, there is no eXecute
            attribute to handle.*/
-        if (path_add_extension(pathbuf,
+        if (path_add_extension(state.pathbuf,
                                SHELL_EXECUTABLE_EXTENSION,
-                               sizeof pathbuf) == 0U) {
+                               sizeof state.pathbuf) == 0U) {
           errno = ERANGE;
           break;
         }
 
         /* Trying to execute from, this path.*/
-        argv[0] = pathbuf;
+        argv[0] = state.pathbuf;
         ret = runelf(argc, argv, environ);
         argv[0] = fname;
         if (ret != -1) {
@@ -407,14 +577,15 @@ int main(int argc, char *argv[], char *envp[]) {
   (void)argv;
   (void)envp;
 
-  prompt = getenv("PROMPT");
-  if (prompt == NULL) {
-    prompt = SHELL_PROMPT_STR;
+  state.prompt = getenv("PROMPT");
+  if (state.prompt == NULL) {
+    state.prompt = SHELL_PROMPT_STR;
   }
 
   /* Welcome.*/
-  shell_write(SHELL_NEWLINE_STR SHELL_WELCOME_STR SHELL_NEWLINE_STR);
+  shell_writeln(SHELL_NEWLINE_STR SHELL_WELCOME_STR);
 
+  state.history_head = state.history_buffer[0];
   while (true) {
     int i, n, ret;
     char line[SHELL_MAX_LINE_LENGTH];
@@ -423,11 +594,11 @@ int main(int argc, char *argv[], char *envp[]) {
     sglob_t sglob;
 
     /* Prompt.*/
-    shell_write(prompt);
+    shell_write(state.prompt);
 
     /* Reading input line.*/
     if (shell_getline(line, SHELL_MAX_LINE_LENGTH)) {
-      shell_write("exit" SHELL_NEWLINE_STR);
+      shell_writeln("exit");
       break;
     }
 
@@ -440,7 +611,7 @@ int main(int argc, char *argv[], char *envp[]) {
       }
       else {
         n = 0;
-        shell_error("too many arguments" SHELL_NEWLINE_STR);
+        shell_errorln("too many arguments");
         break;
       }
     }
@@ -483,7 +654,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (shell_execute(sglob.sgl_pathc, sglob.sgl_pathv)) {
       shell_error("msh: ");
       shell_error(args[0]);
-      shell_error(": command not found" SHELL_NEWLINE_STR);
+      shell_errorln(": command not found");
     }
 
     /* Freeing memory allocated during processing.*/
@@ -491,7 +662,7 @@ int main(int argc, char *argv[], char *envp[]) {
     continue;
 
 outofmem:
-    shell_error("msh: out of memory" SHELL_NEWLINE_STR);
+    shell_errorln("msh: out of memory");
     sglob_free(&sglob);
   }
 }

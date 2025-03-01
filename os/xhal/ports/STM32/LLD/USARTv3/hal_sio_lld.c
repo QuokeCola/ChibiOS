@@ -146,13 +146,7 @@ SIODriver LPSIOD1;
  * @note    In this implementation it is: 38400-8-N-1, RX and TX FIFO
  *          thresholds set to 50%.
  */
-static const SIOConfig default_config = {
-  .baud  = SIO_DEFAULT_BITRATE,
-  .presc = USART_PRESC1,
-  .cr1   = USART_CR1_DATA8 | USART_CR1_OVER16,
-  .cr2   = USART_CR2_STOP1_BITS,
-  .cr3   = USART_CR3_TXFTCFG_NONFULL | USART_CR3_RXFTCFG_NONEMPTY
-};
+static const SIOConfig default_config = SIO_DEFAULT_CONFIGURATION;
 
 /*===========================================================================*/
 /* Driver local functions.                                                   */
@@ -372,7 +366,8 @@ msg_t sio_lld_start(SIODriver *siop) {
   }
 
   /* Configures the peripheral.*/
-  sio_lld_configure(siop, &default_config);
+  siop->config = sio_lld_setcfg(siop, &default_config);
+  osalDbgAssert(siop->config != NULL, "default configuration failed");
 
   return HAL_RET_SUCCESS;
 }
@@ -469,7 +464,7 @@ void sio_lld_stop(SIODriver *siop) {
  *
  * @notapi
  */
-const SIOConfig *sio_lld_configure(SIODriver *siop, const SIOConfig *config) {
+const SIOConfig *sio_lld_setcfg(SIODriver *siop, const SIOConfig *config) {
   USART_TypeDef *u = siop->usart;
   uint32_t presc, brr, clock;
 
@@ -520,6 +515,35 @@ const SIOConfig *sio_lld_configure(SIODriver *siop, const SIOConfig *config) {
   u->CR1  |= USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
 
   return config;
+}
+
+/**
+ * @brief       Selects one of the pre-defined SPI configurations.
+ *
+ * @param[in] spip      pointer to the @p hal_spi_driver_c object
+ * @param[in] cfgnum    driver configuration number
+ * @return              The configuration pointer.
+ *
+ * @notapi
+ */
+const hal_sio_config_t *sio_lld_selcfg(SIODriver *siop,
+                                       unsigned cfgnum) {
+#if SIO_USE_CONFIGURATIONS == TRUE
+  extern const sio_configurations_t sio_configurations;
+
+  if (cfgnum >= sio_configurations.cfgsnum) {
+    return NULL;
+  }
+
+  return (const void *)sio_lld_setcfg(siop, &sio_configurations.cfgs[cfgnum]);
+#else
+
+  if (cfgnum > 0U){
+    return NULL;
+  }
+
+  return (const void *)sio_lld_setcfg(siop, NULL);
+#endif
 }
 
 /**
