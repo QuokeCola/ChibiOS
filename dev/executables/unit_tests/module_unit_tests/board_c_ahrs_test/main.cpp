@@ -16,7 +16,7 @@
 
 #include "ch.hpp"
 #include "hal.h"
-
+#include "shell.h"
 
 #ifndef BOARD_RM_C
 #error This target is only for Robomaster Board C. Please add -DBOARD_NAME="rm_board_c" to your cmake options
@@ -53,10 +53,9 @@ int main(void) {
     palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(7));
     palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(7));
 
-
-
     chThdSleepMilliseconds(1000);
 
+    Shell::start(NORMALPRIO);
 
 
     // See chconf.h for what this #define means.

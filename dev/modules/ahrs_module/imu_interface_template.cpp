@@ -2,7 +2,7 @@
 // Created by Quoke on 2/25/2025.
 //
 
-#include "imu_interface.h"
+#include "imu_interface_template.h"
 
 static const SPIConfig SPI_cfg =
 #if defined(BOARD_RM_2018A)

@@ -2,8 +2,8 @@
 // Created by Quoke on 2/25/2025.
 //
 
-#ifndef META_EMBEDDED_IMU_INTERFACE_H
-#define META_EMBEDDED_IMU_INTERFACE_H
+#ifndef META_EMBEDDED_IMU_INTERFACE_TEMPLATE_H
+#define META_EMBEDDED_IMU_INTERFACE_TEMPLATE_H
 
 #include "ch.hpp"
 #include "hal.h"
@@ -28,8 +28,9 @@
 #endif
 
 
-class imu_interface {
+class IMUInterfaceTemplate {
+
 };
 
 
-#endif //META_EMBEDDED_IMU_INTERFACE_H
+#endif //META_EMBEDDED_IMU_INTERFACE_TEMPLATE_H

@@ -21,7 +21,8 @@ include_directories(${CHIBIOS}/os/common/portability/GCC
         ${CHIBIOS}/os/common/startup/ARMCMx/compilers/GCC
         ${CHIBIOS}/os/common/startup/ARMCMx/devices/STM32F4xx
         ${CHIBIOS}/os/common/ext/ARM/CMSIS/Core/Include
-        ${CHIBIOS}/os/common/ext/ST/STM32F4xx)
+        ${CHIBIOS}/os/common/ports/ARM-common/include
+        ${CHIBIOS}/os/common/ext/ST/STM32F4xx        )
 
 
 # $(CHIBIOS)/os/hal/hal.mk
@@ -118,7 +119,7 @@ set(CHIBIOS_C_SRC ${CHIBIOS_C_SRC}
         ${CHIBIOS}/os/hal/ports/STM32/LLD/OTGv1/hal_usb_lld.c
         ${CHIBIOS}/os/hal/ports/STM32/LLD/QUADSPIv2/hal_wspi_lld.c
         ${CHIBIOS}/os/hal/ports/STM32/LLD/RTCv3/hal_rtc_lld.c
-        ${CHIBIOS}/os/hal/ports/STM32/LLD/SPIv4/hal_spi_v2_lld.c
+        ${CHIBIOS}/os/hal/ports/STM32/LLD/SPIv1/hal_spi_v2_lld.c
         ${CHIBIOS}/os/hal/ports/STM32/LLD/SDIOv1/hal_sdc_lld.c
         ${CHIBIOS}/os/hal/ports/STM32/LLD/TIMv1/hal_gpt_lld.c
         ${CHIBIOS}/os/hal/ports/STM32/LLD/TIMv1/hal_icu_lld.c
@@ -217,7 +218,6 @@ include_directories(${CHIBIOS}/os/common/ports/ARMv7-M
         ${CHIBIOS}/os/common/ports/ARM-common
         ${CHIBIOS}/os/common/ports/ARMv7-M/compilers/GCC)
 
-
 # $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
 set(CHIBIOS_CPP_SRC ${CHIBIOS_CPP_SRC}
         ${CHIBIOS}/os/various/cpp_wrappers/ch.cpp)
@@ -233,6 +233,8 @@ set(CHIBIOS_C_SRC ${CHIBIOS_C_SRC}
 
 include_directories(${CHIBIOS}/os/hal/lib/streams)
 
+set(CHIBIOS_C_SRC ${CHIBIOS_C_SRC}
+        ${CHIBIOS}/os/various/syscalls.c)
 
 # $(CHIBIOS)/os/various/shell/shell.mk
 #set(CHIBIOS_C_SRC ${CHIBIOS_C_SRC}

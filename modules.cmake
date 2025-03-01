@@ -17,7 +17,7 @@ set(SHELL_SRC
 set(AHRS_SRC
         dev/modules/ahrs_module/ahrs_lib.lib
         dev/modules/ahrs_module/ahrs_lib_middleware.c
-        dev/modules/ahrs_module/imu_interface.cpp
+        dev/modules/ahrs_module/imu_interface_template.cpp
         dev/modules/ahrs_module/ahrs_math.hpp)
 
 include_directories(dev/modules/buzzer_module)
@@ -26,4 +26,4 @@ include_directories(dev/modules/shell_module)
 include_directories(dev/modules/usb_serial_module)
 include_directories(dev/modules/rm_motor_interface)
 include_directories(dev/modules/pid_controller)
-include_directories(dev/common_files)
+include_directories(dev/modules/common_files)
