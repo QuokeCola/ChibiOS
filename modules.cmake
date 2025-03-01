@@ -14,6 +14,11 @@ set(SHELL_SRC
         dev/modules/shell_module/shell.cpp
         dev/modules/shell_module/printf.c
 )
+set(AHRS_SRC
+        dev/modules/ahrs_module/ahrs_lib.lib
+        dev/modules/ahrs_module/ahrs_lib_middleware.c
+        dev/modules/ahrs_module/imu_interface.cpp
+        dev/modules/ahrs_module/ahrs_math.hpp)
 
 include_directories(dev/modules/buzzer_module)
 include_directories(dev/modules/can_module)
