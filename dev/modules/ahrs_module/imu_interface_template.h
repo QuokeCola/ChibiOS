@@ -7,28 +7,42 @@
 
 #include "ch.hpp"
 #include "hal.h"
+#include "ahrs_math.hpp"
 
+class IMUInterfaceTemplate{
+public:
 
-#if defined(BOARD_RM_2018A)
+    virtual ~IMUInterfaceTemplate() = default;
 
-#define MPU6500_SPI_DRIVER SPID5
-#define MPU6500_SPI_CS_PAD GPIOF
-#define MPU6500_SPI_CS_PIN GPIOF_PIN6
-#include "mpu6500_reg.h"
-#include "ist8310_reg.h"
+    /**
+     * Get data from gyroscope
+     * @return Gyro data from gyroscope [deg/s]
+     */
+    virtual Vector3D get_gyro() = 0;
 
-#elif defined(BOARD_RM_C)
-#include "ist8310_reg.h"
-#define BMI088_SPI_DRIVER SPID1
-#define BMI088_SPI_CS_PAD GPIOA
-#define BMI088_SPI_CS_ACCEL_PIN GPIOA_CS1_ACCEL
-#define BMI088_SPI_CS_GYRO_PIN GPIOB_CS1_GYRO
-#else
-#error "MPU6500 interface has not been defined for selected board"
-#endif
+    /**
+     * Get data from accelerometer
+     * @return Acceleration data from accelerometer [m/s^2]
+     */
+    virtual Vector3D get_accel() = 0;
 
+    /**
+     * Get magnet data from IST
+     * @return Magnet data [uT]
+     */
+    virtual Vector3D get_magnet() = 0;
 
-class IMUInterfaceTemplate {
+    /**
+     * Get last update time from system start
+     * @return Last update time from system start [ms]
+     */
+    virtual time_msecs_t get_mpu_update_time() = 0;
+
+    /**
+     * Get last update time from system start
+     * @return Last update time from system start [ms]
+     */
+    virtual time_msecs_t get_ist_update_time()  = 0;
 
 };
 

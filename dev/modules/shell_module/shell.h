@@ -22,7 +22,7 @@
 
 #include "common_macro.h"
 
-#if defined(BOARD_RM_2018_A)
+#if defined(BOARD_RM_2018A)
 // USART6_TX - PG14, USART6_RX - PG9
 #elif defined(BOARD_RM_2017)
 // USART6_TX - PG14, USART6_RX - PG9

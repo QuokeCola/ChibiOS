@@ -45,6 +45,30 @@ public:
         return {a.x / c, a.y / c, a.z / c};
     }
 
+    friend void operator+=(Vector3D &a, const Vector3D&b){
+        a.x = a.x + b.x;
+        a.y = a.y + b.y;
+        a.z = a.z + b.z;
+    }
+
+    friend void operator-=(Vector3D &a, const Vector3D&b){
+        a.x = a.x - b.x;
+        a.y = a.y - b.y;
+        a.z = a.z - b.z;
+    }
+
+    friend void operator*=(Vector3D &a, const float b){
+        a.x = b * a.x;
+        a.y = b * a.y;
+        a.z = b * a.z;
+    }
+
+    friend void operator/=(Vector3D &a, const float b){
+        a.x = a.x / b;
+        a.y = a.y / b;
+        a.z = a.z / b;
+    }
+
     friend bool operator==(const Vector3D &a, const Vector3D &b) {
         return (a.x == b.x && a.y == b.y && a.z == b.z);
     }

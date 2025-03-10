@@ -22,7 +22,7 @@ if (${BOARD_NAME} STREQUAL rm_board_2017)
     set(BOARD_FILES ${PROJECT_SOURCE_DIR}/os/hal/boards/ST_STM32F427_ROBOMASTER_2017/board.c)
 
     message("[Notice] Current profile is configured for dev board \"${BOARD_NAME}\".")
-elseif (${BOARD_NAME} STREQUAL rm_board_2018_a)
+elseif (${BOARD_NAME} STREQUAL rm_board_2018a)
     ###################################################
     # Startup LD directory and LD file and board file #
     ###################################################

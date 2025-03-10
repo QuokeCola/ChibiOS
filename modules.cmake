@@ -14,16 +14,27 @@ set(SHELL_SRC
         dev/modules/shell_module/shell.cpp
         dev/modules/shell_module/printf.c
 )
+
 set(AHRS_SRC
         dev/modules/ahrs_module/ahrs_lib.lib
         dev/modules/ahrs_module/ahrs_lib_middleware.c
-        dev/modules/ahrs_module/imu_interface_template.cpp
-        dev/modules/ahrs_module/ahrs_math.hpp)
+        dev/modules/ahrs_module/ahrs_math.hpp
+        dev/modules/ahrs_module/ahrs.cpp)
+if (${BOARD_NAME} STREQUAL rm_board_2018a)
+    set(AHRS_SRC ${AHRS_SRC}
+            dev/modules/ahrs_module/board_2018a_interface/imu_interface.cpp)
+    include_directories(dev/modules/ahrs_module/board_2018a_interface)
+elseif (${BOARD_NAME} STREQUAL rm_board_c)
+    set(AHRS_SRC ${AHRS_SRC}
+            dev/modules/ahrs_module/board_c_interface/imu_interface.cpp)
+    include_directories(dev/modules/ahrs_module/board_c_interface)
+endif ()
 
 include_directories(dev/modules/buzzer_module)
 include_directories(dev/modules/can_module)
 include_directories(dev/modules/shell_module)
 include_directories(dev/modules/usb_serial_module)
+include_directories(dev/modules/ahrs_module)
 include_directories(dev/modules/rm_motor_interface)
 include_directories(dev/modules/pid_controller)
 include_directories(dev/modules/common_files)
