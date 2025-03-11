@@ -29,17 +29,28 @@ using namespace chibios_rt;
  * reply after the specified time.
  */
 
-class Thd : public BaseStaticThread<512> {
-    void main() final{
-        setName("UThd");
+AHRS ahrs;
 
+class Thd : public BaseStaticThread<512> {
+public:
+//    AHRS ahrs;
+private:
+    void main() final{
+        setName("UUIDD");
+        bool test = false;
+//        ahrs.start(NORMALPRIO+3);
         while (!shouldTerminate()) {
-            Vector3D accel = {0,0,0};
-            Shell::printf("%f,%f,%f" SHELL_NEWLINE_STR,accel.x, accel.y, accel.z);
-            chThdSleepMilliseconds(2000);
+            Vector3D accel = ahrs.angle;
+//            Vector3D accel = {0,0,0,};
+            Shell::printf("%f %f %f" SHELL_NEWLINE_STR,accel.x, accel.y, accel.z);
+            chThdSleepMilliseconds(100);
+            (test) ? palSetPad(GPIOG,GPIOG_LED4) : palClearPad(GPIOG,GPIOG_LED4);
+            test = !test;
         }
     };
 }thd;
+
+
 
 /*
  * Application entry point.
@@ -57,24 +68,17 @@ int main(void) {
     halInit();
     System::init();
 
-//    /*
-//     * Activates the serial driver 2 using the driver default configuration.
-//     * PA2(TX) and PA3(RX) are routed to USART2.
-//     */
-//
-//    palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(7));
-//    palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(7));
-
-    palClearPad(GPIOG, GPIOG_LED1);
-    chThdSleepMilliseconds(1000);
-    palClearPad(GPIOG, GPIOG_LED2);
     Shell::start(NORMALPRIO);
 
     chThdSleepMilliseconds(1000);
-    AHRS ahrs;
+
     ahrs.start(NORMALPRIO+1);
-//    ahrs.start(NORMALPRIO+1);
+
+    chThdSleepMilliseconds(1000);
+
     thd.start(NORMALPRIO+2);
+
+    chThdSleepMilliseconds(10000);
     // See chconf.h for what this #define means.
 #if CH_CFG_NO_IDLE_THREAD
     // ChibiOS idle thread has been disabled,

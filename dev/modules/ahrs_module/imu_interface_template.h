@@ -12,8 +12,6 @@
 class IMUInterfaceTemplate{
 public:
 
-    virtual ~IMUInterfaceTemplate() = default;
-
     /**
      * Get data from gyroscope
      * @return Gyro data from gyroscope [deg/s]

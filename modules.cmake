@@ -16,7 +16,7 @@ set(SHELL_SRC
 )
 
 set(AHRS_LIB
-        ${PROJECT_SOURCE_DIR}/modules/ahrs_module/ahrs_lib.lib)
+        ${PROJECT_SOURCE_DIR}/dev/modules/ahrs_module/ahrs_lib.lib)
 
 set(AHRS_SRC
         dev/modules/ahrs_module/ahrs_lib_middleware.c

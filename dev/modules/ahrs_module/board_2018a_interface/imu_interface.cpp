@@ -213,17 +213,21 @@ void IMUInterface::init_mpu6500() {
             Vector3D new_gyro_raw = Vector3D((int16_t) (rx_buf[8] << 8  | rx_buf[9]),
                                              (int16_t) (rx_buf[10] << 8 | rx_buf[11]),
                                              (int16_t) (rx_buf[12] << 8 | rx_buf[13])) * gyro_sensitivity;
-            if ((new_gyro_raw-gyro_zero_bias).norm()<1.5){
+            if ((new_gyro_raw-(gyro_zero_bias/(float)(i))).norm()<1.5 && i!=0){
                 /// Bias data
                 gyro_zero_bias += new_gyro_raw;
                 i++;
-                palClearPad(GPIOG,GPIOG_LED1);
-            } else {
                 palSetPad(GPIOG,GPIOG_LED1);
+            } else {
+                if (gyro_zero_bias.norm()<1.5) {
+                    gyro_zero_bias += new_gyro_raw;
+                    i++;
+                }
+                palClearPad(GPIOG,GPIOG_LED1);
             }
         }
+        chSysUnlock();
     }
-    palClearPad(GPIOG,GPIOG_LED1);
     gyro_zero_bias = gyro_zero_bias/GYRO_CALIBRATION_SAMPLE_NUMBER;
 }
 

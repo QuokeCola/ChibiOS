@@ -49,28 +49,28 @@ private:
     /*===========================================================================*/
     /*                               Sensor data                                 */
     /*===========================================================================*/
-    float temperature;
-    Vector3D magnet;
-    Vector3D accel;
-    Vector3D gyro;
-    Vector3D gyro_raw;   // raw (biased) data of gyro
-    time_msecs_t imu_update_time;   // last update time from system start [ms]
+    float temperature=0;
+    Vector3D magnet={0,0,0};
+    Vector3D accel={0,0,0};
+    Vector3D gyro={0,0,0};
+    Vector3D gyro_raw={0,0,0};   // raw (biased) data of gyro
+    time_msecs_t imu_update_time=0;   // last update time from system start [ms]
 
     /*===========================================================================*/
     /*                             Sensor parameters                             */
     /*===========================================================================*/
 
-    float gyro_sensitivity;   // the coefficient converting the raw data to degree
-    float accel_sensitivity;  // the coefficient converting the raw data to m/s^2
-    float temperature_bias;
-    Vector3D gyro_zero_bias;  // Sensor drifting
+    float gyro_sensitivity=0;   // the coefficient converting the raw data to degree
+    float accel_sensitivity=0;  // the coefficient converting the raw data to m/s^2
+    float temperature_bias=0;
+    Vector3D gyro_zero_bias={0,0,0};  // Sensor drifting
 
     /*===========================================================================*/
     /*                         SPI buffer configurations                         */
     /*===========================================================================*/
 
     static constexpr size_t RX_BUF_SIZE = 6 /* gyro */ + 2 /* temperature */ + 6 /* accel */ + 7 /* ist8310*/;
-    uint8_t rx_buf[RX_BUF_SIZE];
+    uint8_t rx_buf[RX_BUF_SIZE]={};
 
     /*===========================================================================*/
     /*                           Sensor configurations                           */

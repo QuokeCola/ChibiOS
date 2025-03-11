@@ -66,5 +66,6 @@ extern fp32 AHRS_atan2f(fp32 y, fp32 x);
 #define LATITUDE_AT_GUANGZHOU 23.0f
 #define LATITUDE_AT_HANGZHOU 30.044f
 #define LATITUDE_AT_HAINING 30.09f
+#define LATITUDE_AT_ANN_ARBOR 42.2808f;
 
 #endif

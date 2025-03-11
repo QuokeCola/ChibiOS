@@ -17,16 +17,16 @@ using namespace chibios_rt;
 
 class AHRS : public BaseStaticThread<512>{
 public:
-    ThreadReference start(tprio_t thread_prio);
-    Vector3D angle;
+    ThreadReference start(tprio_t thread_prio) override;
+    Vector3D angle = {0,0,0};
 
 private:
 
     IMUInterface imu_interface;
-    float quat[4];
-    Vector3D gyro_r;
-    Vector3D accel_r;
-    Vector3D magnet_r;
+    float quat[4] = {0,0,0,0};
+    Vector3D gyro_r = {0,0,0};
+    Vector3D accel_r = {0,0,0};
+    Vector3D magnet_r = {0,0,0};
 
     static constexpr int THREAD_UPDATE_INTERVAL = 1000; // [us]
     void main() override;
