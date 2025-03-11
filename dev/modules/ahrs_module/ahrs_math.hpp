@@ -98,6 +98,20 @@ inline void matrix33_mult(const Matrix33 &a, const Matrix33 &b, Matrix33 c) {
     }
 }
 
+inline void quat_to_matrix33 (const float* q, Matrix33 result) {
+    result[0][0] = 1-2*(q[2]*q[2]+q[3]*q[3]);
+    result[0][1] = 2*(q[1]*q[2]-q[0]*q[3]);
+    result[0][2] = 2*(q[1]*q[3]+q[0]*q[2]);
+
+    result[1][0] = 2*(q[1]*q[2]+q[0]*q[3]);
+    result[1][1] = 1-2*(q[1]*q[1]+q[3]*q[3]);
+    result[1][2] = 2*(q[2]*q[3]-q[0]*q[1]);
+
+    result[2][0] = 2*(q[1]*q[3]-q[0]*q[2]);
+    result[2][1] = 2*(q[2]*q[3]+q[0]*q[1]);
+    result[2][2] = 1-2*(q[1]*q[1]+q[2]*q[2]);
+}
+
 #ifndef GRAV_CONSTANT
 #define GRAV_CONSTANT 9.80665f
 #endif
