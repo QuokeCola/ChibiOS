@@ -32,7 +32,9 @@
 
 class IMUInterface : IMUInterfaceTemplate {
 public:
-    static void start(tprio_t priority);
+    void init();
+    void update();
+
     Vector3D  get_gyro() override { return gyro; }
     Vector3D get_accel() override { return accel; }
     Vector3D get_magnet() override { return magnet; }
@@ -40,40 +42,35 @@ public:
     time_msecs_t get_ist_update_time() override { return imu_update_time; }
 
 private:
-    static void init_mpu6500();
-    static void init_ist8310();
 
-    class IMUThread : public chibios_rt::BaseStaticThread<512> {
-        void main() final;
-    };
-
-    static IMUThread imu_thread;
+    void init_mpu6500();
+    void init_ist8310();
 
     /*===========================================================================*/
     /*                               Sensor data                                 */
     /*===========================================================================*/
-    static float temperature;
-    static Vector3D magnet;
-    static Vector3D accel;
-    static Vector3D gyro;
-    static Vector3D gyro_raw;   // raw (biased) data of gyro
-    static time_msecs_t imu_update_time;   // last update time from system start [ms]
+    float temperature;
+    Vector3D magnet;
+    Vector3D accel;
+    Vector3D gyro;
+    Vector3D gyro_raw;   // raw (biased) data of gyro
+    time_msecs_t imu_update_time;   // last update time from system start [ms]
 
     /*===========================================================================*/
     /*                             Sensor parameters                             */
     /*===========================================================================*/
 
-    static float gyro_sensitivity;   // the coefficient converting the raw data to degree
-    static float accel_sensitivity;  // the coefficient converting the raw data to m/s^2
-    static float temperature_bias;
-    static Vector3D gyro_zero_bias;  // Sensor drifting
+    float gyro_sensitivity;   // the coefficient converting the raw data to degree
+    float accel_sensitivity;  // the coefficient converting the raw data to m/s^2
+    float temperature_bias;
+    Vector3D gyro_zero_bias;  // Sensor drifting
 
     /*===========================================================================*/
     /*                         SPI buffer configurations                         */
     /*===========================================================================*/
 
     static constexpr size_t RX_BUF_SIZE = 6 /* gyro */ + 2 /* temperature */ + 6 /* accel */ + 7 /* ist8310*/;
-    static uint8_t rx_buf[RX_BUF_SIZE];
+    uint8_t rx_buf[RX_BUF_SIZE];
 
     /*===========================================================================*/
     /*                           Sensor configurations                           */
@@ -137,7 +134,6 @@ private:
         acc_dlpf_config_t _acc_dlpf_config;
     } mpu6500_config_t;
 
-    static constexpr int THREAD_UPDATE_INTERVAL = 1000; // [us]
     static constexpr int GYRO_CALIBRATION_SAMPLE_NUMBER = 500;
 
     static constexpr mpu6500_config_t CONFIG = {

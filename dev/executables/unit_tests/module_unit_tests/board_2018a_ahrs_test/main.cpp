@@ -17,9 +17,9 @@
 #include "ch.hpp"
 #include "hal.h"
 #include "shell.h"
-#include "imu_interface.h"
+#include "ahrs.h"
 #ifndef BOARD_RM_2018A
-#error This target is only for Robomaster Board C. Please add -DBOARD_NAME="rm_board_2018A" to your cmake options
+#error This target is only for Robomaster Board 2018A. Please add -DBOARD_NAME="rm_board_2018a" to your cmake options
 #endif
 
 using namespace chibios_rt;
@@ -32,9 +32,9 @@ using namespace chibios_rt;
 class Thd : public BaseStaticThread<512> {
     void main() final{
         setName("UThd");
-        IMUInterface imu_interface;
+
         while (!shouldTerminate()) {
-            Vector3D accel = imu_interface.get_gyro();
+            Vector3D accel = {0,0,0};
             Shell::printf("%f,%f,%f" SHELL_NEWLINE_STR,accel.x, accel.y, accel.z);
             chThdSleepMilliseconds(2000);
         }
@@ -71,7 +71,9 @@ int main(void) {
     Shell::start(NORMALPRIO);
 
     chThdSleepMilliseconds(1000);
-    IMUInterface::start(NORMALPRIO+1);
+    AHRS ahrs;
+    ahrs.start(NORMALPRIO+1);
+//    ahrs.start(NORMALPRIO+1);
     thd.start(NORMALPRIO+2);
     // See chconf.h for what this #define means.
 #if CH_CFG_NO_IDLE_THREAD

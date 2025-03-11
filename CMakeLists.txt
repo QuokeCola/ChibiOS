@@ -55,6 +55,7 @@ foreach (target ${TARGET_LIST})
                 ${BOARD_FILES})
 
         # Link CMSIS DSP
+        target_link_libraries(${target} ${AHRS_LIB})
         target_link_libraries(${target} CMSIS_DSP)
 
         # Echo target dev board before link

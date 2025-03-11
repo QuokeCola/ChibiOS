@@ -15,8 +15,10 @@ set(SHELL_SRC
         dev/modules/shell_module/printf.c
 )
 
+set(AHRS_LIB
+        ${PROJECT_SOURCE_DIR}/modules/ahrs_module/ahrs_lib.lib)
+
 set(AHRS_SRC
-        dev/modules/ahrs_module/ahrs_lib.lib
         dev/modules/ahrs_module/ahrs_lib_middleware.c
         dev/modules/ahrs_module/ahrs_math.hpp
         dev/modules/ahrs_module/ahrs.cpp)

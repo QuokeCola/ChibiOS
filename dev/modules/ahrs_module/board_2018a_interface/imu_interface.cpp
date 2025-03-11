@@ -18,22 +18,6 @@ static const SPIConfig SPI_cfg =
     0
 };
 
-float IMUInterface::gyro_sensitivity = 0;
-float IMUInterface::accel_sensitivity = 0;
-float IMUInterface::temperature_bias = 0;
-time_msecs_t IMUInterface::imu_update_time = 0;
-Vector3D IMUInterface::gyro_zero_bias = {0,0,0};
-
-Vector3D IMUInterface::magnet = {0,0,0};
-Vector3D IMUInterface::gyro_raw = {0,0,0};
-Vector3D IMUInterface::gyro = {0,0,0};
-Vector3D IMUInterface::accel = {0,0,0};
-float IMUInterface::temperature = 0.0;
-
-uint8_t IMUInterface::rx_buf[IMUInterface::RX_BUF_SIZE] = {};
-
-IMUInterface::IMUThread IMUInterface::imu_thread;
-
 /**
 * @note SPI Read/Write Protocol
 * 1. (ChibiOS) Lock the SPI driver (spiAcquireBus)
@@ -73,11 +57,10 @@ void mpu6500_write_reg(uint8_t reg_addr, uint8_t value) {
 }
 
 
-void IMUInterface::start(tprio_t priority)
+void IMUInterface::init()
 {
     IMUInterface::init_mpu6500();
     IMUInterface::init_ist8310();
-    IMUInterface::imu_thread.start(priority);
 }
 
 void IMUInterface::init_ist8310() {
@@ -244,51 +227,46 @@ void IMUInterface::init_mpu6500() {
     gyro_zero_bias = gyro_zero_bias/GYRO_CALIBRATION_SAMPLE_NUMBER;
 }
 
-void IMUInterface::IMUThread::main() {
-    setName("IMU");
+void IMUInterface::update() {
 
-    time_usecs_t current_system_time = chTimeI2US(chVTGetSystemTimeX());
-    while(!shouldTerminate()){
-        // Fetch data from SPI
-        uint8_t tx_data = MPU6500_ACCEL_XOUT_H | MPU6500_SPI_READ;
-        spiAcquireBus(&MPU6500_SPI_DRIVER);
-        spiSelect(&MPU6500_SPI_DRIVER);
-        spiSend(&MPU6500_SPI_DRIVER, 1, &tx_data);
-        spiReceive(&MPU6500_SPI_DRIVER, RX_BUF_SIZE, rx_buf);
-        spiUnselect(&MPU6500_SPI_DRIVER);
-        spiReleaseBus(&MPU6500_SPI_DRIVER);
+    // Fetch data from SPI
+    uint8_t tx_data = MPU6500_ACCEL_XOUT_H | MPU6500_SPI_READ;
+    spiAcquireBus(&MPU6500_SPI_DRIVER);
+    spiSelect(&MPU6500_SPI_DRIVER);
+    spiSend(&MPU6500_SPI_DRIVER, 1, &tx_data);
+    spiReceive(&MPU6500_SPI_DRIVER, RX_BUF_SIZE, rx_buf);
+    spiUnselect(&MPU6500_SPI_DRIVER);
+    spiReleaseBus(&MPU6500_SPI_DRIVER);
 
-        chSysLock();  /// --- ENTER S-Locked state. DO NOT use LOG, printf, non S/I-Class functions or return ---
-        {
+    chSysLock();  /// --- ENTER S-Locked state. DO NOT use LOG, printf, non S/I-Class functions or return ---
+    {
 
-            /// Decode data
-            // MPU6500 stores high byte first
-            Vector3D accel_raw = Vector3D((int16_t) (rx_buf[0] << 8 | rx_buf[1]),
-                                          (int16_t) (rx_buf[2] << 8 | rx_buf[3]),
-                                          (int16_t) (rx_buf[4] << 8 | rx_buf[5])) * accel_sensitivity;
-            temperature = ((((float) (int16_t) (rx_buf[6] << 8 | rx_buf[7])) - temperature_bias) / 333.87f) + 21.0f;
-            Vector3D new_gyro_raw = Vector3D((int16_t) (rx_buf[8] << 8 | rx_buf[9]),
-                                             (int16_t) (rx_buf[10] << 8 | rx_buf[11]),
-                                             (int16_t) (rx_buf[12] << 8 | rx_buf[13])) * gyro_sensitivity;
+        /// Decode data
+        // MPU6500 stores high byte first
+        Vector3D accel_raw = Vector3D((int16_t) (rx_buf[0] << 8 | rx_buf[1]),
+                                      (int16_t) (rx_buf[2] << 8 | rx_buf[3]),
+                                      (int16_t) (rx_buf[4] << 8 | rx_buf[5])) * accel_sensitivity;
+        temperature = ((((float) (int16_t) (rx_buf[6] << 8 | rx_buf[7])) - temperature_bias) / 333.87f) + 21.0f;
+        Vector3D new_gyro_raw = Vector3D((int16_t) (rx_buf[8] << 8 | rx_buf[9]),
+                                         (int16_t) (rx_buf[10] << 8 | rx_buf[11]),
+                                         (int16_t) (rx_buf[12] << 8 | rx_buf[13])) * gyro_sensitivity;
 
-            // IST8310 stores low byte first
-            // rx_buf[14] is STAT1, see init_ist8310() for details
-            magnet.x = (float) (int16_t) (rx_buf[16] << 8 | rx_buf[15]) * IST8310_PSC;
-            magnet.y = (float) (int16_t) (rx_buf[18] << 8 | rx_buf[17]) * IST8310_PSC;
-            magnet.z = (float) (int16_t) (rx_buf[20] << 8 | rx_buf[19]) * IST8310_PSC;
+        // IST8310 stores low byte first
+        // rx_buf[14] is STAT1, see init_ist8310() for details
+        magnet.x = (float) (int16_t) (rx_buf[16] << 8 | rx_buf[15]) * IST8310_PSC;
+        magnet.y = (float) (int16_t) (rx_buf[18] << 8 | rx_buf[17]) * IST8310_PSC;
+        magnet.z = (float) (int16_t) (rx_buf[20] << 8 | rx_buf[19]) * IST8310_PSC;
 
-            /// Bias data
+        /// Bias data
 
-            gyro_raw = new_gyro_raw;
-            gyro = gyro_raw - gyro_zero_bias;
-            accel = accel_raw;
+        gyro_raw = new_gyro_raw;
+        gyro = gyro_raw - gyro_zero_bias;
+        accel = accel_raw;
 
-            /// Update info
+        /// Update info
 
-            imu_update_time = SYSTIME;
-        }
-        chSysUnlock();  /// --- EXIT S-Locked state ---
-        current_system_time = chTimeI2US(chVTGetSystemTimeX());
-        sleep(TIME_US2I(THREAD_UPDATE_INTERVAL - (current_system_time % THREAD_UPDATE_INTERVAL)));
+        imu_update_time = SYSTIME;
     }
+    chSysUnlock();  /// --- EXIT S-Locked state ---
+
 }

@@ -15,14 +15,21 @@
 
 using namespace chibios_rt;
 
-class AHRS {
+class AHRS : public BaseStaticThread<512>{
 public:
-    static void start(tprio_t thread_prio);
-private:
-    class UpdateThread: BaseStaticThread<512> {
-        void main() final;
-    };
-};
+    ThreadReference start(tprio_t thread_prio);
+    Vector3D angle;
 
+private:
+
+    IMUInterface imu_interface;
+    float quat[4];
+    Vector3D gyro_r;
+    Vector3D accel_r;
+    Vector3D magnet_r;
+
+    static constexpr int THREAD_UPDATE_INTERVAL = 1000; // [us]
+    void main() override;
+};
 
 #endif //META_EMBEDDED_AHRS_H
