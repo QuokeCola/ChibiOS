@@ -77,7 +77,7 @@ public:
         return !(a == b);
     }
 
-    const Vector3D cross_mult(const Vector3D &b) {
+    Vector3D cross_mult(const Vector3D &b) const {
         return {y * b.z - z * b.y,
                 z * b.x - x * b.z,
                 x * b.y - y * b.x};
