@@ -77,6 +77,13 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Added MPU initialization settings in ARMv7-M, ARv7-M-ALT, ARMv8-ML-ALT
+       ports. Settings allow to statically initialize any region.
+- NEW: Improved interrupts processing in ARMv7-M-ALT and ARMv8-M-ML-ALT
+       ports. Specifically, saved few cycles on the context switch code path.
+- NEW: Added missing context switch hook in ARMv7-M-ALT and ARMv8-M-ML-ALT
+       ports.
+- NEW: I2C slave support in ST low level drivers.
 - NEW: Support for STM32G0B0xx.
 - NEW: Added chRegGarbageCollect() function to registry for simplified
        dynamic threads management.
