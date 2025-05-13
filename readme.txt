@@ -77,6 +77,7 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Add support for HFSEL to DACv1.
 - NEW: Added MPU initialization settings in ARMv7-M, ARv7-M-ALT, ARMv8-ML-ALT
        ports. Settings allow to statically initialize any region.
 - NEW: Improved interrupts processing in ARMv7-M-ALT and ARMv8-M-ML-ALT
@@ -162,6 +163,7 @@
        instead of a simple size.
 - NEW: RT and NIL upgraded to support the enhanced OSLIB.
 - NEW: Memory areas/pointers checker functions added to OSLIB.
+- FIX: Fixed wrong IRQ vector for STM32L4+ DCMI.
 - FIX: Fixed ADCv4 common registers reset at start (bug 1296).
 - FIX: Fixed incorrect RCC clock selection defines for STM32G0 USB.
 - FIX: Wrong .ld used in STM32G071 ADC testhal project.
