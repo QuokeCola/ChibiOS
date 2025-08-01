@@ -8,18 +8,18 @@ The demo runs on an ST STM32G474-Nucleo board.
 
 ** The Demo **
 
-The application demonstrates the use of the STM32G4xx CAN driver in CAN mode.
+The application demonstrates the use of the STM32G4xx CAN driver.
 
 
 ** Board Setup **
 
 External LED PA8 - On board CN9 - D7
 
-Connect PA11 (CAN1-RX) to pin RX of first interface protocol controller MCP2551.
-Connect PA12 (CAN1-TX) to pin TX of first interface protocol controller MCP2551.
+Connect PA11 - CN10-14 (CAN1-RX) to pin RX of first interface protocol controller MCP2551.
+Connect PA12 - CN10-12 (CAN1-TX) to pin TX of first interface protocol controller MCP2551.
 
-Connect PB5 (CAN2-RX) to pin RX of second interface protocol controller MCP2551.
-Connect PB6 (CAN2-TX) to pin TX of second interface protocol controller MCP2551.
+Connect PB5 - CN10-29 (CAN2-RX) to pin RX of second interface protocol controller MCP2551.
+Connect PB6 - CN10-17 (CAN2-TX) to pin TX of second interface protocol controller MCP2551.
 
 Connect CAN-H and CAN-L of the two MCP2551 to create bus CAN.
 

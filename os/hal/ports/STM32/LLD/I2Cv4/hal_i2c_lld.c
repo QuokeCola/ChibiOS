@@ -30,16 +30,24 @@
 /* Driver local definitions.                                                 */
 /*===========================================================================*/
 
+/* Channels wrapper */
+#if defined(STM32_DMA3_PRESENT)
+#define STM32_I2C_I2C1_DMA_CHANNEL          STM32_I2C_I2C1_DMA3_CHANNEL
+#define STM32_I2C_I2C2_DMA_CHANNEL          STM32_I2C_I2C2_DMA3_CHANNEL
+#define STM32_I2C_I2C3_DMA_CHANNEL          STM32_I2C_I2C3_DMA3_CHANNEL
+#define STM32_I2C_I2C4_DMA_CHANNEL          STM32_I2C_I2C4_DMA3_CHANNEL
+#endif
+
 /* Common GPDMA CR settings.*/
-#define I2C_GPDMA_CR_COMMON(i2cp)                                           \
-  (STM32_GPDMA_CCR_PRIO((uint32_t)(i2cp)->dprio)    |                       \
-   STM32_GPDMA_CCR_LAP_MEM                          |                       \
-   STM32_GPDMA_CCR_TOIE                             |                       \
-   STM32_GPDMA_CCR_USEIE                            |                       \
-   STM32_GPDMA_CCR_ULEIE                            |                       \
-   STM32_GPDMA_CCR_DTEIE                            |                       \
-   STM32_GPDMA_CTR1_DDW_BYTE                        |                       \
-   STM32_GPDMA_CTR1_SDW_BYTE)
+#define I2C_DMA3_CR_COMMON(i2cp)                                           \
+  (STM32_DMA3_CCR_PRIO((uint32_t)(i2cp)->dprio)    |                       \
+   STM32_DMA3_CCR_LAP_MEM                          |                       \
+   STM32_DMA3_CCR_TOIE                             |                       \
+   STM32_DMA3_CCR_USEIE                            |                       \
+   STM32_DMA3_CCR_ULEIE                            |                       \
+   STM32_DMA3_CCR_DTEIE                            |                       \
+   STM32_DMA3_CTR1_DDW_BYTE                        |                       \
+   STM32_DMA3_CTR1_SDW_BYTE)
 
 /* Common DMA CR settings.*/
 #define I2C_DMA_CR_COMMON(i2cp)                                             \
@@ -96,8 +104,8 @@ __STATIC_FORCEINLINE void i2c_dma_alloc(I2CDriver *i2cp,
                                         uint32_t channel,
                                         uint32_t irqprio) {
 
-#if defined(STM32_GPDMA_PRESENT)
-  i2cp->dma = gpdmaChannelAllocI(channel, irqprio, NULL, (void *)i2cp);
+#if defined(STM32_DMA3_PRESENT)
+  i2cp->dma = dma3ChannelAllocI(channel, irqprio, NULL, (void *)i2cp);
 #else
   i2cp->dma = dmaStreamAllocI(channel, irqprio, NULL, (void *)i2cp);
 #endif
@@ -105,8 +113,8 @@ __STATIC_FORCEINLINE void i2c_dma_alloc(I2CDriver *i2cp,
 
 __STATIC_FORCEINLINE void i2c_dma_release(I2CDriver *i2cp) {
 
-#if defined(STM32_GPDMA_PRESENT)
-  gpdmaChannelFreeI(i2cp->dma);
+#if defined(STM32_DMA3_PRESENT)
+  dma3ChannelFreeI(i2cp->dma);
 #else
   dmaStreamFreeI(i2cp->dma);
 #endif
@@ -114,8 +122,8 @@ __STATIC_FORCEINLINE void i2c_dma_release(I2CDriver *i2cp) {
 
 __STATIC_FORCEINLINE void i2c_dma_disable(I2CDriver *i2cp) {
 
-#if defined(STM32_GPDMA_PRESENT)
-  gpdmaChannelDisable(i2cp->dma);
+#if defined(STM32_DMA3_PRESENT)
+  dma3ChannelDisable(i2cp->dma);
 #else
   dmaStreamDisable(i2cp->dma);
 #endif
@@ -123,18 +131,18 @@ __STATIC_FORCEINLINE void i2c_dma_disable(I2CDriver *i2cp) {
 
 __STATIC_FORCEINLINE void i2c_dma_enable_tx(I2CDriver *i2cp) {
 
-#if defined(STM32_GPDMA_PRESENT)
-  gpdmaChannelSetSource(i2cp->dma, i2cp->txptr);
-  gpdmaChannelSetDestination(i2cp->dma, &i2cp->i2c->TXDR);
-  gpdmaChannelSetTransactionSize(i2cp->dma, i2cp->txbytes);
-  gpdmaChannelSetMode(i2cp->dma,
-                      I2C_GPDMA_CR_COMMON(i2cp),
-                      (i2cp->config->dtr1tx         | STM32_GPDMA_CTR1_DAP_PER  |
-                       STM32_GPDMA_CTR1_SAP_MEM     | STM32_GPDMA_CTR1_SINC),
-                      (i2cp->config->dtr2tx         | STM32_GPDMA_CTR2_DREQ     |
-                       STM32_GPDMA_CTR2_REQSEL(i2cp->dreqtx)),
+#if defined(STM32_DMA3_PRESENT)
+  dma3ChannelSetSource(i2cp->dma, i2cp->txptr);
+  dma3ChannelSetDestination(i2cp->dma, &i2cp->i2c->TXDR);
+  dma3ChannelSetTransactionSize(i2cp->dma, i2cp->txbytes);
+  dma3ChannelSetMode(i2cp->dma,
+                      I2C_DMA3_CR_COMMON(i2cp),
+                      (i2cp->config->dtr1tx         | STM32_DMA3_CTR1_DAP_PER  |
+                       STM32_DMA3_CTR1_SAP_MEM      | STM32_DMA3_CTR1_SINC),
+                      (i2cp->config->dtr2tx         | STM32_DMA3_CTR2_DREQ     |
+                       STM32_DMA3_CTR2_REQSEL(i2cp->dreqtx)),
                        0U);
-  gpdmaChannelEnable(i2cp->dma);
+  dma3ChannelEnable(i2cp->dma);
 #else
   dmaSetRequestSource(i2cp->dma, i2cp->dreqtx);
   dmaStreamSetMode(i2cp->dma,
@@ -151,18 +159,18 @@ __STATIC_FORCEINLINE void i2c_dma_enable_tx(I2CDriver *i2cp) {
 
 __STATIC_FORCEINLINE void i2c_dma_enable_rx(I2CDriver *i2cp) {
 
-#if defined(STM32_GPDMA_PRESENT)
-  gpdmaChannelSetSource(i2cp->dma, &i2cp->i2c->RXDR);
-  gpdmaChannelSetDestination(i2cp->dma, i2cp->rxptr);
-  gpdmaChannelSetTransactionSize(i2cp->dma, i2cp->rxbytes);
-  gpdmaChannelSetMode(i2cp->dma,
-                      I2C_GPDMA_CR_COMMON(i2cp),
-                      (i2cp->config->dtr1rx         | STM32_GPDMA_CTR1_DAP_MEM  |
-                       STM32_GPDMA_CTR1_SAP_PER     | STM32_GPDMA_CTR1_DINC),
+#if defined(STM32_DMA3_PRESENT)
+  dma3ChannelSetSource(i2cp->dma, &i2cp->i2c->RXDR);
+  dma3ChannelSetDestination(i2cp->dma, i2cp->rxptr);
+  dma3ChannelSetTransactionSize(i2cp->dma, i2cp->rxbytes);
+  dma3ChannelSetMode(i2cp->dma,
+                      I2C_DMA3_CR_COMMON(i2cp),
+                      (i2cp->config->dtr1rx         | STM32_DMA3_CTR1_DAP_MEM  |
+                       STM32_DMA3_CTR1_SAP_PER      | STM32_DMA3_CTR1_DINC),
                       (i2cp->config->dtr2rx         |
-                       STM32_GPDMA_CTR2_REQSEL(i2cp->dreqrx)),
+                       STM32_DMA3_CTR2_REQSEL(i2cp->dreqrx)),
                        0U);
-  gpdmaChannelEnable(i2cp->dma);
+  dma3ChannelEnable(i2cp->dma);
 #else
   dmaSetRequestSource(i2cp->dma, i2cp->dreqrx);
   dmaStreamSetMode(i2cp->dma,
@@ -171,7 +179,7 @@ __STATIC_FORCEINLINE void i2c_dma_enable_rx(I2CDriver *i2cp) {
                    STM32_DMA_CR_PL(STM32_I2C_I2C1_DMA_PRIORITY) |
                    STM32_DMA_CR_CHSEL(i2cp->dreqrx));
   dmaStreamSetTransactionSize(i2cp->dma, i2cp->rxbytes);
-  dmaStreamSetPeripheral(i2cp->dma, &dp->RXDR);
+  dmaStreamSetPeripheral(i2cp->dma, &i2cp->i2c->RXDR);
   dmaStreamSetMemory0(i2cp->dma, i2cp->rxptr);
   dmaStreamEnable(i2cp->dma);
 #endif
@@ -291,7 +299,7 @@ static void i2c_lld_abort_operation(I2CDriver *i2cp) {
 static void i2c_lld_serve_events(I2CDriver *i2cp, uint32_t isr) {
   I2C_TypeDef *dp = i2cp->i2c;
 
-#if (STM32_I2C_USE_DMA == FALSE) || (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (STM32_I2C_USE_DMA == FALSE) || (I2C_ENABLE_SLAVE_MODE == TRUE)
   uint32_t cr1 = dp->CR1;
 #endif
 
@@ -303,7 +311,7 @@ static void i2c_lld_serve_events(I2CDriver *i2cp, uint32_t isr) {
     i2c_dma_disable(i2cp);
 #endif
 
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
     /* If master is done reading data and indicates this to the slave through a NACK. */
     if (!i2cp->isMaster) {
       if (i2cp->state == I2C_ACTIVE_TX) {
@@ -330,7 +338,7 @@ static void i2c_lld_serve_events(I2CDriver *i2cp, uint32_t isr) {
     return;
   }
 
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
   if (!i2cp->is_master) {
     /* Handling I2C Slave */
     /* Note: (isr & I2C_ISR_TC) is not supported in slave mode. */
@@ -406,7 +414,7 @@ static void i2c_lld_serve_events(I2CDriver *i2cp, uint32_t isr) {
 
     return;
   }
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 
 #if STM32_I2C_USE_DMA == FALSE
   /* Handling of data transfer if the DMA mode is disabled.*/
@@ -561,9 +569,9 @@ void i2c_lld_init(void) {
 #if STM32_I2C_USE_DMA == TRUE
   I2CD1.dma    = NULL;
   I2CD1.dprio  = STM32_I2C_I2C1_DMA_PRIORITY;
-#if defined(STM32_GPDMA_PRESENT)
-  I2CD1.dreqtx = STM32_GPDMA_REQ_I2C1_TX;
-  I2CD1.dreqrx = STM32_GPDMA_REQ_I2C1_RX;
+#if defined(STM32_DMA3_PRESENT)
+  I2CD1.dreqtx = STM32_DMA3_REQ_I2C1_TX;
+  I2CD1.dreqrx = STM32_DMA3_REQ_I2C1_RX;
 #else /* Assuming old DMAs.*/
   I2CD1.dreqtx = STM32_DMAMUX1_I2C1_TX;
   I2CD1.dreqrx = STM32_DMAMUX1_I2C1_RX;
@@ -578,9 +586,9 @@ void i2c_lld_init(void) {
 #if STM32_I2C_USE_DMA == TRUE
   I2CD2.dma    = NULL;
   I2CD2.dprio  = STM32_I2C_I2C2_DMA_PRIORITY;
-#if defined(STM32_GPDMA_PRESENT)
-  I2CD2.dreqtx = STM32_GPDMA_REQ_I2C2_TX;
-  I2CD2.dreqrx = STM32_GPDMA_REQ_I2C2_RX;
+#if defined(STM32_DMA3_PRESENT)
+  I2CD2.dreqtx = STM32_DMA3_REQ_I2C2_TX;
+  I2CD2.dreqrx = STM32_DMA3_REQ_I2C2_RX;
 #else /* Assuming old DMAs.*/
   I2CD2.dreqtx = STM32_DMAMUX1_I2C2_TX;
   I2CD2.dreqrx = STM32_DMAMUX1_I2C2_RX;
@@ -595,9 +603,9 @@ void i2c_lld_init(void) {
 #if STM32_I2C_USE_DMA == TRUE
   I2CD3.dma    = NULL;
   I2CD3.dprio  = STM32_I2C_I2C3_DMA_PRIORITY;
-#if defined(STM32_GPDMA_PRESENT)
-  I2CD3.dreqtx = STM32_GPDMA_REQ_I2C3_TX;
-  I2CD3.dreqrx = STM32_GPDMA_REQ_I2C3_RX;
+#if defined(STM32_DMA3_PRESENT)
+  I2CD3.dreqtx = STM32_DMA3_REQ_I2C3_TX;
+  I2CD3.dreqrx = STM32_DMA3_REQ_I2C3_RX;
 #else /* Assuming old DMAs.*/
   I2CD3.dreqtx = STM32_DMAMUX1_I2C3_TX;
   I2CD3.dreqrx = STM32_DMAMUX1_I2C3_RX;
@@ -612,9 +620,9 @@ void i2c_lld_init(void) {
 #if STM32_I2C_USE_DMA == TRUE
   I2CD4.dma    = NULL;
   I2CD4.dprio  = STM32_I2C_I2C4_DMA_PRIORITY;
-#if defined(STM32_GPDMA_PRESENT)
-  I2CD4.dreqtx = STM32_GPDMA_REQ_I2C4_TX;
-  I2CD4.dreqrx = STM32_GPDMA_REQ_I2C4_RX;
+#if defined(STM32_DMA3_PRESENT)
+  I2CD4.dreqtx = STM32_DMA3_REQ_I2C4_TX;
+  I2CD4.dreqrx = STM32_DMA3_REQ_I2C4_RX;
 #else /* Assuming old DMAs.*/
   I2CD4.dreqtx = STM32_DMAMUX1_I2C4_TX;
   I2CD4.dreqrx = STM32_DMAMUX1_I2C4_RX;
@@ -632,7 +640,7 @@ void i2c_lld_init(void) {
  * @notapi
  */
 msg_t i2c_lld_start(I2CDriver *i2cp) {
-  msg_t msg;
+
   I2C_TypeDef *dp = i2cp->i2c;
 
   /* Make sure I2C peripheral is disabled */
@@ -650,7 +658,7 @@ msg_t i2c_lld_start(I2CDriver *i2cp) {
 #if STM32_I2C_USE_DMA == TRUE
       i2c_dma_alloc(i2cp, STM32_I2C_I2C1_DMA_CHANNEL, STM32_IRQ_I2C1_PRIORITY);
       if (i2cp->dma == NULL) {
-        return msg;
+        return HAL_RET_NO_RESOURCE;
       }
 #endif
     }
@@ -665,7 +673,7 @@ msg_t i2c_lld_start(I2CDriver *i2cp) {
 #if STM32_I2C_USE_DMA == TRUE
       i2c_dma_alloc(i2cp, STM32_I2C_I2C2_DMA_CHANNEL, STM32_IRQ_I2C2_PRIORITY);
       if (i2cp->dma == NULL) {
-        return msg;
+        return HAL_RET_NO_RESOURCE;
       }
 #endif
     }
@@ -680,7 +688,7 @@ msg_t i2c_lld_start(I2CDriver *i2cp) {
 #if STM32_I2C_USE_DMA == TRUE
       i2c_dma_alloc(i2cp, STM32_I2C_I2C3_DMA_CHANNEL, STM32_IRQ_I2C3_PRIORITY);
       if (i2cp->dma == NULL) {
-        return msg;
+        return HAL_RET_NO_RESOURCE;
       }
 #endif
     }
@@ -695,7 +703,7 @@ msg_t i2c_lld_start(I2CDriver *i2cp) {
 #if STM32_I2C_USE_DMA == TRUE
       i2c_dma_alloc(i2cp, STM32_I2C_I2C4_DMA_CHANNEL, STM32_IRQ_I2C4_PRIORITY);
       if (i2cp->dma == NULL) {
-        return msg;
+        return HAL_RET_NO_RESOURCE;
       }
 #endif
     }
@@ -800,20 +808,15 @@ msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
   i2cp->rxptr   = rxbuf;
   i2cp->rxbytes = rxbytes;
 
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
   i2cp->is_master = true;
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 
   /* Resetting error flags for this transfer.*/
   i2cp->errors = I2C_NO_ERROR;
 
   /* Releases the lock from high level driver.*/
   osalSysUnlock();
-
-#if STM32_I2C_USE_DMA == TRUE
-  /* Setup DMA for RX.*/
-  i2c_dma_enable_rx(i2cp);
-#endif
 
   /* Calculating the time window for the timeout on the busy bus condition.*/
   start = osalOsGetSystemTimeX();
@@ -905,9 +908,9 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   I2C_TypeDef *dp = i2cp->i2c;
   systime_t start, end;
 
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
   i2cp->isMaster = true;
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 
   /* Resetting error flags for this transfer.*/
   i2cp->errors = I2C_NO_ERROR;
@@ -979,7 +982,7 @@ msg_t i2c_lld_master_transmit_timeout(I2CDriver *i2cp, i2caddr_t addr,
   return msg;
 }
 
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
 /**
  * @brief   Listen I2C bus for address match.
  * @details Use 7 bit address.
@@ -1102,7 +1105,7 @@ msg_t i2c_lld_slave_transmit_timeout(I2CDriver *i2cp,
   return osalThreadSuspendTimeoutS(&i2cp->thread, timeout);
 }
 
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 
 #if (STM32_I2C_SINGLE_IRQ == TRUE) || defined(__DOXYGEN__)
 /**

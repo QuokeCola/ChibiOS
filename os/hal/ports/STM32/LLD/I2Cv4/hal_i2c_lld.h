@@ -35,6 +35,14 @@
 /* Driver constants.                                                         */
 /*===========================================================================*/
 
+/**
+ * @brief   This I2C LLD supports slave mode.
+ */
+#define I2C_SUPPORTS_SLAVE_MODE             TRUE
+
+/**
+ * @brief   This I2C LLD supports enhanced start API.
+ */
 #define I2C_LLD_ENHANCED_API
 
 /**
@@ -187,7 +195,6 @@
 #error "I2C driver activated but no I2C peripheral assigned"
 #endif
 
-/* Checks on allocation of I2Cx units.*/
 #if STM32_I2C_USE_I2C1
 #if defined(STM32_I2C1_IS_USED)
 #error "I2CD1 requires I2C1 but it is already used"
@@ -231,6 +238,75 @@
 
 /* DMA-related checks.*/
 #if STM32_I2C_USE_DMA == TRUE
+#if defined(STM32_DMA3_PRESENT)
+
+/* Check on the presence of the GPDMA channels settings in mcuconf.h.*/
+#if STM32_I2C_USE_I2C1 && (!defined(STM32_I2C_I2C1_DMA3_CHANNEL))
+#error "I2C1 GPDMA channels not defined"
+#endif
+
+#if STM32_I2C_USE_I2C2 && (!defined(STM32_I2C_I2C2_DMA3_CHANNEL))
+#error "I2C2 GPDMA channels not defined"
+#endif
+
+#if STM32_I2C_USE_I2C3 && (!defined(STM32_I2C_I2C3_DMA3_CHANNEL))
+#error "I2C3 GPDMA channels not defined"
+#endif
+
+#if STM32_I2C_USE_I2C4 && (!defined(STM32_I2C_I2C4_DMA3_CHANNEL))
+#error "I2C4 GPDMA channels not defined"
+#endif
+
+/* Check on DMA channels assignment.*/
+#if STM32_I2C_USE_I2C1 &&                                                   \
+    !STM32_DMA3_ARE_VALID_CHANNELS(STM32_I2C_I2C1_DMA3_CHANNEL)
+#error "Invalid GPDMA channel assigned to I2C1"
+#endif
+
+#if STM32_I2C_USE_I2C2 &&                                                   \
+    !STM32_DMA3_ARE_VALID_CHANNELS(STM32_I2C_I2C2_DMA3_CHANNEL)
+#error "Invalid GPDMA channel assigned to I2C2"
+#endif
+
+#if STM32_I2C_USE_I2C3 &&                                                   \
+    !STM32_DMA3_ARE_VALID_CHANNELS(STM32_I2C_I2C3_DMA3_CHANNEL)
+#error "Invalid GPDMA channel assigned to I2C3"
+#endif
+
+#if STM32_I2C_USE_I2C4 &&                                                   \
+    !STM32_DMA3_ARE_VALID_CHANNELS(STM32_I2C_I2C4_DMA3_CHANNEL)
+#error "Invalid GPDMA channel assigned to I2C4"
+#endif
+
+#if STM32_I2C_USE_I2C1 &&                                                   \
+    !STM32_DMA3_IS_VALID_PRIORITY(STM32_I2C_I2C1_DMA_PRIORITY)
+#error "Invalid GPDMA priority assigned to I2C1"
+#endif
+
+#if STM32_I2C_USE_I2C2 &&                                                   \
+    !STM32_DMA3_IS_VALID_PRIORITY(STM32_I2C_I2C2_DMA_PRIORITY)
+#error "Invalid GPDMA priority assigned to I2C2"
+#endif
+
+#if STM32_I2C_USE_I2C3 &&                                                   \
+    !STM32_DMA3_IS_VALID_PRIORITY(STM32_I2C_I2C3_DMA_PRIORITY)
+#error "Invalid GPDMA priority assigned to I2C3"
+#endif
+
+#if STM32_I2C_USE_I2C4 &&                                                   \
+    !STM32_DMA3_IS_VALID_PRIORITY(STM32_I2C_I2C4_DMA_PRIORITY)
+#error "Invalid GPDMA priority assigned to I2C4"
+#endif
+
+#if STM32_I2C_USE_I2C1 || STM32_I2C_USE_I2C2 || STM32_I2C_USE_I2C3 ||       \
+    STM32_I2C_USE_I2C4
+#if !defined(STM32_DMA3_REQUIRED)
+#define STM32_DMA3_REQUIRED
+#endif
+#endif
+
+#else
+
 /* Check on the presence of the DMA streams settings in mcuconf.h.*/
 #if STM32_I2C_USE_I2C1 && !defined(STM32_I2C_I2C1_DMA_CHANNEL)
 #error "I2C1 DMA streams not defined"
@@ -250,32 +326,56 @@
 
 /* Check on DMA channels assignment.*/
 #if STM32_I2C_USE_I2C1 &&                                                   \
-    !STM32_GPDMA_ARE_VALID_CHANNELS(STM32_I2C_I2C1_DMA_CHANNEL)
+    !STM32_DMA_ARE_VALID_CHANNELS(STM32_I2C_I2C1_DMA_CHANNEL)
 #error "Invalid DMA channel assigned to I2C1"
 #endif
 
+/* Check on DMA channels assignment.*/
 #if STM32_I2C_USE_I2C2 &&                                                   \
-    !STM32_GPDMA_ARE_VALID_CHANNELS(STM32_I2C_I2C2_DMA_CHANNEL)
+    !STM32_DMA_ARE_VALID_CHANNELS(STM32_I2C_I2C2_DMA_CHANNEL)
 #error "Invalid DMA channel assigned to I2C2"
 #endif
 
+/* Check on DMA channels assignment.*/
 #if STM32_I2C_USE_I2C3 &&                                                   \
-    !STM32_GPDMA_ARE_VALID_CHANNELS(STM32_I2C_I2C3_DMA_CHANNEL)
+    !STM32_DMA_ARE_VALID_CHANNELS(STM32_I2C_I2C3_DMA_CHANNEL)
 #error "Invalid DMA channel assigned to I2C3"
 #endif
 
+/* Check on DMA channels assignment.*/
 #if STM32_I2C_USE_I2C4 &&                                                   \
-    !STM32_GPDMA_ARE_VALID_CHANNELS(STM32_I2C_I2C4_DMA_CHANNEL)
+    !STM32_DMA_ARE_VALID_CHANNELS(STM32_I2C_I2C4_DMA_CHANNEL)
 #error "Invalid DMA channel assigned to I2C4"
 #endif
 
-#if !defined(STM32_GPDMA_REQUIRED)
-#define STM32_GPDMA_REQUIRED
+#if STM32_I2C_USE_I2C1 &&                                                   \
+    !STM32_DMA_IS_VALID_PRIORITY(STM32_I2C_I2C1_DMA_PRIORITY)
+#error "Invalid DMA priority assigned to I2C1"
 #endif
 
+#if STM32_I2C_USE_I2C2 &&                                                   \
+    !STM32_DMA_IS_VALID_PRIORITY(STM32_I2C_I2C2_DMA_PRIORITY)
+#error "Invalid DMA priority assigned to I2C2"
+#endif
+
+#if STM32_I2C_USE_I2C3 &&                                                   \
+    !STM32_DMA_IS_VALID_PRIORITY(STM32_I2C_I2C3_DMA_PRIORITY)
+#error "Invalid DMA priority assigned to I2C3"
+#endif
+
+#if STM32_I2C_USE_I2C4 &&                                                   \
+    !STM32_DMA_IS_VALID_PRIORITY(STM32_I2C_I2C4_DMA_PRIORITY)
+#error "Invalid DMA priority assigned to I2C4"
+#endif
+
+#if STM32_I2C_USE_I2C1 || STM32_I2C_USE_I2C2 || STM32_I2C_USE_I2C3 ||       \
+    STM32_I2C_USE_I2C4
 #if !defined(STM32_DMA_REQUIRED)
 #define STM32_DMA_REQUIRED
 #endif
+#endif
+
+#endif /* STM32_DMA3_PRESENT */
 #endif /* STM32_I2C_USE_DMA == TRUE */
 
 /*===========================================================================*/
@@ -313,7 +413,7 @@ struct hal_i2c_config {
    */
   uint32_t                          cr2;
 #if (STM32_I2C_USE_DMA == TRUE) || defined(__DOXYGEN__)
-#if defined(STM32_GPDMA_PRESENT)
+#if defined(STM32_DMA3_PRESENT)
   /**
    * @brief   DMA RX CTR1 register settings.
    */
@@ -372,11 +472,11 @@ struct hal_i2c_driver {
    */
   thread_reference_t                thread;
 #if (STM32_I2C_USE_DMA == TRUE) || defined(__DOXYGEN__)
-#if defined(STM32_GPDMA_PRESENT)
+#if defined(STM32_DMA3_PRESENT)
   /**
    * @brief     DMA channel.
    */
-  const stm32_gpdma_channel_t       *dma;
+  const stm32_dma3_channel_t        *dma;
 #else /* Assuming older DMAs.*/
   /**
    * @brief     Receive DMA channel.
@@ -416,7 +516,7 @@ struct hal_i2c_driver {
    * @brief     Pointer to the I2Cx registers block.
    */
   I2C_TypeDef                       *i2c;
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
   /**
    * @brief     Master needed a reply.
    */
@@ -425,7 +525,7 @@ struct hal_i2c_driver {
    * @brief     Master/Slave mode.
    */
   bool                              is_master;
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 };
 
 /*===========================================================================*/
@@ -477,13 +577,13 @@ extern "C" {
   msg_t i2c_lld_master_receive_timeout(I2CDriver *i2cp, i2caddr_t addr,
                                        uint8_t *rxbuf, size_t rxbytes,
                                        sysinterval_t timeout);
-#if (I2C_SUPPORTS_SLAVE_MODE == TRUE)
+#if (I2C_ENABLE_SLAVE_MODE == TRUE)
   msg_t i2c_lld_match_address(I2CDriver *i2cp, i2caddr_t addr);
   msg_t i2c_lld_slave_receive_timeout(I2CDriver *i2cp, uint8_t *rxbuf,
                                       size_t rxbytes, sysinterval_t timeout);
   msg_t i2c_lld_slave_transmit_timeout(I2CDriver *i2cp, const uint8_t *txbuf,
                                        size_t txbytes, sysinterval_t timeout);
-#endif /* I2C_SUPPORTS_SLAVE_MODE == TRUE */
+#endif /* I2C_ENABLE_SLAVE_MODE == TRUE */
 #if STM32_I2C_SINGLE_IRQ == TRUE
   void i2c_lld_serve_global_interrupt(I2CDriver *i2cp);
 #else

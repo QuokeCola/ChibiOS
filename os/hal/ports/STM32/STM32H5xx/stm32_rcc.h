@@ -520,21 +520,21 @@
  *
  * @api
  */
-#define rccEnableGPDMA1(lp) rccEnableAHB1(RCC_AHB1ENR_GPDMA1EN, lp)
+#define rccEnableDMA31(lp) rccEnableAHB1(RCC_AHB1ENR_GPDMA1EN, lp)
 
 /**
  * @brief   Disables the GPDMA1 peripheral clock.
  *
  * @api
  */
-#define rccDisableGPDMA1() rccDisableAHB1(RCC_AHB1ENR_GPDMA1EN)
+#define rccDisableDMA31() rccDisableAHB1(RCC_AHB1ENR_GPDMA1EN)
 
 /**
  * @brief   Resets the GPDMA1 peripheral.
  *
  * @api
  */
-#define rccResetGPDMA1() rccResetAHB1(RCC_AHB1RSTR_GPDMA1RST)
+#define rccResetDMA31() rccResetAHB1(RCC_AHB1RSTR_GPDMA1RST)
 
 /**
  * @brief   Enables the GPDMA2 peripheral clock.
@@ -543,21 +543,21 @@
  *
  * @api
  */
-#define rccEnableGPDMA2(lp) rccEnableAHB1(RCC_AHB1ENR_GPDMA2EN, lp)
+#define rccEnableDMA32(lp) rccEnableAHB1(RCC_AHB1ENR_GPDMA2EN, lp)
 
 /**
  * @brief   Disables the GPDMA2 peripheral clock.
  *
  * @api
  */
-#define rccDisableGPDMA2() rccDisableAHB1(RCC_AHB1ENR_GPDMA2EN)
+#define rccDisableDMA32() rccDisableAHB1(RCC_AHB1ENR_GPDMA2EN)
 
 /**
  * @brief   Resets the GPDMA2 peripheral.
  *
  * @api
  */
-#define rccResetGPDMA2() rccResetAHB1(RCC_AHB1RSTR_GPDMA2RST)
+#define rccResetDMA32() rccResetAHB1(RCC_AHB1RSTR_GPDMA2RST)
 /** @} */
 
 /**
@@ -645,21 +645,21 @@
  *
  * @api
  */
-#define rccEnableI2C3(lp) rccEnableAPB1L(RCC_APB1LENR_I2C3EN, lp)
+#define rccEnableI2C3(lp) rccEnableAPB3(RCC_APB3ENR_I2C3EN, lp)
 
 /**
  * @brief   Disables the I2C3 peripheral clock.
  *
  * @api
  */
-#define rccDisableI2C3() rccDisableAPB1L(RCC_APB1LENR_I2C3EN)
+#define rccDisableI2C3() rccDisableAPB3(RCC_APB3ENR_I2C3EN)
 
 /**
  * @brief   Resets the I2C3 peripheral.
  *
  * @api
  */
-#define rccResetI2C3() rccResetAPB1L(RCC_APB1LRSTR_I2C3RST)
+#define rccResetI2C3() rccResetAPB3(RCC_APB3RSTR_I2C3RST)
 
 /**
  * @brief Enables the I2C4 peripheral clock.
@@ -668,21 +668,21 @@
  *
  * @api
  */
-#define rccEnableI2C4(lp) rccEnableAPB1H(RCC_APB1HENR_I2C4EN, lp)
+#define rccEnableI2C4(lp) rccEnableAPB3(RCC_APB3ENR_I2C4EN, lp)
 
 /**
  * @brief Disables the I2C4 peripheral clock.
  *
  * @api
  */
-#define rccDisableI2C4() rccDisableAPB1L(RCC_APB1HENR_I2C4EN)
+#define rccDisableI2C4() rccDisableAPB3(RCC_APB3ENR_I2C4EN)
 
 /**
  * @brief Resets the I2C4 peripheral.
  *
  * @api
  */
-#define rccResetI2C4() rccResetAPB1L(RCC_APB1RSTR2_I2C4RST)
+#define rccResetI2C4() rccResetAPB3(RCC_APB3RSTR_I2C4RST)
 /** @} */
 
 /**

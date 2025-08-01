@@ -107,7 +107,7 @@
  * @brief   Enables the MAC subsystem.
  */
 #if !defined(HAL_USE_MAC) || defined(__DOXYGEN__)
-#define HAL_USE_MAC                         TRUE
+#define HAL_USE_MAC                         FALSE
 #endif
 
 /**
@@ -306,10 +306,11 @@
 /*===========================================================================*/
 
 /**
- * @brief   Enables the I2C slave subsystem.
+ * @brief   Slave mode API enable switch.
+ * @note    The low level driver must support this capability.
  */
-#if !defined(I2C_SUPPORTS_SLAVE_MODE) || defined(__DOXYGEN__)
-#define I2C_SUPPORTS_SLAVE_MODE             FALSE
+#if !defined(I2C_ENABLE_SLAVE_MODE)
+#define I2C_ENABLE_SLAVE_MODE               FALSE
 #endif
 
 /**

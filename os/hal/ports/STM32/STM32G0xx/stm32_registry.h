@@ -182,6 +182,7 @@
 #define STM32_RCC_HAS_HSI48                 FALSE
 #define STM32_RCC_PLL_HAS_Q                 FALSE
 #define STM32_RCC_HAS_CCIPR2                FALSE
+#define STM32_RCC_HAS_MCO2                  FALSE
 
 /* SDMMC attributes.*/
 #define STM32_HAS_SDMMC1                    FALSE
@@ -375,6 +376,7 @@
 #define STM32_RCC_HAS_HSI48                 FALSE
 #define STM32_RCC_PLL_HAS_Q                 TRUE
 #define STM32_RCC_HAS_CCIPR2                FALSE
+#define STM32_RCC_HAS_MCO2                  FALSE
 
 /* SDMMC attributes.*/
 #define STM32_HAS_SDMMC1                    FALSE
@@ -562,6 +564,7 @@
 #define STM32_RCC_HAS_HSI48                 FALSE
 #define STM32_RCC_PLL_HAS_Q                 TRUE
 #define STM32_RCC_HAS_CCIPR2                FALSE
+#define STM32_RCC_HAS_MCO2                  FALSE
 
 /* SDMMC attributes.*/
 #define STM32_HAS_SDMMC1                    FALSE
@@ -721,7 +724,11 @@
 #define STM32_EXTI_IMR2_MASK                0xFFFFFFFFU
 
 /* Flash attributes.*/
+#if defined(STM32G0B1xx)
+#define STM32_FLASH_NUMBER_OF_BANKS         1
+#else
 #define STM32_FLASH_NUMBER_OF_BANKS         2
+#endif
 
 /* GPIO attributes.*/
 #define STM32_HAS_GPIOA                     TRUE
@@ -759,6 +766,7 @@
 #define STM32_RCC_HAS_HSI48                 TRUE
 #define STM32_RCC_PLL_HAS_Q                 TRUE
 #define STM32_RCC_HAS_CCIPR2                TRUE
+#define STM32_RCC_HAS_MCO2                  TRUE
 
 /* SDMMC attributes.*/
 #define STM32_HAS_SDMMC1                    FALSE
@@ -963,6 +971,7 @@
 #define STM32_RCC_HAS_HSI48                 FALSE
 #define STM32_RCC_PLL_HAS_Q                 TRUE
 #define STM32_RCC_HAS_CCIPR2                TRUE
+#define STM32_RCC_HAS_MCO2                  TRUE
 
 /* SDMMC attributes.*/
 #define STM32_HAS_SDMMC1                    FALSE
