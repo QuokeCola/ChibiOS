@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = $(XOPT) -m32
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -25,12 +25,12 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = --defsym=___main_thread_stack_base__=0,--defsym=___main_thread_stack_end__=0
+  USE_LDOPT = 
 endif
 
 # Enable this if you want link time optimizations (LTO).
 ifeq ($(USE_LTO),)
-  USE_LTO = no
+  USE_LTO = yes
 endif
 
 # Enable this if you want to see the full log while compiling.
@@ -41,7 +41,7 @@ endif
 # If enabled, this option makes the build process faster by not compiling
 # modules not used in the current configuration.
 ifeq ($(USE_SMART_BUILD),)
-  USE_SMART_BUILD = no
+  USE_SMART_BUILD = yes
 endif
 
 #
@@ -52,60 +52,100 @@ endif
 # Architecture or project specific options
 #
 
+# Stack size to be allocated to the Cortex-M process stack. This stack is
+# the stack used by the main() thread.
+ifeq ($(USE_PROCESS_STACKSIZE),)
+  USE_PROCESS_STACKSIZE = 0x200
+endif
+
+# Stack size to the allocated to the Cortex-M main/exceptions stack. This
+# stack is used for processing interrupts and exceptions.
+ifeq ($(USE_EXCEPTIONS_STACKSIZE),)
+  USE_EXCEPTIONS_STACKSIZE = 0x200
+endif
+
+# Enables the use of FPU (no, softfp, hard).
+ifeq ($(USE_FPU),)
+  USE_FPU = no
+endif
+
+# FPU-related options.
+ifeq ($(USE_FPU_OPT),)
+  USE_FPU_OPT = -mfloat-abi=$(USE_FPU) -mfpu=fpv4-sp-d16
+endif
+
 #
 # Architecture or project specific options
 ##############################################################################
 
 ##############################################################################
-# Project, sources and paths
+# Project, target, sources and paths
 #
 
 # Define project name here
-PROJECT = ch.exe
+PROJECT = ch
 
-# Imported source files and paths
-CHIBIOS = ../../..
-CONFDIR  := ./cfg
-BUILDDIR := ./build
-DEPDIR   := ./.dep
+# Target settings.
+MCU  = cortex-m0
+
+# Imported source files and paths.
+CHIBIOS  := ../../..
+CONFDIR  := ./cfg/stm32c031c6_nucleo64
+BUILDDIR := ./build/stm32c031c6_nucleo64
+DEPDIR   := ./.dep/stm32c031c6_nucleo64
 
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files.
+include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32c0xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
-include $(CHIBIOS)/os/hal/boards/simulator/board.mk
-include $(CHIBIOS)/os/hal/ports/simulator/win32/platform.mk
+include $(CHIBIOS)/os/hal/ports/STM32/STM32C0xx/platform.mk
+include $(CHIBIOS)/os/hal/boards/ST_NUCLEO64_C031C6/board.mk
 include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
-include $(CHIBIOS)/os/common/ports/SIMIA32/compilers/GCC/port.mk
+include $(CHIBIOS)/os/common/ports/ARMv6-M/compilers/GCC/mk/port.mk
+# Auto-build files in ./source recursively.
+include $(CHIBIOS)/tools/mk/autobuild.mk
 # Other files (optional).
-include $(CHIBIOS)/os/test/test.mk
-include $(CHIBIOS)/test/rt/rt_test.mk
-include $(CHIBIOS)/test/oslib/oslib_test.mk
+#include $(CHIBIOS)/os/test/test.mk
+#include $(CHIBIOS)/test/rt/rt_test.mk
+#include $(CHIBIOS)/test/oslib/oslib_test.mk
 #include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 #include $(CHIBIOS)/os/various/shell/shell.mk
 
-# C sources here.
+# Define linker script file here
+LDSCRIPT= $(STARTUPLD)/STM32C031x6.ld
+
+# C sources that can be compiled in ARM or THUMB mode depending on the global
+# setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
+       $(CONFDIR)/portab.c \
        main.c
 
-# C++ sources here.
+# C++ sources that can be compiled in ARM or THUMB mode depending on the global
+# setting.
 CPPSRC = $(ALLCPPSRC)
 
 # List ASM source files here.
 ASMSRC = $(ALLASMSRC)
+
+# List ASM with preprocessor source files here.
 ASMXSRC = $(ALLXASMSRC)
 
+# Inclusion directories.
 INCDIR = $(CONFDIR) $(ALLINC) $(TESTINC)
 
-# GCOV files.
-GCOVSRC = $(KERNSRC)
+# Define C warning options here.
+CWARN = -Wall -Wextra -Wundef -Wstrict-prototypes -Wcast-align=strict
+
+# Define C++ warning options here.
+CPPWARN = -Wall -Wextra -Wundef
 
 #
-# Project, sources and paths
+# Project, target, sources and paths
 ##############################################################################
 
 ##############################################################################
@@ -113,7 +153,7 @@ GCOVSRC = $(KERNSRC)
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DSIMULATOR -DTEST_CFG_SIZE_REPORT=0 $(XDEFS)
+UDEFS = #-D__TEST_RT -D__TEST_OSLIB
 
 # Define ASM defines here
 UADEFS =
@@ -128,43 +168,25 @@ ULIBDIR =
 ULIBS =
 
 #
-# End of user defines
+# End of user section
 ##############################################################################
 
 ##############################################################################
-# Compiler settings
+# Common rules
 #
 
-TRGT = 
-CC   = $(TRGT)gcc
-CPPC = $(TRGT)g++
-# Enable loading with g++ only if you need C++ runtime support.
-# NOTE: You can use C++ even without C++ support if you are careful. C++
-#       runtime support makes code size explode.
-LD   = $(TRGT)gcc
-#LD   = $(TRGT)g++
-CP   = $(TRGT)objcopy
-AS   = $(TRGT)gcc -x assembler-with-cpp
-AR   = $(TRGT)ar
-OD   = $(TRGT)objdump
-SZ   = $(TRGT)size
-HEX  = $(CP) -O ihex
-BIN  = $(CP) -O binary
-COV  = gcov
-
-# Define C warning options here
-CWARN = -Wall -Wextra -Wundef -Wstrict-prototypes -Wcast-align=strict
-
-# Define C++ warning options here
-CPPWARN = -Wall -Wextra -Wundef
-
-#
-# Compiler settings
-##############################################################################
-
-RULESPATH = $(CHIBIOS)/os/common/startup/SIMIA32/compilers/GCC
+RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk
+include $(RULESPATH)/arm-none-eabi.mk
 include $(RULESPATH)/rules.mk
 
-misra:
-    @lint-nt -v -w3 $(DEFS) pclint/co-gcc.lnt pclint/au-misra3.lnt pclint/waivers.lnt $(IINCDIR) $(KERNSRC) $(LIBSRC)
+#
+# Common rules
+##############################################################################
 
+##############################################################################
+# Custom rules
+#
+
+#
+# Custom rules
+##############################################################################
