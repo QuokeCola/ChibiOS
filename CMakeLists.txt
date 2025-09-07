@@ -59,8 +59,9 @@ foreach (target ${TARGET_LIST})
         target_link_libraries(${target} CMSIS_DSP)
 
         # Echo target dev board before link
-        add_custom_command(TARGET ${target} PRE_BUILD
-                COMMENT "Build for ${BOARD_NAME}")
+        add_custom_command(TARGET ${target}
+                PRE_BUILD
+                COMMAND ${CMAKE_COMMAND} -E echo "Build for ${BOARD_NAME}")
 
         # Run size utility after link to show the size of elf file
         add_custom_command(TARGET ${target} POST_BUILD
