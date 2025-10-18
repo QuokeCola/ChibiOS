@@ -31,10 +31,10 @@ MEMORY
     ram1   (wx) : org = 0x20000000, len = 256k  /* SRAM1+SRAM2 NS */
     ram2   (wx) : org = 0x20040000, len = 512k  /* SRAM3 NS */
     ram3   (wx) : org = 0x28000000, len = 16k   /* SRAM4 NS */
-    ram4   (wx) : org = 0x30000000, len = 768k  /* SRAM1+SRAM2+SRAM3 NS */
-    ram5   (wx) : org = 0x30000000, len = 256k  /* SRAM1+SRAM2 NS */
-    ram6   (wx) : org = 0x30040000, len = 512k  /* SRAM3 NS */
-    ram7   (wx) : org = 0x38000000, len = 16k   /* SRAM4 NS */
+    ram4   (wx) : org = 0x30000000, len = 768k  /* SRAM1+SRAM2+SRAM3 NSC */
+    ram5   (wx) : org = 0x30000000, len = 256k  /* SRAM1+SRAM2 NSC */
+    ram6   (wx) : org = 0x30040000, len = 512k  /* SRAM3 NSC */
+    ram7   (wx) : org = 0x38000000, len = 16k   /* SRAM4 NSC */
 }
 
 /* For each data/text section two region are defined, a virtual region

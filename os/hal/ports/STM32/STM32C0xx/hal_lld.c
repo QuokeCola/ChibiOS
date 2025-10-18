@@ -59,7 +59,7 @@
 
 /**
  * @brief   CMSIS system core clock variable.
- * @note    It is declared in system_stm32g0xx.h.
+ * @note    It is declared in system_stm32c0xx.h.
  */
 uint32_t SystemCoreClock = STM32_HCLK;
 
@@ -131,6 +131,16 @@ __STATIC_INLINE void hal_lld_set_static_pwr(void) {
 }
 
 /**
+ * @brief   Configures the SYSCFG unit.
+ */
+__STATIC_INLINE void hal_lld_set_static_syscfg(void) {
+
+  SYSCFG->CFGR1 = STM32_SYSCFG_CFGR1;
+  SYSCFG->CFGR2 = STM32_SYSCFG_CFGR2;
+  SYSCFG->CFGR3 = STM32_SYSCFG_CFGR3;
+}
+
+/**
  * @brief   Initializes static muxes and dividers.
  */
 __STATIC_INLINE void hal_lld_set_static_clocks(void) {
@@ -140,9 +150,9 @@ __STATIC_INLINE void hal_lld_set_static_clocks(void) {
               STM32_MCO2PRE | STM32_MCO2SEL |
               STM32_PPRE    | STM32_HPRE;
 
-  /* Set HSISYS, HSIKER divisors.*/
-  RCC->CR = (RCC->CR & ~(STM32_HSIDIV_MASK | STM32_HSIKER_MASK)) |
-            STM32_HSIDIV | STM32_HSIKER;
+  /* Set HSISYS, HSIKER, SYSDIV divisors.*/
+  RCC->CR = (RCC->CR & ~(STM32_HSIDIV_MASK | STM32_HSIKER_MASK | STM32_SYSDIV_MASK)) |
+            STM32_HSIDIV | STM32_HSIKER | STM32_SYSDIV;
 
   /* CCIPR register initialization.*/
   RCC->CCIPR =  STM32_ADCSEL    | STM32_I2S1SEL    | STM32_I2C1SEL   |
@@ -201,12 +211,15 @@ void stm32_clock_init(void) {
      among multiple drivers.*/
   rccEnableAPBR2(RCC_APBENR2_SYSCFGEN, false);
 
-#if defined(HAL_USE_RTC) && defined(RCC_APBENR1_RTCAPBEN)
+#if (HAL_USE_RTC == TRUE) && defined(RCC_APBENR1_RTCAPBEN)
   rccEnableAPBR1(RCC_APBENR1_RTCAPBEN, false);
 #endif
 
   /* Static PWR configurations.*/
   hal_lld_set_static_pwr();
+
+  /* Static SYSCFG configurations.*/
+  hal_lld_set_static_syscfg();
 
   /* Backup domain reset.*/
   bd_reset();

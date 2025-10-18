@@ -62,6 +62,9 @@
 #define STM32_PWR_PDCRD                     ${doc.STM32_PWR_PDCRD!"(0U)"}
 #define STM32_PWR_PUCRF                     ${doc.STM32_PWR_PUCRF!"(0U)"}
 #define STM32_PWR_PDCRF                     ${doc.STM32_PWR_PDCRF!"(0U)"}
+#define STM32_SYSCFG_CFGR1                  ${doc.STM32_SYSCFG_CFGR1!"(0U)"}
+#define STM32_SYSCFG_CFGR2                  ${doc.STM32_SYSCFG_CFGR2!"(0U)"}
+#define STM32_SYSCFG_CFGR3                  ${doc.STM32_SYSCFG_CFGR3!"(0U)"}
 #define STM32_HSIDIV_VALUE                  ${doc.STM32_HSIDIV_VALUE!"4"}
 #define STM32_HSIKER_VALUE                  ${doc.STM32_HSIDIV_VALUE!"3"}
 #define STM32_HSI48_ENABLED                 ${doc.STM32_HSI16_ENABLED!"TRUE"}
@@ -92,6 +95,8 @@
 #define STM32_IRQ_EXTI0_1_PRIORITY          ${doc.STM32_IRQ_EXTI0_1_PRIORITY!"3"}
 #define STM32_IRQ_EXTI2_3_PRIORITY          ${doc.STM32_IRQ_EXTI2_3_PRIORITY!"3"}
 #define STM32_IRQ_EXTI4_15_PRIORITY         ${doc.STM32_IRQ_EXTI4_15_PRIORITY!"3"}
+
+#define STM32_IRQ_I2C1_PRIORITY             ${doc.STM32_IRQ_I2C1_PRIORITY!"3"}
 
 #define STM32_IRQ_USART1_PRIORITY           ${doc.STM32_IRQ_USART1_PRIORITY!"2"}
 #define STM32_IRQ_USART2_PRIORITY           ${doc.STM32_IRQ_USART2_PRIORITY!"2"}
@@ -127,9 +132,7 @@
  */
 #define STM32_I2C_USE_I2C1                  ${doc.STM32_I2C_USE_I2C1!"FALSE"}
 #define STM32_I2C_BUSY_TIMEOUT              ${doc.STM32_I2C_BUSY_TIMEOUT!"50"}
-#define STM32_I2C_I2C1_RX_DMA_STREAM        ${doc.STM32_I2C_I2C1_RX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
-#define STM32_I2C_I2C1_TX_DMA_STREAM        ${doc.STM32_I2C_I2C1_TX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
-#define STM32_I2C_I2C1_IRQ_PRIORITY         ${doc.STM32_I2C_I2C1_IRQ_PRIORITY!"3"}
+#define STM32_I2C_I2C1_DMA_CHANNEL          ${doc.STM32_I2C_I2C1_DMA_CHANNEL!"STM32_DMA_STREAM_ID_ANY"}
 #define STM32_I2C_I2C1_DMA_PRIORITY         ${doc.STM32_I2C_I2C1_DMA_PRIORITY!"3"}
 #define STM32_I2C_DMA_ERROR_HOOK(i2cp)      ${doc.STM32_I2C_DMA_ERROR_HOOK!"osalSysHalt(\"DMA failure\")"}
 
