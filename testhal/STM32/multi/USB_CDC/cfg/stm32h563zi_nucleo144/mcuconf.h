@@ -159,6 +159,8 @@
 /*
  * IRQ system settings.
  */
+#define STM32_IRQ_DAC1_PRIORITY             9
+
 #define STM32_IRQ_EXTI0_PRIORITY            6
 #define STM32_IRQ_EXTI1_PRIORITY            6
 #define STM32_IRQ_EXTI2_PRIORITY            6
@@ -182,6 +184,13 @@
 #define STM32_IRQ_I2C2_PRIORITY             5
 #define STM32_IRQ_I2C3_PRIORITY             5
 #define STM32_IRQ_I2C4_PRIORITY             5
+
+#define STM32_IRQ_SPI1_PRIORITY             10
+#define STM32_IRQ_SPI2_PRIORITY             10
+#define STM32_IRQ_SPI3_PRIORITY             10
+#define STM32_IRQ_SPI4_PRIORITY             10
+#define STM32_IRQ_SPI5_PRIORITY             10
+#define STM32_IRQ_SPI6_PRIORITY             10
 
 #define STM32_IRQ_TIM1_BRK_PRIORITY         7
 #define STM32_IRQ_TIM1_UP_PRIORITY          7
@@ -218,6 +227,8 @@
 #define STM32_IRQ_UART12_PRIORITY           12
 #define STM32_IRQ_LPUART1_PRIORITY          12
 
+#define STM32_IRQ_USB1_PRIORITY             13
+
 /*
  * ADC driver system settings.
  */
@@ -248,8 +259,6 @@
 #define STM32_DAC_DUAL_MODE                 FALSE
 #define STM32_DAC_USE_DAC1_CH1              FALSE
 #define STM32_DAC_USE_DAC1_CH2              FALSE
-#define STM32_DAC_DAC1_CH1_IRQ_PRIORITY     10
-#define STM32_DAC_DAC1_CH2_IRQ_PRIORITY     10
 #define STM32_DAC_DAC1_CH1_DMA_PRIORITY     2
 #define STM32_DAC_DAC1_CH2_DMA_PRIORITY     2
 #define STM32_DAC_DAC1_CH1_DMA3_CHANNEL     STM32_DMA3_MASK_FIFO2
@@ -415,12 +424,6 @@
 #define STM32_SPI_SPI4_DMA_PRIORITY         1
 #define STM32_SPI_SPI5_DMA_PRIORITY         1
 #define STM32_SPI_SPI6_DMA_PRIORITY         1
-#define STM32_SPI_SPI1_IRQ_PRIORITY         10
-#define STM32_SPI_SPI2_IRQ_PRIORITY         10
-#define STM32_SPI_SPI3_IRQ_PRIORITY         10
-#define STM32_SPI_SPI4_IRQ_PRIORITY         10
-#define STM32_SPI_SPI5_IRQ_PRIORITY         10
-#define STM32_SPI_SPI6_IRQ_PRIORITY         10
 #define STM32_SPI_DMA_ERROR_HOOK(spip)      osalSysHalt("DMA failure")
 
 /*
@@ -442,9 +445,10 @@
  * USB driver system settings.
  */
 #define STM32_USB_USE_USB1                  TRUE
-#define STM32_USB_LOW_POWER_ON_SUSPEND      FALSE
-#define STM32_USB_USB1_HP_IRQ_PRIORITY      13
-#define STM32_USB_USB1_LP_IRQ_PRIORITY      14
+#define STM32_USB_USE_ISOCHRONOUS           FALSE
+#define STM32_USB_USE_FAST_COPY             FALSE
+#define STM32_USB_HOST_WAKEUP_DURATION      2
+#define STM32_USB_48MHZ_DELTA               120000
 
 /*
  * WDG driver system settings.

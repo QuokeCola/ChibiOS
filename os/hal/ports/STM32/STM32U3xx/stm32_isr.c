@@ -51,6 +51,8 @@
 /* Driver interrupt handlers.                                                */
 /*===========================================================================*/
 
+#include "stm32_dac1.inc"
+
 #include "stm32_exti0.inc"
 #include "stm32_exti1.inc"
 #include "stm32_exti2.inc"
@@ -72,11 +74,9 @@
 #include "stm32_i2c2.inc"
 #include "stm32_i2c3.inc"
 
-#include "stm32_usart1.inc"
-#include "stm32_usart3.inc"
-#include "stm32_uart4.inc"
-#include "stm32_uart5.inc"
-#include "stm32_lpuart1.inc"
+#include "stm32_spi1.inc"
+#include "stm32_spi2.inc"
+#include "stm32_spi3.inc"
 
 #include "stm32_tim1.inc"
 #include "stm32_tim2.inc"
@@ -88,6 +88,14 @@
 #include "stm32_tim16.inc"
 #include "stm32_tim17.inc"
 
+#include "stm32_usart1.inc"
+#include "stm32_usart3.inc"
+#include "stm32_uart4.inc"
+#include "stm32_uart5.inc"
+#include "stm32_lpuart1.inc"
+
+#include "stm32_usb1.inc"
+
 /*===========================================================================*/
 /* Driver exported functions.                                                */
 /*===========================================================================*/
@@ -98,6 +106,8 @@
  * @notapi
  */
 void irqInit(void) {
+
+  dac1_irq_init();
 
   exti0_irq_init();
   exti1_irq_init();
@@ -120,6 +130,10 @@ void irqInit(void) {
   i2c2_irq_init();
   i2c3_irq_init();
 
+  spi1_irq_init();
+  spi2_irq_init();
+  spi3_irq_init();
+
   tim1_irq_init();
   tim2_irq_init();
   tim3_irq_init();
@@ -135,6 +149,8 @@ void irqInit(void) {
   uart4_irq_init();
   uart5_irq_init();
   lpuart1_irq_init();
+
+  usb1_irq_init();
 }
 
 /**
@@ -143,6 +159,8 @@ void irqInit(void) {
  * @notapi
  */
 void irqDeinit(void) {
+
+  dac1_irq_deinit();
 
   exti0_irq_deinit();
   exti1_irq_deinit();
@@ -165,6 +183,10 @@ void irqDeinit(void) {
   i2c2_irq_deinit();
   i2c3_irq_deinit();
 
+  spi1_irq_deinit();
+  spi2_irq_deinit();
+  spi3_irq_deinit();
+
   tim1_irq_deinit();
   tim2_irq_deinit();
   tim3_irq_deinit();
@@ -177,6 +199,8 @@ void irqDeinit(void) {
   uart4_irq_deinit();
   uart5_irq_deinit();
   lpuart1_irq_deinit();
+
+  usb1_irq_deinit();
 }
 
 /** @} */

@@ -49,6 +49,9 @@
 #define STM32_DMA31_MASK_FIFO2              0x000000FFU
 #define STM32_DMA31_MASK_FIFO4              0x00000300U
 #define STM32_DMA31_MASK_FIFO4_2D           0x00000C00U
+#define STM32_DMA32_MASK_FIFO2              0x00000000U
+#define STM32_DMA32_MASK_FIFO4              0x00000000U
+#define STM32_DMA32_MASK_FIFO4_2D           0x00000000U
 
 #define STM32_DMA3_REQ_ADC1                 0U
 #define STM32_DMA3_REQ_ADC2                 1U
@@ -368,10 +371,8 @@
 #define STM32_HAS_UART12                    FALSE
 #define STM32_HAS_LPUART1                   TRUE
 
-#define STM32_HAS_USB                       TRUE
-#define STM32_USB_ACCESS_SCHEME_2x16        TRUE
+#define STM32_HAS_USB1                      TRUE
 #define STM32_USB_PMA_SIZE                  2048
-#define STM32_USB_HAS_BCDR                  TRUE
 
 /* IWDG attributes.*/
 #define STM32_HAS_IWDG                      TRUE

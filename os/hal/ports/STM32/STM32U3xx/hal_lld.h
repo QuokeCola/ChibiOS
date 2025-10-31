@@ -98,6 +98,8 @@
 #define STM32_MSIRC0_FREE       0
 #define STM32_MSIRC0_PLL_LSE    1
 #define STM32_MSIRC0_PLL_HSE    2
+#define STM32_MSIRC0_PLL_LSE_FAST 3
+#define STM32_MSIRC0_PLL_HSE_FAST 4
 /** @} */
 
 /**
@@ -107,6 +109,8 @@
 #define STM32_MSIRC1_FREE       0
 #define STM32_MSIRC1_PLL_LSE    1
 #define STM32_MSIRC1_PLL_HSE    2
+#define STM32_MSIRC1_PLL_LSE_FAST 3
+#define STM32_MSIRC1_PLL_HSE_FAST 4
 /** @} */
 
 /**
@@ -232,8 +236,8 @@
 #define STM32_MSIRGSEL_POS      RCC_ICSCR1_MSIRGSEL_Pos
 #define STM32_MSIRGSEL_MASK     RCC_ICSCR1_MSIRGSEL_Msk
 #define STM32_MSIRGSEL_FIELD(n) ((n) << STM32_MSIRGSEL_POS)
-#define STM32_MSIRGSEL_MSISDIVS STM32_MSIRGSEL_FIELD(0U)
-#define STM32_MSIRGSEL_MSISDIV  STM32_MSIRGSEL_FIELD(1U)
+#define STM32_MSIRGSEL_CSR      STM32_MSIRGSEL_FIELD(0U)
+#define STM32_MSIRGSEL_ICSCR1   STM32_MSIRGSEL_FIELD(1U)
 
 #define STM32_MSIPLL1N_POS      RCC_ICSCR1_MSIPLL1N_Pos
 #define STM32_MSIPLL1N_MASK     RCC_ICSCR1_MSIPLL1N_Msk
@@ -640,7 +644,9 @@
  * @brief   PWR CR3 register initialization value.
  */
 #if !defined(STM32_PWR_SVMCR) || defined(__DOXYGEN__)
-#define STM32_PWR_SVMCR                     (0U)
+#define STM32_PWR_SVMCR                     (PWR_SVMCR_ASV | PWR_SVMCR_USV | \
+                                             PWR_SVMCR_AVM1EN | PWR_SVMCR_AVM2EN | \
+                                             PWR_SVMCR_UVMEN)
 #endif
 
 /**
@@ -817,14 +823,14 @@
  * @brief   Enables or disables the HSI clock source.
  */
 #if !defined(STM32_HSI16_ENABLED) || defined(__DOXYGEN__)
-#define STM32_HSI16_ENABLED                 TRUE
+#define STM32_HSI16_ENABLED                 FALSE
 #endif
 
 /**
  * @brief   Enables or disables the HSI clock source in STOP mode.
  */
 #if !defined(STM32_HSIKERON_ENABLED) || defined(__DOXYGEN__)
-#define STM32_HSIKERON_ENABLED              TRUE
+#define STM32_HSIKERON_ENABLED              FALSE
 #endif
 
 /**
@@ -912,13 +918,6 @@
 #endif
 
 /**
- * @brief   MSI range selection on STANDBY/SHUTDOWN exit.
- */
-#if !defined(STM32_MSIRGSEL) || defined(__DOXYGEN__)
-#define STM32_MSIRGSEL                      STM32_MSIRGSEL_MSISDIVS
-#endif
-
-/**
  * @brief   Main clock source selection.
  */
 #if !defined(STM32_SW) || defined(__DOXYGEN__)
@@ -957,14 +956,14 @@
  * @brief   System clock source after STOP.
  */
 #if !defined(STM32_STOPWUCK) || defined(__DOXYGEN__)
-#define STM32_STOPWUCK                      STM32_STOPWUCK_HSI16
+#define STM32_STOPWUCK                      STM32_STOPWUCK_MSIS
 #endif
 
 /**
  * @brief   Kernel clock source after STOP.
  */
 #if !defined(STM32_STOPKERWUCK) || defined(__DOXYGEN__)
-#define STM32_STOPKERWUCK                   STM32_STOPKERWUCK_HSI16
+#define STM32_STOPKERWUCK                   STM32_STOPKERWUCK_MSIK
 #endif
 
 /**
@@ -1213,7 +1212,7 @@
 /*===========================================================================*/
 
 /* Clock handling mode selection.*/
-#if 0 //STM32_CLOCK_DYNAMIC == TRUE
+#if STM32_CLOCK_DYNAMIC == TRUE
 #define HAL_LLD_USE_CLOCK_MANAGEMENT
 #endif
 
@@ -1415,7 +1414,15 @@
     #error "LSE not enabled, required by STM32_MSIRC0_MODE"
   #endif
 
+  #if STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_LSE_FAST
+    #error "LSE not enabled, required by STM32_MSIRC1_MODE"
+  #endif
+
   #if STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_LSE
+    #error "LSE not enabled, required by STM32_MSIRC1_MODE"
+  #endif
+
+  #if STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_LSE_FAST
     #error "LSE not enabled, required by STM32_MSIRC1_MODE"
   #endif
 
@@ -1473,6 +1480,14 @@
     #error "HSE not enabled, required by STM32_MSIRC1_MODE"
   #endif
 
+  #if STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_HSE_FAST
+    #error "HSE not enabled, required by STM32_MSIRC0_MODE"
+  #endif
+
+  #if STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_HSE_FAST
+    #error "HSE not enabled, required by STM32_MSIRC1_MODE"
+  #endif
+
   #if STM32_SW == STM32_SW_HSE
     #error "HSE not enabled, required by STM32_SW"
   #endif
@@ -1526,14 +1541,27 @@
 #if (STM32_MSIRC0_MODE == STM32_MSIRC0_FREE) || defined(__DOXYGEN__)
   #define STM32_MSIPLL0EN           0U
   #define STM32_MSIPLL0SEL          0U
+  #define STM32_MSIPLL0FAST         0U
 
 #elif STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_LSE
   #define STM32_MSIPLL0EN           RCC_CR_MSIPLL0EN
   #define STM32_MSIPLL0SEL          STM32_MSIPLL0SEL_LSE
+  #define STM32_MSIPLL0FAST         0U
 
 #elif STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_HSE
   #define STM32_MSIPLL0EN           RCC_CR_MSIPLL0EN
   #define STM32_MSIPLL0SEL          STM32_MSIPLL0SEL_HSE
+  #define STM32_MSIPLL0FAST         0U
+
+#elif STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_LSE_FAST
+  #define STM32_MSIPLL0EN           RCC_CR_MSIPLL0EN
+  #define STM32_MSIPLL0SEL          STM32_MSIPLL0SEL_LSE
+  #define STM32_MSIPLL0FAST         RCC_CR_MSIPLL0FAST
+
+#elif STM32_MSIRC0_MODE == STM32_MSIRC0_PLL_HSE_FAST
+  #define STM32_MSIPLL0EN           RCC_CR_MSIPLL0EN
+  #define STM32_MSIPLL0SEL          STM32_MSIPLL0SEL_HSE
+  #define STM32_MSIPLL0FAST         RCC_CR_MSIPLL0FAST
 
 #else
   #error "invalid STM32_MSIRC0_MODE value specified"
@@ -1545,14 +1573,27 @@
 #if (STM32_MSIRC1_MODE == STM32_MSIRC1_FREE) || defined(__DOXYGEN__)
   #define STM32_MSIPLL1EN           0U
   #define STM32_MSIPLL1SEL          0U
+  #define STM32_MSIPLL1FAST         0U
 
 #elif STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_LSE
   #define STM32_MSIPLL1EN           RCC_CR_MSIPLL1EN
   #define STM32_MSIPLL1SEL          STM32_MSIPLL1SEL_LSE
+  #define STM32_MSIPLL1FAST         0U
 
 #elif STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_HSE
   #define STM32_MSIPLL1EN           RCC_CR_MSIPLL1EN
   #define STM32_MSIPLL1SEL          STM32_MSIPLL1SEL_HSE
+  #define STM32_MSIPLL1FAST         0U
+
+#elif STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_LSE
+  #define STM32_MSIPLL1EN           RCC_CR_MSIPLL1EN
+  #define STM32_MSIPLL1SEL          STM32_MSIPLL1SEL_LSE
+  #define STM32_MSIPLL1FAST         RCC_CR_MSIPLL1FAST
+
+#elif STM32_MSIRC1_MODE == STM32_MSIRC1_PLL_HSE
+  #define STM32_MSIPLL1EN           RCC_CR_MSIPLL1EN
+  #define STM32_MSIPLL1SEL          STM32_MSIPLL1SEL_HSE
+  #define STM32_MSIPLL1FAST         RCC_CR_MSIPLL1FAST
 
 #else
   #error "invalid STM32_MSIRC1_MODE value specified"
@@ -1614,42 +1655,58 @@
  * @brief   MSIS clock frequency.
  */
 #if (STM32_MSIS_SRCDIV == STM32_MSIS_IRC0_DIV1) || defined(__DOXYGEN__)
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(0U)
+  #define STM32_MSISIRC0_ENABLED    TRUE
+  #define STM32_MSISIRC1_ENABLED    FALSE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(0U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC0
   #define STM32_MSISCLK             STM32_MSIRC0CLK
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC0_DIV2
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(1U)
+  #define STM32_MSISIRC0_ENABLED    TRUE
+  #define STM32_MSISIRC1_ENABLED    FALSE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(1U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC0
   #define STM32_MSISCLK             (STM32_MSIRC0CLK / 2U)
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC0_DIV4
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(2U)
+  #define STM32_MSISIRC0_ENABLED    TRUE
+  #define STM32_MSISIRC1_ENABLED    FALSE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(2U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC0
   #define STM32_MSISCLK             (STM32_MSIRC0CLK / 4U)
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC0_DIV8
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(3U)
+  #define STM32_MSISIRC0_ENABLED    TRUE
+  #define STM32_MSISIRC1_ENABLED    FALSE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(3U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC0
   #define STM32_MSISCLK             (STM32_MSIRC0CLK / 8U)
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC1_DIV1
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(0U)
+  #define STM32_MSISIRC0_ENABLED    FALSE
+  #define STM32_MSISIRC1_ENABLED    TRUE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(0U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC1
   #define STM32_MSISCLK             STM32_MSIRC1CLK
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC1_DIV2
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(1U)
+  #define STM32_MSISIRC0_ENABLED    FALSE
+  #define STM32_MSISIRC1_ENABLED    TRUE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(1U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC1
   #define STM32_MSISCLK             (STM32_MSIRC1CLK / 2U)
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC1_DIV4
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(2U)
+  #define STM32_MSISIRC0_ENABLED    FALSE
+  #define STM32_MSISIRC1_ENABLED    TRUE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(2U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC1
   #define STM32_MSISCLK             (STM32_MSIRC1CLK / 4U)
 
 #elif STM32_MSIS_SRCDIV == STM32_MSIS_IRC1_DIV8
-  #define STM32_MSISDIV             STM32_MSIKDIV_FIELD(3U)
+  #define STM32_MSISIRC0_ENABLED    FALSE
+  #define STM32_MSISIRC1_ENABLED    TRUE
+  #define STM32_MSISDIV             STM32_MSISDIV_FIELD(3U)
   #define STM32_MSISSEL             STM32_MSISSEL_MSIRC1
   #define STM32_MSISCLK             (STM32_MSIRC1CLK / 8U)
 
@@ -1661,47 +1718,72 @@
  * @brief   MSIK clock frequency.
  */
 #if (STM32_MSIK_SRCDIV == STM32_MSIK_IRC0_DIV1) || defined(__DOXYGEN__)
+  #define STM32_MSIKIRC0_ENABLED    TRUE
+  #define STM32_MSIKIRC1_ENABLED    FALSE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(0U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC0
   #define STM32_MSIKCLK             STM32_MSIRC0CLK
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC0_DIV2
+  #define STM32_MSIKIRC0_ENABLED    TRUE
+  #define STM32_MSIKIRC1_ENABLED    FALSE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(1U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC0
   #define STM32_MSIKCLK             (STM32_MSIRC0CLK / 2U)
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC0_DIV4
+  #define STM32_MSIKIRC0_ENABLED    TRUE
+  #define STM32_MSIKIRC1_ENABLED    FALSE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(2U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC0
   #define STM32_MSIKCLK             (STM32_MSIRC0CLK / 4U)
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC0_DIV8
+  #define STM32_MSIKIRC0_ENABLED    TRUE
+  #define STM32_MSIKIRC1_ENABLED    FALSE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(3U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC0
   #define STM32_MSIKCLK             (STM32_MSIRC0CLK / 8U)
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC1_DIV1
+  #define STM32_MSIKIRC0_ENABLED    FALSE
+  #define STM32_MSIKIRC1_ENABLED    TRUE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(0U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC1
   #define STM32_MSIKCLK             STM32_MSIRC1CLK
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC1_DIV2
+  #define STM32_MSIKIRC0_ENABLED    FALSE
+  #define STM32_MSIKIRC1_ENABLED    TRUE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(1U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC1
   #define STM32_MSIKCLK             (STM32_MSIRC1CLK / 2U)
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC1_DIV4
+  #define STM32_MSIKIRC0_ENABLED    FALSE
+  #define STM32_MSIKIRC1_ENABLED    TRUE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(2U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC1
   #define STM32_MSIKCLK             (STM32_MSIRC1CLK / 4U)
 
 #elif STM32_MSIK_SRCDIV == STM32_MSIK_IRC1_DIV8
+  #define STM32_MSIKIRC0_ENABLED    FALSE
+  #define STM32_MSIKIRC1_ENABLED    TRUE
   #define STM32_MSIKDIV             STM32_MSIKDIV_FIELD(3U)
   #define STM32_MSIKSEL             STM32_MSIKSEL_MSIRC1
   #define STM32_MSIKCLK             (STM32_MSIRC1CLK / 8U)
 
 #else
   #error "invalid STM32_MSIK_SRCDIV value specified"
+#endif
+
+/* PLL enabling checks, PLL cannot be enabled if the associated oscillator
+   is not active.*/
+#if (STM32_MSIPLL0EN > 0) && !STM32_MSISIRC0_ENABLED && !STM32_MSIKIRC0_ENABLED
+#error "STM32_MSIRC0_MODE requires PLL but MSIIRC0 is not used"
+#endif
+#if (STM32_MSIPLL1EN > 0) && !STM32_MSISIRC1_ENABLED && !STM32_MSIKIRC1_ENABLED
+#error "STM32_MSIRC1_MODE requires PLL but MSIIRC1 is not used"
 #endif
 
 /**
@@ -1772,15 +1854,6 @@
 
 #else
   #error "invalid STM32_STOPKERWUCK value specified"
-#endif
-
-/* STM32_MSIRGSEL setting check.*/
-#if (STM32_MSIRGSEL == STM32_MSIRGSEL_MSISDIVS) || defined(__DOXYGEN__)
-
-#elif STM32_MSIRGSEL == STM32_MSIRGSEL_MSISDIV
-
-#else
-  #error "invalid STM32_MSIRGSEL value specified"
 #endif
 
 /* STM32_MSIBIASL setting check.*/
@@ -2211,10 +2284,10 @@
  * @brief   USB clock frequency.
  */
 #if (STM32_USB1SEL == STM32_USB1SEL_ICLK) || defined(__DOXYGEN__)
-  #define STM32_USBCLK              hal_lld_get_clock_point(CLK_ICLK)
+  #define STM32_USBCLK              STM32_ICLK
 
 #elif STM32_USB1SEL == STM32_USB1SEL_ICLKDIV2
-  #define STM32_USBCLK              (hal_lld_get_clock_point(CLK_ICLK) / 2U)
+  #define STM32_USBCLK              (STM32_ICLK / 2U)
 
 #else
   #error "invalid source selected for USB clock"
@@ -2423,29 +2496,17 @@
 
 #if defined(HAL_LLD_USE_CLOCK_MANAGEMENT) || defined(__DOXYGEN__)
 /**
- * @brief   Type of PLL configuration registers.
- */
-typedef struct {
-  uint32_t          cfgr;
-  uint32_t          divr;
-  uint32_t          frac;
-} stm32_pll_regs_t;
-
-/**
  * @brief   Type of a clock configuration structure.
  */
 typedef struct {
-  uint32_t          pwr_voscr;
-  uint32_t          pwr_vmcr;
+  uint32_t          pwr_vosr;
   uint32_t          rcc_cr;
+  uint32_t          rcc_icsr1;
   uint32_t          rcc_cfgr1;
   uint32_t          rcc_cfgr2;
+  uint32_t          rcc_cfgr3;
+  uint32_t          rcc_cfgr4;
   uint32_t          flash_acr;
-#if STM32_RCC_HAS_PLL3 || defined(__DOXYGEN__)
-  stm32_pll_regs_t  plls[3];
-#else
-  stm32_pll_regs_t  plls[2];
-#endif
 } halclkcfg_t;
 #endif /* defined(HAL_LLD_USE_CLOCK_MANAGEMENT) */
 

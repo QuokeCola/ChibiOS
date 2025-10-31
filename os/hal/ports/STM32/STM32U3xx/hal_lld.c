@@ -37,22 +37,14 @@
  * @name    Registers reset values
  * @{
  */
-#define STM32_PWR_VOSR_RESET            0U
-#define STM32_PWR_VMCR_RESET            0U
-#define STM32_FLASH_ACR_RESET           (FLASH_ACR_WRHIGHFREQ_0     |       \
-                                         FLASH_ACR_LATENCY_3WS)
-#define STM32_RCC_CR_RESET              0x0000002BU
+#define STM32_PWR_VOSR_RESET            0x00020002U
+#define STM32_FLASH_ACR_RESET           0x00000001U
+#define STM32_RCC_CR_RESET              0x0000001DU
+#define STM32_RCC_ICSCR1_RESET          0U
 #define STM32_RCC_CFGR1_RESET           0U
 #define STM32_RCC_CFGR2_RESET           0U
-#define STM32_RCC_PLL1CFGR_RESET        0U
-#define STM32_RCC_PLL2CFGR_RESET        0U
-#define STM32_RCC_PLL3CFGR_RESET        0U
-#define STM32_RCC_PLL1DIVR_RESET        0x01010280U
-#define STM32_RCC_PLL1FRACR_RESET       0U
-#define STM32_RCC_PLL2DIVR_RESET        0x01010280U
-#define STM32_RCC_PLL2FRACR_RESET       0U
-#define STM32_RCC_PLL3DIVR_RESET        0x01010280U
-#define STM32_RCC_PLL3FRACR_RESET       0U
+#define STM32_RCC_CFGR3_RESET           0U
+#define STM32_RCC_CFGR4_RESET           0U
 /** @} */
 
 /*===========================================================================*/
@@ -64,6 +56,82 @@
  * @note    It is declared in system_stm32u3xx.h.
  */
 uint32_t SystemCoreClock = STM32_HCLK;
+
+#if defined(HAL_LLD_USE_CLOCK_MANAGEMENT) || defined(__DOXYGEN__)
+/**
+ * @brief   Post-reset clock configuration.
+ */
+const halclkcfg_t hal_clkcfg_reset = {
+  .pwr_vosr             = STM32_PWR_VOSR_RESET,
+  .rcc_cr               = STM32_RCC_CR_RESET,
+  .rcc_icscr1           = STM32_RCC_ICSCR1_RESET,
+  .rcc_cfgr1            = STM32_RCC_CFGR1_RESET,
+  .rcc_cfgr2            = STM32_RCC_CFGR2_RESET,
+  .rcc_cfgr3            = STM32_RCC_CFGR3_RESET,
+  .rcc_cfgr4            = STM32_RCC_CFGR4_RESET,
+  .flash_acr            = STM32_FLASH_ACR_RESET
+};
+
+/**
+ * @brief   Default clock configuration.
+ */
+const halclkcfg_t hal_clkcfg_default = {
+  .pwr_vosr             = STM32_PWR_VOSR,
+  .rcc_cr               = 0U
+#if STM32_HSE_ENABLED
+                        | RCC_CR_HSEON
+#endif
+#if STM32_HSE_BYPASS
+                        | RCC_CR_HSEBYP
+#endif
+#if STM32_HSI48_ENABLED
+                        | RCC_CR_HSI48ON
+#endif
+#if STM32_HSI_ENABLED
+                        | RCC_CR_HSIKERON | RCC_CR_HSION
+#endif
+                          ,
+  .rcc_cfgr1            = STM32_MCO2SEL     | STM32_MCO2PRE     |
+                          STM32_MCO1SEL     | STM32_MCO1PRE     |
+                          STM32_TIMPRE      | STM32_RTCPRE      |
+                          STM32_STOPKERWUCK | STM32_STOPWUCK    |
+                          STM32_SW,
+  .rcc_cfgr2            = STM32_PPRE3       | STM32_PPRE2       |
+                          STM32_PPRE1       | STM32_HPRE,
+  .flash_acr            = FLASH_ACR_PRFTEN  | STM32_FLASHBITS,
+  .plls = {
+    [0] = {
+      .cfgr             = STM32_PLL1REN     | STM32_PLL1QEN     |
+                          STM32_PLL1PEN     | STM32_PLL1M       |
+                          STM32_PLL1RGE     | STM32_PLL1VCOSEL  |
+                          STM32_PLL1SRC,
+      .divr             = STM32_PLL1R       | STM32_PLL1Q       |
+                          STM32_PLL1P       | STM32_PLL1N,
+      .frac             = STM32_RCC_PLL1FRACR_RESET
+    },
+    [1] = {
+      .cfgr             = STM32_PLL2REN     | STM32_PLL2QEN     |
+                          STM32_PLL2PEN     | STM32_PLL2M       |
+                          STM32_PLL2RGE     | STM32_PLL2VCOSEL  |
+                          STM32_PLL2SRC,
+      .divr             = STM32_PLL2R       | STM32_PLL2Q       |
+                          STM32_PLL2P       | STM32_PLL2N,
+      .frac             = STM32_RCC_PLL2FRACR_RESET
+    },
+#if STM32_RCC_HAS_PLL3
+    [2] = {
+      .cfgr             = STM32_PLL3REN     | STM32_PLL3QEN     |
+                          STM32_PLL3PEN     | STM32_PLL3M       |
+                          STM32_PLL3RGE     | STM32_PLL3VCOSEL  |
+                          STM32_PLL3SRC,
+      .divr             = STM32_PLL3R       | STM32_PLL3Q       |
+                          STM32_PLL3P       | STM32_PLL3N,
+      .frac             = STM32_RCC_PLL3FRACR_RESET
+    }
+#endif
+  }
+};
+#endif /* defined(HAL_LLD_USE_CLOCK_MANAGEMENT) */
 
 /*===========================================================================*/
 /* Driver local variables and types.                                         */
@@ -107,7 +175,6 @@ __STATIC_INLINE void hal_lld_set_static_pwr(void) {
   PWR->WUCR1    = STM32_PWR_WUCR1;
   PWR->WUCR2    = STM32_PWR_WUCR2;
   PWR->WUCR3    = STM32_PWR_WUCR3;
-  PWR->APCR     = STM32_PWR_APCR;
   PWR->PUCRA    = STM32_PWR_PUCRA;
   PWR->PDCRA    = STM32_PWR_PDCRA;
   PWR->PDCRB    = STM32_PWR_PDCRB;
@@ -122,6 +189,7 @@ __STATIC_INLINE void hal_lld_set_static_pwr(void) {
   PWR->PDCRG    = STM32_PWR_PDCRG;
   PWR->PUCRH    = STM32_PWR_PUCRH;
   PWR->PDCRH    = STM32_PWR_PDCRH;
+  PWR->APCR     = STM32_PWR_APCR;
   PWR->I3CPUCR1 = STM32_PWR_I3CPUCR1;
   PWR->I3CPUCR2 = STM32_PWR_I3CPUCR2;
 
@@ -234,6 +302,16 @@ void stm32_clock_init(void) {
   /* Static PWR configurations.*/
   hal_lld_set_static_pwr();
 
+  /* Backup domain reset.*/
+  bd_reset();
+
+  /* Clocks setup.*/
+  lse_init();
+  lsi_init();
+  hsi16_init();
+  hsi48_init();
+  hse_init();
+
   /* PWR core voltage (range) and thresholds setup (EPOD booster).*/
   PWR->VOSR = STM32_PWR_VOSR;
 #if (STM32_PWR_VOSR & PWR_VOSR_R1EN) != 0U
@@ -254,39 +332,36 @@ void stm32_clock_init(void) {
     }
   }
 
-  /* Backup domain reset.*/
-  bd_reset();
-
-  /* Clocks setup.*/
-  lse_init();
-  lsi_init();
-  hsi16_init();
-  hsi48_init();
-  hse_init();
-
   /* Backup domain initializations.*/
   bd_init();
+
+
+  /* Setup of flash WS's before changing clocks.*/
+  flash_set_acr((STM32_FLASH_ACR & ~STM32_LATENCY_MASK) | STM32_FLASHBITS);
+
+  /* Setup of clocks dividers before changing clocks.*/
+  hal_lld_set_static_clocks();
 
   /* MSI activation, if required.*/
   {
     uint32_t cr, crrdy, icscr1;
 
+    icscr1 = RCC->ICSCR1 & ~(RCC_ICSCR1_MSISSEL_Msk    | RCC_ICSCR1_MSISDIV_Msk    |
+                             RCC_ICSCR1_MSIKSEL_Msk    | RCC_ICSCR1_MSIKDIV_Msk    |
+                             RCC_ICSCR1_MSIPLL1N_Msk   | RCC_ICSCR1_MSIBIAS_Msk    |
+                             RCC_ICSCR1_MSIPLL0SEL_Msk | RCC_ICSCR1_MSIPLL1SEL_Msk |
+                             RCC_ICSCR1_MSIHSINDIV_Msk);
+    icscr1 |= STM32_MSISSEL    | STM32_MSISDIV    |
+              STM32_MSIKSEL    | STM32_MSIKDIV    |
+              STM32_MSIPLL1N   | STM32_MSIBIAS    |
+              STM32_MSIPLL0SEL | STM32_MSIPLL1SEL |
+              STM32_MSIHSINDIV;
+    RCC->ICSCR1 = icscr1 | STM32_MSIRGSEL_ICSCR1; /* Note, ICSCR1 enforced.*/
+
     cr = RCC->CR & ~(RCC_CR_MSIPLL0FAST_Msk | RCC_CR_MSIPLL1FAST_Msk |
                      RCC_CR_MSIPLL0EN_Msk   | RCC_CR_MSIPLL1EN_Msk   |
                      RCC_CR_MSIKON_Msk      | RCC_CR_MSIKERON_Msk    |
                      RCC_CR_MSISON_Msk);
-
-    icscr1 = RCC->ICSCR1 & ~(RCC_ICSCR1_MSISSEL_Msk    | RCC_ICSCR1_MSISDIV_Msk    |
-                             RCC_ICSCR1_MSIKSEL_Msk    | RCC_ICSCR1_MSIKDIV_Msk    |
-                             RCC_ICSCR1_MSIPLL1N_Msk   | RCC_ICSCR1_MSIRGSEL_Msk   |
-                             RCC_ICSCR1_MSIBIAS_Msk    | RCC_ICSCR1_MSIPLL0SEL_Msk |
-                             RCC_ICSCR1_MSIPLL1SEL_Msk | RCC_ICSCR1_MSIHSINDIV_Msk);
-    icscr1 |= STM32_MSISSEL    | STM32_MSISDIV    |
-              STM32_MSIKSEL    | STM32_MSIKDIV    |
-              STM32_MSIPLL1N   | STM32_MSIRGSEL   |
-              STM32_MSIBIAS    | STM32_MSIPLL0SEL |
-              STM32_MSIPLL1SEL | STM32_MSIHSINDIV;
-    RCC->ICSCR1 = icscr1;
 
     /* MSI clocks activation and waiting.*/
     crrdy = 0U;
@@ -295,7 +370,7 @@ void stm32_clock_init(void) {
     crrdy |= RCC_CR_MSISRDY;
 #endif
 #if STM32_ACTIVATE_MSIK == TRUE
-    cr    |= RCC_CR_MSIKON /* | STM32_MSIKERON*/;
+    cr    |= RCC_CR_MSIKON | RCC_CR_MSIKERON; /* Note, MSIKERON enforced.*/
     crrdy |= RCC_CR_MSIKRDY;
 #endif
     RCC->CR = cr;
@@ -303,7 +378,7 @@ void stm32_clock_init(void) {
       /* Waiting.*/
     }
 
-    cr |= /* STM32_MSIPLL0FAST | STM32_MSIPLL1FAST | */
+    cr |= STM32_MSIPLL0FAST | STM32_MSIPLL1FAST |
           STM32_MSIPLL0EN | STM32_MSIPLL1EN;
 
     /* PLLs activation and wait time.*/
@@ -314,14 +389,8 @@ void stm32_clock_init(void) {
     }
   }
 
-  /* Static clocks setup.*/
-  hal_lld_set_static_clocks();
-
-  /* Set flash WS's for SYSCLK source.*/
-  flash_set_acr((STM32_FLASH_ACR & ~STM32_LATENCY_MASK) | STM32_FLASHBITS);
-
-  /* Switching to the configured SYSCLK source if it is different from HSI.*/
-#if STM32_SW != STM32_SW_HSI16
+  /* Switching to the configured SYSCLK source if it is different from MSIS.*/
+#if STM32_SW != STM32_SW_MSIS
   RCC->CFGR1 |= STM32_SW;       /* Switches on the selected clock source.   */
 //  while(1);
   while ((RCC->CFGR1 & STM32_SWS_MASK) != (STM32_SW << RCC_CFGR1_SWS_Pos)) {
