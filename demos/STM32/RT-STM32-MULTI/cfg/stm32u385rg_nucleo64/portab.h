@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
-#define PORTAB_LINE_LED1            LINE_GREEN
+#define PORTAB_LINE_LED1            LINE_LED_GREEN
 //#define PORTAB_LINE_LED2            LINE_LED2
 
 #define PORTAB_LINE_BUTTON          LINE_BUTTON

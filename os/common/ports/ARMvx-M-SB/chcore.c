@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -52,6 +51,7 @@
 /*===========================================================================*/
 
 
+#if PORT_USE_LOCAL_SYSTICK == TRUE
 CH_IRQ_HANDLER(__sb_vector0) {
 
   CH_IRQ_PROLOGUE();
@@ -62,6 +62,7 @@ CH_IRQ_HANDLER(__sb_vector0) {
 
   CH_IRQ_EPILOGUE();
 }
+#endif /* PORT_USE_LOCAL_SYSTICK == TRUE */
 
 /*===========================================================================*/
 /* Module exported functions.                                                */
@@ -81,9 +82,11 @@ void port_init(os_instance_t *oip) {
   /* Starting in a known IRQ configuration.*/
   port_disable();
 
+#if PORT_USE_LOCAL_SYSTICK == TRUE
   /* Enabling alarm VRQ.*/
   __sb_vrq_seten(1U << 0);
   sbSetAlarm(sbGetFrequency() / CH_CFG_ST_FREQUENCY, true);
+#endif
 }
 
 /** @} */

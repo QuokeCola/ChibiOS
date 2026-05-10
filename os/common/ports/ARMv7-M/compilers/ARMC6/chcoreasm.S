@@ -1,7 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021,2022,2023,2024
-              Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -114,6 +112,9 @@ __port_thread_start:
 #if CH_DBG_STATISTICS
                 bl      __stats_stop_measure_crit_thd
 #endif
+#if CH_CFG_SMP_MODE == TRUE
+                bl      __port_spinlock_release
+#endif
 #if CORTEX_SIMPLIFIED_PRIORITY
                 cpsie   i
 #else
@@ -154,6 +155,9 @@ __port_exit_from_isr:
                 movt    r3, #:upper16:SCB_ICSR
                 mov     r2, ICSR_PENDSVSET
                 str     r2, [r3, #0]
+#if CH_CFG_SMP_MODE == TRUE
+                bl      __port_spinlock_release
+#endif
                 cpsie   i
 #else /* !CORTEX_SIMPLIFIED_PRIORITY */
                 svc     #0

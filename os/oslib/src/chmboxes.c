@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -118,6 +117,7 @@ void chMBObjectInit(mailbox_t *mbp, msg_t *buf, size_t n) {
 void chMBObjectDispose(mailbox_t *mbp) {
 
   chDbgCheck(mbp != NULL);
+  chDbgAssert(mbp->cnt == (size_t)0, "messages pending");
 
   chThdQueueObjectDispose(&mbp->qr);
   chThdQueueObjectDispose(&mbp->qw);
@@ -174,7 +174,7 @@ void chMBResetI(mailbox_t *mbp) {
 
 /**
  * @brief   Posts a message into a mailbox.
- * @details The invoking thread waits until a empty slot in the mailbox becomes
+ * @details The invoking thread waits until an empty slot in the mailbox becomes
  *          available or the specified time runs out.
  *
  * @param[in] mbp       pointer to a @p mailbox_t object
@@ -202,7 +202,7 @@ msg_t chMBPostTimeout(mailbox_t *mbp, msg_t msg, sysinterval_t timeout) {
 
 /**
  * @brief   Posts a message into a mailbox.
- * @details The invoking thread waits until a empty slot in the mailbox becomes
+ * @details The invoking thread waits until an empty slot in the mailbox becomes
  *          available or the specified time runs out.
  *
  * @param[in] mbp       pointer to a @p mailbox_t object
@@ -296,8 +296,8 @@ msg_t chMBPostI(mailbox_t *mbp, msg_t msg) {
 }
 
 /**
- * @brief   Posts an high priority message into a mailbox.
- * @details The invoking thread waits until a empty slot in the mailbox becomes
+ * @brief   Posts a high priority message into a mailbox.
+ * @details The invoking thread waits until an empty slot in the mailbox becomes
  *          available or the specified time runs out.
  *
  * @param[in] mbp       pointer to a @p mailbox_t object
@@ -324,8 +324,8 @@ msg_t chMBPostAheadTimeout(mailbox_t *mbp, msg_t msg, sysinterval_t timeout) {
 }
 
 /**
- * @brief   Posts an high priority message into a mailbox.
- * @details The invoking thread waits until a empty slot in the mailbox becomes
+ * @brief   Posts a high priority message into a mailbox.
+ * @details The invoking thread waits until an empty slot in the mailbox becomes
  *          available or the specified time runs out.
  *
  * @param[in] mbp       pointer to a @p mailbox_t object
@@ -376,7 +376,7 @@ msg_t chMBPostAheadTimeoutS(mailbox_t *mbp, msg_t msg, sysinterval_t timeout) {
 }
 
 /**
- * @brief   Posts an high priority message into a mailbox.
+ * @brief   Posts a high priority message into a mailbox.
  * @details This variant is non-blocking, the function returns a timeout
  *          condition if the queue is full.
  *

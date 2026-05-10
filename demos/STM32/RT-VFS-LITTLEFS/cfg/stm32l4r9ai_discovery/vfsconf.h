@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -98,6 +98,13 @@
  */
 #if !defined(VFS_CFG_ENABLE_DRV_LITTLEFS) || defined(__DOXYGEN__)
 #define VFS_CFG_ENABLE_DRV_LITTLEFS         TRUE
+#endif
+
+/**
+ * @brief   Enables the VFS ROMFS Driver.
+ */
+#if !defined(VFS_CFG_ENABLE_DRV_ROMFS) || defined(__DOXYGEN__)
+#define VFS_CFG_ENABLE_DRV_ROMFS            FALSE
 #endif
 
 /** @} */
@@ -230,6 +237,21 @@
 #endif
 
 /** @} */
+
+/*===========================================================================*/
+/**
+ * @name ROMFS driver settings
+ * @{
+ */
+/*===========================================================================*/
+
+#if !defined(DRV_CFG_ROM_DIR_NODES_NUM) || defined(__DOXYGEN__)
+#define DRV_CFG_ROM_DIR_NODES_NUM           1
+#endif
+
+#if !defined(DRV_CFG_ROM_FILE_NODES_NUM) || defined(__DOXYGEN__)
+#define DRV_CFG_ROM_FILE_NODES_NUM          4
+#endif
 
 #endif /* VFSCONF_H */
 

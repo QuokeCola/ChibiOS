@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -125,7 +124,6 @@ typedef struct {
 extern "C" {
 #endif
   extern ROMCONST chdebug_t ch_debug;
-  ucnt_t chRegGarbageCollect(void *object);
   thread_t *chRegFirstThread(void);
   thread_t *chRegNextThread(thread_t *tp);
   thread_t *chRegFindThreadByName(const char *name);

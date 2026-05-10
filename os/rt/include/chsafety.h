@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -60,12 +59,12 @@
  *            default implementation.
  */
 #if defined(CUSTOM_IS_VALID_DATA_POINTER) || defined(__DOXYGEN__)
-#define SFT_IS_VALID_DATA_POINTER(p)        CUSTOM_IS_VALID_DATA_POINTER()
+#define SFT_IS_VALID_DATA_POINTER(p)        CUSTOM_IS_VALID_DATA_POINTER(p)
 #elif defined(PORT_IS_VALID_DATA_POINTER)
-#define SFT_IS_VALID_DATA_POINTER(p)        PORT_IS_VALID_DATA_POINTER()
+#define SFT_IS_VALID_DATA_POINTER(p)        PORT_IS_VALID_DATA_POINTER(p)
 #else
 #define SFT_IS_VALID_DATA_POINTER(p)                                        \
-  (((p) != NULL) && (((unsigned)(p) & (PORT_NATURAL_ALIGN - 1U)) == 0U))
+  (((p) != NULL) && (((uintptr_t)(p) & (PORT_NATURAL_ALIGN - 1U)) == 0U))
 #endif
 
 /*===========================================================================*/
@@ -149,7 +148,7 @@ extern "C" {
  * @param[in] l         check level in range 0..3
  * @param[in] p         pointer to be checked
  */
-static inline void chSftValidateDataPointerX(unsigned l, const void *p) {
+static inline void chSftValidateDataPointerX(int l, const void *p) {
 
   chSftAssert(l, SFT_IS_VALID_DATA_POINTER(p), "invalid pointer");
 }

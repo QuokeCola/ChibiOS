@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -199,6 +198,23 @@
   #endif
 #endif
 
+/* Inclusion of SMP support, if enabled.*/
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+#if !defined(_FROM_ASM_)
+#if !defined(__CHIBIOS_RT__)
+#error "SMP is supported in RT only"
+#endif
+
+#include "chcoresmp.h"
+
+#if !defined(PORT_CORES_NUMBER)
+#error "PORT_CORES_NUMBER not defined in chcoresmp.h"
+#endif
+
+#endif
+#else /* CH_CFG_SMP_MODE != TRUE */
+#endif /* CH_CFG_SMP_MODE != TRUE */
+
 /**
  * @name    Architecture
  * @{
@@ -236,10 +252,18 @@
 /**
  * @brief   Port-specific information string.
  */
-#if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
-  #define PORT_INFO                     "Preemption through NMI"
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+  #if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
+    #define PORT_INFO                   "Preemption through NMI (SMP)"
+  #else
+    #define PORT_INFO                   "Preemption through PendSV (SMP)"
+  #endif
 #else
-  #define PORT_INFO                     "Preemption through PendSV"
+  #if (CORTEX_ALTERNATE_SWITCH == FALSE) || defined(__DOXYGEN__)
+    #define PORT_INFO                   "Preemption through NMI"
+  #else
+    #define PORT_INFO                   "Preemption through PendSV"
+  #endif
 #endif
 /** @} */
 
@@ -494,6 +518,9 @@ static inline bool port_is_isr_context(void) {
 static inline void port_lock(void) {
 
   __disable_irq();
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_take();
+#endif
 }
 
 /**
@@ -502,6 +529,9 @@ static inline void port_lock(void) {
  */
 static inline void port_unlock(void) {
 
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_release();
+#endif
   __enable_irq();
 }
 
@@ -573,7 +603,11 @@ static inline void port_wait_for_interrupt(void) {
 #if !defined(_FROM_ASM_)
 
 #if CH_CFG_ST_TIMEDELTA > 0
+#if (CH_CFG_SMP_MODE == TRUE) && (PORT_CORES_NUMBER > 1)
+#include "chcoresmp_timer.h"
+#else
 #include "chcore_timer.h"
+#endif
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */
 
 #endif /* !defined(_FROM_ASM_) */

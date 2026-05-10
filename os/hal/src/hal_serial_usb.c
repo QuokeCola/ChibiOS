@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ static cdc_linecoding_t linecoding = {
 
 static bool sdu_start_receive(SerialUSBDriver *sdup) {
   uint8_t *buf;
+  size_t n;
 
   /* If the USB driver is not in the appropriate state then transactions
      must not be started.*/
@@ -71,9 +72,17 @@ static bool sdu_start_receive(SerialUSBDriver *sdup) {
     return true;
   }
 
+#if (SERIAL_USB_RX_PACKET_MODE == TRUE)
+  n = (size_t)sdup->config->usbp->epc[sdup->config->bulk_out]->out_maxsize;
+  osalDbgAssert(n <= (size_t)SERIAL_USB_BUFFERS_SIZE,
+                "SERIAL_USB_BUFFERS_SIZE too small");
+#else
+  n = SERIAL_USB_BUFFERS_SIZE;
+#endif
+
   /* Buffer found, starting a new transaction.*/
   usbStartReceiveI(sdup->config->usbp, sdup->config->bulk_out,
-                   buf, SERIAL_USB_BUFFERS_SIZE);
+                   buf, n);
 
   return false;
 }
@@ -136,8 +145,7 @@ static msg_t _ctl(void *ip, unsigned int operation, void *arg) {
     osalDbgCheck(arg == NULL);
     break;
   case CHN_CTL_INVALID:
-    osalDbgAssert(false, "invalid CTL operation");
-    break;
+    return HAL_RET_UNKNOWN_CTL;
   default:
 #if defined(SDU_LLD_IMPLEMENTS_CTL)
     /* The SDU driver does not have a LLD but the application can use this
@@ -150,7 +158,7 @@ static msg_t _ctl(void *ip, unsigned int operation, void *arg) {
     break;
 #endif
   }
-  return MSG_OK;
+  return HAL_RET_SUCCESS;
 }
 
 static const struct SerialUSBDriverVMT vmt = {
@@ -242,14 +250,22 @@ void sduObjectInit(SerialUSBDriver *sdup) {
  * @api
  */
 msg_t sduStart(SerialUSBDriver *sdup, const SerialUSBConfig *config) {
-  USBDriver *usbp = config->usbp;
+  USBDriver *usbp;
 
-  osalDbgCheck(sdup != NULL);
+  osalDbgCheck((sdup != NULL) && (config != NULL) && (config->usbp != NULL));
+  osalDbgCheck((config->bulk_in > 0U) &&
+               (config->bulk_in <= (usbep_t)USB_MAX_ENDPOINTS));
+  osalDbgCheck((config->bulk_out > 0U) &&
+               (config->bulk_out <= (usbep_t)USB_MAX_ENDPOINTS));
+  if (config->int_in > 0U) {
+    osalDbgCheck(config->int_in <= (usbep_t)USB_MAX_ENDPOINTS);
+  }
 
   osalSysLock();
   osalDbgAssert((sdup->state == SDU_STOP) || (sdup->state == SDU_READY),
                 "invalid state");
 
+  usbp = config->usbp;
   usbp->in_params[config->bulk_in - 1U]   = sdup;
   usbp->out_params[config->bulk_out - 1U] = sdup;
   if (config->int_in > 0U) {
@@ -273,7 +289,7 @@ msg_t sduStart(SerialUSBDriver *sdup, const SerialUSBConfig *config) {
  * @api
  */
 void sduStop(SerialUSBDriver *sdup) {
-  USBDriver *usbp = sdup->config->usbp;
+  USBDriver *usbp = NULL;
 
   osalDbgCheck(sdup != NULL);
 
@@ -282,11 +298,17 @@ void sduStop(SerialUSBDriver *sdup) {
   osalDbgAssert((sdup->state == SDU_STOP) || (sdup->state == SDU_READY),
                 "invalid state");
 
+  if (sdup->config != NULL) {
+    usbp = sdup->config->usbp;
+  }
+
   /* Driver in stopped state.*/
-  usbp->in_params[sdup->config->bulk_in - 1U]   = NULL;
-  usbp->out_params[sdup->config->bulk_out - 1U] = NULL;
-  if (sdup->config->int_in > 0U) {
-    usbp->in_params[sdup->config->int_in - 1U]  = NULL;
+  if (usbp != NULL) {
+    usbp->in_params[sdup->config->bulk_in - 1U]   = NULL;
+    usbp->out_params[sdup->config->bulk_out - 1U] = NULL;
+    if (sdup->config->int_in > 0U) {
+      usbp->in_params[sdup->config->int_in - 1U]  = NULL;
+    }
   }
   sdup->config = NULL;
   sdup->state  = SDU_STOP;
@@ -306,7 +328,7 @@ void sduStop(SerialUSBDriver *sdup) {
  *          non-blocking mode, this way the application cannot get stuck
  *          in the middle of an I/O operations.
  * @note    If this function is not called from an ISR then an explicit call
- *          to @p osalOsRescheduleS() in necessary afterward.
+ *          to @p osalOsRescheduleS() is necessary afterward.
  *
  * @param[in] sdup      pointer to a @p SerialUSBDriver object
  *
@@ -329,7 +351,7 @@ void sduSuspendHookI(SerialUSBDriver *sdup) {
  *          operations.
  *
  * @note    If this function is not called from an ISR then an explicit call
- *          to @p osalOsRescheduleS() in necessary afterward.
+ *          to @p osalOsRescheduleS() is necessary afterward.
  *
  * @param[in] sdup      pointer to a @p SerialUSBDriver object
  *
@@ -442,6 +464,11 @@ void sduSOFHookI(SerialUSBDriver *sdup) {
 void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
   uint8_t *buf;
   size_t n;
+
+  osalDbgAssert(ep != 0U, "invalid endpoint");
+  if (ep == 0U) {
+    return;
+  }
   SerialUSBDriver *sdup = usbp->in_params[ep - 1U];
 
   if (sdup == NULL) {
@@ -450,12 +477,12 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
 
   osalSysLockFromISR();
 
-  /* Signaling that space is available in the output queue.*/
-  chnAddFlagsI(sdup, CHN_OUTPUT_EMPTY);
-
   /* Freeing the buffer just transmitted, if it was not a zero size packet.*/
   if (usbp->epc[ep]->in_state->txsize > 0U) {
     obqReleaseEmptyBufferI(&sdup->obqueue);
+
+    /* Signaling that space is available in the output queue.*/
+    chnAddFlagsI(sdup, CHN_OUTPUT_EMPTY);
   }
 
   /* Checking if there is a buffer ready for transmission.*/
@@ -466,18 +493,23 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
        so it is safe to transmit without a check.*/
     usbStartTransmitI(usbp, ep, buf, n);
   }
-  else if ((usbp->epc[ep]->in_state->txsize > 0U) &&
-           ((usbp->epc[ep]->in_state->txsize &
-            ((size_t)usbp->epc[ep]->in_maxsize - 1U)) == 0U)) {
-    /* Transmit zero sized packet in case the last one has maximum allowed
-       size. Otherwise the recipient may expect more data coming soon and
-       not return buffered data to app. See section 5.8.3 Bulk Transfer
-       Packet Size Constraints of the USB Specification document.*/
-    usbStartTransmitI(usbp, ep, usbp->setup, 0);
-
-  }
   else {
-    /* Nothing to transmit.*/
+#if (SERIAL_USB_SEND_ZLP == TRUE)
+    if ((usbp->epc[ep]->in_state->txsize > 0U) &&
+        ((usbp->epc[ep]->in_state->txsize %
+          (size_t)usbp->epc[ep]->in_maxsize) == 0U)) {
+      /* Optionally transmit a zero-sized packet when the queue drains on a
+         maximum-packet boundary. This is not required by CDC-ACM, it is a
+         compatibility policy for hosts that delay bulk IN delivery until a
+         short packet terminates the transfer.*/
+      usbStartTransmitI(usbp, ep, usbp->setup, 0);
+    }
+    else
+#endif
+    {
+      /* Nothing further to transmit.*/
+      chnAddFlagsI(sdup, CHN_TRANSMISSION_END);
+    }
   }
 
   osalSysUnlockFromISR();
@@ -493,6 +525,11 @@ void sduDataTransmitted(USBDriver *usbp, usbep_t ep) {
  */
 void sduDataReceived(USBDriver *usbp, usbep_t ep) {
   size_t size;
+
+  osalDbgAssert(ep != 0U, "invalid endpoint");
+  if (ep == 0U) {
+    return;
+  }
   SerialUSBDriver *sdup = usbp->out_params[ep - 1U];
 
   if (sdup == NULL) {
@@ -537,7 +574,7 @@ void sduInterruptTransmitted(USBDriver *usbp, usbep_t ep) {
 /**
  * @brief   Control operation on a serial USB port.
  *
- * @param[in] usbp       pointer to a @p USBDriver object
+ * @param[in] sdup      pointer to a @p SerialUSBDriver object
  * @param[in] operation control operation code
  * @param[in,out] arg   operation argument
  *
@@ -548,9 +585,9 @@ void sduInterruptTransmitted(USBDriver *usbp, usbep_t ep) {
  *
  * @api
  */
-msg_t sduControl(USBDriver *usbp, unsigned int operation, void *arg) {
+msg_t sduControl(SerialUSBDriver *sdup, unsigned int operation, void *arg) {
 
-  return _ctl((void *)usbp, operation, arg);
+  return _ctl((void *)sdup, operation, arg);
 }
 
 #endif /* HAL_USE_SERIAL_USB == TRUE */

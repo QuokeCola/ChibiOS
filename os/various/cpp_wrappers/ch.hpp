@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -81,30 +81,24 @@ namespace chibios_rt {
      * @brief   System integrity check.
      * @details Performs an integrity check of the important ChibiOS/RT data
      *          structures.
-     * @note    The appropriate action in case of failure is to halt the system
-     *          before releasing the critical zone.
-     * @note    If the system is corrupted then one possible outcome of this
-     *          function is an exception caused by @p nullptr or corrupted
-     *          pointers in list elements. Exception vectors must be monitored
-     *          as well.
+     * @note    The reaction in case of failure is to invoke the
+     *          @p CH_CFG_INTEGRITY_HOOK which, by default, halts the system.
+     * @note    This functionality is available at any hardening level.
+     * @note    Pointers validation is enabled at hardening level 2 or greater,
+     *          at lower levels a corrupted pointer can cause an exception.
+     *          Exceptions should be monitored as well as possible outcomes.
      * @note    This function is not used internally, it is up to the
      *          application to define if and where to perform system
      *          checking.
-     * @note    Performing all tests at once can be a slow operation and can
-     *          degrade the system response time. It is suggested to execute
-     *          one test at time and release the critical zone in between tests.
      *
      * @param[in] testmask  Each bit in this mask is associated to a test to be
      *                      performed.
-     * @return              The test result.
-     * @retval false        The test succeeded.
-     * @retval true         Test failed.
      *
      * @iclass
      */
-    static bool integrityCheckI(unsigned int testmask) {
+    static void integrityCheckI(unsigned int testmask) {
 
-      return chSysIntegrityCheckI(testmask);
+      chSftIntegrityCheckI(testmask);
     }
 
     /**
@@ -2833,6 +2827,16 @@ namespace chibios_rt {
     MemoryPool(MemoryPool &&) = default;
     MemoryPool &operator=(MemoryPool &&) = default;
 
+  protected:
+    /**
+     * @brief   Returns the low level pointer to the memory pool.
+     */
+    memory_pool_t *getInner(void) {
+
+      return &pool;
+    }
+
+  public:
     /**
      * @brief   Loads a memory pool with an array of static objects.
      * @pre     The memory pool must be already been initialized.
@@ -2976,7 +2980,7 @@ namespace chibios_rt {
     ThreadReference start(tprio_t prio) override {
       void _thd_start(void *arg);
 
-      return ThreadReference(chThdCreateFromMemoryPool(&threads_pool.pool,
+      return ThreadReference(chThdCreateFromMemoryPool(threads_pool.getInner(),
                                                        C,
                                                        prio,
                                                        _thd_start,

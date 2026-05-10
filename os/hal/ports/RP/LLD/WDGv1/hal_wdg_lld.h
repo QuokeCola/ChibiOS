@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2021 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ typedef struct {
    * @brief   Configuration of the WATCHDOG LOAD register.
    * @details See the RP2040 data sheet for details.
    */
-  uint32_t    				rlr;
+  uint32_t                  rlr;
 } WDGConfig;
 
 /**

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -290,7 +290,7 @@ static inline halfreq_t halClockGetPointX(halclkpt_t clkpt) {
 /**
  * @brief   Switches to a different clock configuration
  *
- * @param[in] ccp       pointer to clock a @p halclkcfg_t structure
+ * @param[in] ccp       pointer to a @p halclkcfg_t structure
  * @return              The clock switch result.
  * @retval false        if the clock switch succeeded
  * @retval true         if the clock switch failed
@@ -315,38 +315,41 @@ static inline bool halClockSwitchMode(const halclkcfg_t *ccp) {
 #include "hal_cb_driver.h"
 #include "hal_channels.h"
 #include "hal_block_io.h"
+#include "hal_flash.h"
 //#include "hal_mmcsd.h"
 //#include "hal_persistent.h"
-//#include "hal_flash.h"
 
 /* Shared headers.*/
+#include "hal_safety.h"
 //#include "hal_buffers.h"
 #include "hal_queues.h"
-#include "hal_buffered_serial.h"
 
 /* Normal drivers.*/
 #include "hal_pal.h"
-//#include "hal_adc.h"
-//#include "hal_can.h"
+#include "hal_adc.h"
+#include "hal_can.h"
 //#include "hal_crypto.h"
-//#include "hal_dac.h"
-//#include "hal_efl.h"
+#include "hal_dac.h"
+#include "hal_efl.h"
 #include "hal_eth.h"
-//#include "hal_gpt.h"
-//#include "hal_i2c.h"
-//#include "hal_i2s.h"
-//#include "hal_icu.h"
-//#include "hal_pwm.h"
-//#include "hal_rtc.h"
+#include "hal_gpt.h"
+#include "hal_i2c.h"
+#include "hal_i2s.h"
+#include "hal_icu.h"
+#include "hal_pwm.h"
+#include "hal_rtc.h"
 //#include "hal_serial.h"
-//#include "hal_sdc.h"
+#include "hal_sdc.h"
 #include "hal_sio.h"
 #include "hal_spi.h"
-//#include "hal_trng.h"
+#include "hal_trng.h"
 //#include "hal_uart.h"
-//#include "hal_usb.h"
-//#include "hal_wdg.h"
-//#include "hal_wspi.h"
+#if (HAL_USE_USB == TRUE) || defined(__DOXYGEN__)
+#include "hal_usb.h"
+#include "hal_usb_cdc.h"
+#endif
+#include "hal_wdg.h"
+#include "hal_wspi.h"
 
 /*
  *  The ST driver is a special case, it is only included if the OSAL is

@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -100,8 +99,14 @@ void sb_sysc_exit(sb_class_t *sbp, struct port_extctx *ectxp) {
 #if SB_CFG_ENABLE_VFS == TRUE
   __sb_io_cleanup(sbp);
 #endif
+#if SB_CFG_ENABLE_VIO == TRUE
+  __sb_vio_cleanup(sbp);
+#endif
 
   chSysLock();
+#if SB_CFG_ENABLE_VRQ == TRUE
+  chVTResetI(&sbp->vrq.alarm_vt);
+#endif
 #if CH_CFG_USE_EVENTS == TRUE
   chEvtBroadcastI(&sb.termination_es);
 #endif
@@ -239,6 +244,11 @@ void sb_sysc_loadelf(sb_class_t *sbp, struct port_extctx *ectxp) {
   const char *fname = (const char *)ectxp->r0;
   uint8_t *buf = (uint8_t *)ectxp->r1;
   size_t size = (size_t)ectxp->r2;
+
+  if (sbp->io.vfs_driver == NULL) {
+    ectxp->r0 = CH_RET_ENOSYS;
+    return;
+  }
 
   if ((sb_check_string(sbp, (void *)fname, VFS_CFG_PATHLEN_MAX + 1) == (size_t)0) ||
        !MEM_IS_ALIGNED(buf, MEM_NATURAL_ALIGN) ||

@@ -114,7 +114,7 @@ include $(CHIBIOS)/test/rt/rt_test.mk
 include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
-include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+include $(CHIBIOS)/os/various/lwip_bindings/lwip_hal.mk
 include $(CHIBIOS)/os/various/wolfssl_bindings/wolfssl.mk
 include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
 
@@ -125,7 +125,6 @@ LDSCRIPT= $(STARTUPLD)/STM32F746xG_MAX.ld
 # setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
-       $(CHIBIOS)/os/various/evtimer.c \
        $(CONFDIR)/portab.c \
        main.c web/web.c web/cert.c
 

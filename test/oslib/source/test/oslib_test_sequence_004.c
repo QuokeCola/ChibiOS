@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2017 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ static msg_t msg_queue[JOBS_QUEUE_SIZE];
 
 static void job_slow(void *arg) {
 
-  test_emit_token((int)arg);
+  test_emit_token((char)(uintptr_t)arg);
   chThdSleepMilliseconds(10);
 }
 
@@ -85,6 +85,7 @@ static THD_FUNCTION(Thread1, arg) {
  * - [4.1.2] Starting the dispatcher threads.
  * - [4.1.3] Sending jobs with various timings.
  * - [4.1.4] Sending two null jobs to make threads exit.
+ * - [4.1.5] Verifying that all descriptors have been returned.
  * .
  */
 
@@ -132,7 +133,7 @@ static void oslib_test_004_001_execute(void) {
     for (i = 0; i < 8; i++) {
       jdp = chJobGet(&jq);
       jdp->jobfunc = job_slow;
-      jdp->jobarg  = (void *)('a' + i);
+      jdp->jobarg  = (void *)(uintptr_t)('a' + i);
       chJobPost(&jq, jdp);
     }
   }
@@ -156,6 +157,22 @@ static void oslib_test_004_001_execute(void) {
     test_assert_sequence("abcdefgh", "unexpected tokens");
   }
   test_end_step(4);
+
+  /* [4.1.5] Verifying that all descriptors have been returned.*/
+  test_set_step(5);
+  {
+    cnt_t cnt;
+    size_t used;
+
+    chSysLock();
+    cnt = chGuardedPoolGetCounterI(&jq.free);
+    used = chMBGetUsedCountI(&jq.mbx);
+    chSysUnlock();
+
+    test_assert(cnt == (cnt_t)JOBS_QUEUE_SIZE, "lost descriptors");
+    test_assert(used == 0U, "pending jobs");
+  }
+  test_end_step(5);
 }
 
 static const testcase_t oslib_test_004_001 = {

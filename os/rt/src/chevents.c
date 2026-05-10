@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -121,7 +120,10 @@ void chEvtObjectInit(event_source_t *esp) {
 void chEvtObjectDispose(event_source_t *esp) {
 
   chDbgCheck(esp != NULL);
-  chDbgAssert(esp->next != (event_listener_t *)esp, "object in use");
+
+  chSftAssert(1, SFT_IS_VALID_DATA_POINTER(esp->next), "invalid link");
+
+  chDbgAssert(esp->next == (event_listener_t *)esp, "object in use");
 
 #if CH_CFG_HARDENING_LEVEL > 0
   memset((void *)esp, 0, sizeof (event_source_t));

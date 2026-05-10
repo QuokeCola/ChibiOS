@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2021 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -42,14 +42,16 @@
  * IRQ system settings.
  */
 #define RP_IRQ_SYSTICK_PRIORITY             2
-#define RP_IRQ_TIMER_ALARM0_PRIORITY        2
-#define RP_IRQ_TIMER_ALARM1_PRIORITY        2
-#define RP_IRQ_TIMER_ALARM2_PRIORITY        2
-#define RP_IRQ_TIMER_ALARM3_PRIORITY        2
+#define RP_IRQ_TIMER0_ALARM0_PRIORITY       2
+#define RP_IRQ_TIMER0_ALARM1_PRIORITY       2
+#define RP_IRQ_TIMER0_ALARM2_PRIORITY       2
+#define RP_IRQ_TIMER0_ALARM3_PRIORITY       2
 #define RP_IRQ_UART0_PRIORITY               3
 #define RP_IRQ_UART1_PRIORITY               3
 #define RP_IRQ_SPI0_PRIORITY                2
 #define RP_IRQ_SPI1_PRIORITY                2
+#define RP_IRQ_I2C0_PRIORITY                2
+#define RP_IRQ_I2C1_PRIORITY                2
 
 /*
  * SIO driver system settings.
@@ -69,5 +71,23 @@
 #define RP_SPI_SPI0_DMA_PRIORITY            1
 #define RP_SPI_SPI1_DMA_PRIORITY            1
 #define RP_SPI_DMA_ERROR_HOOK(spip)
+
+/*
+ * I2C driver system settings.
+ */
+#define RP_I2C_USE_I2C0                     FALSE
+#define RP_I2C_USE_I2C1                     FALSE
+
+/*
+ * PWM driver system settings.
+ */
+#define RP_PWM_USE_PWM0                     FALSE
+#define RP_PWM_USE_PWM1                     FALSE
+#define RP_PWM_USE_PWM2                     FALSE
+#define RP_PWM_USE_PWM3                     FALSE
+#define RP_PWM_USE_PWM4                     FALSE
+#define RP_PWM_USE_PWM5                     FALSE
+#define RP_PWM_USE_PWM6                     FALSE
+#define RP_PWM_USE_PWM7                     FALSE
 
 #endif /* MCUCONF_H */

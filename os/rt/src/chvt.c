@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -303,7 +302,8 @@ void chVTObjectDispose(virtual_timer_t *vtp) {
 
   chSftCheckQueueX(&vtp->dlist);
 
-  chDbgAssert(vtp->dlist.next != NULL, "object in use");
+  /* The timer must not be armed when disposed.*/
+  chDbgAssert(vtp->dlist.next == NULL, "object in use");
 
 #if CH_CFG_HARDENING_LEVEL > 0
   memset((void *)vtp, 0, sizeof (virtual_timer_t));

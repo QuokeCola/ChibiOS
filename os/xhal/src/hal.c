@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -67,9 +67,20 @@ void halInit(void) {
 #if (HAL_USE_PAL == TRUE) || defined(__DOXYGEN__)
   palInit();
 #endif
-#if 0
+#if (HAL_USE_ETH == TRUE) || defined(__DOXYGEN__)
+  ethInit();
+#endif
 #if (HAL_USE_ADC == TRUE) || defined(__DOXYGEN__)
   adcInit();
+#endif
+#if (HAL_USE_GPT == TRUE) || defined(__DOXYGEN__)
+  gptInit();
+#endif
+#if (HAL_USE_PWM == TRUE) || defined(__DOXYGEN__)
+  pwmInit();
+#endif
+#if (HAL_USE_ICU == TRUE) || defined(__DOXYGEN__)
+  icuInit();
 #endif
 #if (HAL_USE_CAN == TRUE) || defined(__DOXYGEN__)
   canInit();
@@ -83,30 +94,17 @@ void halInit(void) {
 #if (HAL_USE_EFL == TRUE) || defined(__DOXYGEN__)
   eflInit();
 #endif
-#if (HAL_USE_GPT == TRUE) || defined(__DOXYGEN__)
-  gptInit();
-#endif
 #if (HAL_USE_I2C == TRUE) || defined(__DOXYGEN__)
   i2cInit();
-#endif
-#if (HAL_USE_I2S == TRUE) || defined(__DOXYGEN__)
-  i2sInit();
-#endif
-#if (HAL_USE_ICU == TRUE) || defined(__DOXYGEN__)
-  icuInit();
-#endif
-#if (HAL_USE_MAC == TRUE) || defined(__DOXYGEN__)
-  macInit();
-#endif
-#if (HAL_USE_PWM == TRUE) || defined(__DOXYGEN__)
-  pwmInit();
-#endif
-#if (HAL_USE_SERIAL == TRUE) || defined(__DOXYGEN__)
-  sdInit();
 #endif
 #if (HAL_USE_SDC == TRUE) || defined(__DOXYGEN__)
   sdcInit();
 #endif
+#if (HAL_USE_I2S == TRUE) || defined(__DOXYGEN__)
+  i2sInit();
+#endif
+#if (HAL_USE_SERIAL == TRUE) || defined(__DOXYGEN__)
+  sdInit();
 #endif
 #if (HAL_USE_SIO == TRUE) || defined(__DOXYGEN__)
   sioInit();
@@ -114,30 +112,30 @@ void halInit(void) {
 #if (HAL_USE_SPI == TRUE) || defined(__DOXYGEN__)
   spiInit();
 #endif
-#if 0
-#if (HAL_USE_TRNG == TRUE) || defined(__DOXYGEN__)
-  trngInit();
+#if (HAL_USE_RTC == TRUE) || defined(__DOXYGEN__)
+  rtcInit();
 #endif
-#if (HAL_USE_UART == TRUE) || defined(__DOXYGEN__)
-  uartInit();
+#if (HAL_USE_WSPI == TRUE) || defined(__DOXYGEN__)
+  wspiInit();
 #endif
 #if (HAL_USE_USB == TRUE) || defined(__DOXYGEN__)
   usbInit();
+#endif
+#if (HAL_USE_WDG == TRUE) || defined(__DOXYGEN__)
+  wdgInit();
+#endif
+#if (HAL_USE_TRNG == TRUE) || defined(__DOXYGEN__)
+  trngInit();
+#endif
+#if 0
+#if (HAL_USE_UART == TRUE) || defined(__DOXYGEN__)
+  uartInit();
 #endif
 #if (HAL_USE_MMC_SPI == TRUE) || defined(__DOXYGEN__)
   mmcInit();
 #endif
 #if (HAL_USE_SERIAL_USB == TRUE) || defined(__DOXYGEN__)
   sduInit();
-#endif
-#if (HAL_USE_RTC == TRUE) || defined(__DOXYGEN__)
-  rtcInit();
-#endif
-#if (HAL_USE_WDG == TRUE) || defined(__DOXYGEN__)
-  wdgInit();
-#endif
-#if (HAL_USE_WSPI == TRUE) || defined(__DOXYGEN__)
-  wspiInit();
 #endif
 #endif
 

@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -24,6 +23,8 @@
  * @addtogroup ARM_SANDBOX_HOST_VIO_UART
  * @{
  */
+
+#include <string.h>
 
 #include "sb.h"
 
@@ -64,10 +65,9 @@ void sb_sysc_vio_uart(sb_class_t *sbp, struct port_extctx *ectxp) {
   uint32_t sub  = VIO_CALL_SUBCODE(ectxp->r0);
   uint32_t unit = VIO_CALL_UNIT(ectxp->r0);
   ectxp->r0 = (uint32_t)CH_RET_INNER_ERROR;
-  const vio_uart_unit_t *unitp;
 
   /* VIO not associated.*/
-  if (sbp->vioconf == NULL) {
+  if ((sbp->vioconf == NULL) || (sbp->vioconf->uarts == NULL)) {
     ectxp->r0 = (uint32_t)HAL_RET_NO_RESOURCE;
     return;
   }
@@ -77,199 +77,239 @@ void sb_sysc_vio_uart(sb_class_t *sbp, struct port_extctx *ectxp) {
     return;
   }
 
-  unitp = &sbp->vioconf->uarts->units[unit];
+  /* API processing.*/
+  {
+    const vio_uart_unit_t *unitp = &sbp->vioconf->uarts->units[unit];
 
-  switch (sub) {
-  case SB_VUART_INIT:
-    {
-      msg_t msg;
+    switch (sub) {
+    case SB_VUART_INIT:
+      {
+        size_t n = ectxp->r1;
+        void *p = (void *)ectxp->r2;
+        const void *confp;
+        msg_t msg;
 
-      /* Associating this virtual UART to the SIO driver.*/
-      drvSetArgumentX(unitp->siop, (void *)unitp);
+        if ((sbp->vioconf->uartconfs == NULL) ||
+            (sbp->vioconf->uartconfs->cfgsnum == 0U)) {
+          ectxp->r0 = (uint32_t)HAL_RET_NO_RESOURCE;
+          break;
+        }
 
-      msg = drvStart(unitp->siop);
-      if (msg == HAL_RET_SUCCESS) {
+        if (n > sizeof (hal_sio_config_t)) {
+          ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
+          break;
+        }
 
-        /* Starting with disabled events, enabling the callback.*/
-        sioWriteEnableFlags(unitp->siop, SIO_EV_NONE);
-        drvSetCallbackX(unitp->siop, vuart_cb);
+        if ((n > 0U) && !sb_is_valid_write_range(sbp, p, n)) {
+          ectxp->r0 = (uint32_t)CH_RET_EFAULT;
+          break;
+        }
+
+        confp = &sbp->vioconf->uartconfs->cfgs[0];
+
+        /* Associating this virtual UART to the SIO driver.*/
+        drvSetArgumentX(unitp->siop, (void *)unitp);
+
+        msg = drvStart(unitp->siop, confp);
+        if (msg == HAL_RET_SUCCESS) {
+
+          /* Starting with disabled events, enabling the callback.*/
+          sioWriteEnableFlags(unitp->siop, SIO_EV_NONE);
+          drvSetCallbackX(unitp->siop, vuart_cb);
+          if (n > 0U) {
+            memcpy(p, confp, n);
+          }
+        }
+
+        ectxp->r0 = (uint32_t)msg;
+        break;
       }
+    case SB_VUART_DEINIT:
+      {
+        drvSetCallbackX(unitp->siop, NULL);
+        drvStop(unitp->siop);
+        drvSetArgumentX(unitp->siop, NULL);
 
-      ectxp->r0 = (uint32_t)msg;
+        ectxp->r0 = (uint32_t)HAL_RET_SUCCESS;
+        break;
+      }
+    default:
+      ectxp->r0 = (uint32_t)CH_RET_ENOSYS;
       break;
     }
-  case SB_VUART_DEINIT:
-    {
-      drvStop(unitp->siop);
-
-      ectxp->r0 = (uint32_t)HAL_RET_SUCCESS;
-      break;
-    }
-  default:
-    ectxp->r0 = (uint32_t)CH_RET_ENOSYS;
-    break;
   }
 }
 
 void sb_fastc_vio_uart(sb_class_t *sbp, struct port_extctx *ectxp) {
   uint32_t sub  = VIO_CALL_SUBCODE(ectxp->r0);
   uint32_t unit = VIO_CALL_UNIT(ectxp->r0);
-  const vio_uart_unit_t *unitp;
 
   /* VIO not associated.*/
-  if (sbp->vioconf == NULL) {
+  if ((sbp->vioconf == NULL) || (sbp->vioconf->uarts == NULL)) {
     ectxp->r0 = (uint32_t)HAL_RET_NO_RESOURCE;
     return;
   }
 
-  /* Returned value in case of error or illegal sub-code.*/
-  ectxp->r0 = (uint32_t)-1;
-
   if (unit >= sbp->vioconf->uarts->n) {
+    ectxp->r0 = (uint32_t)HAL_RET_NO_RESOURCE;
     return;
   }
 
-  unitp = &sbp->vioconf->uarts->units[unit];
+  /* API processing.*/
+  {
+    const vio_uart_unit_t *unitp = &sbp->vioconf->uarts->units[unit];
 
-  /* We don't want assertion or errors to be caused in host, making sure
-     all functions are called in the proper state.*/
-  if (unitp->siop->state != HAL_DRV_STATE_READY) {
-    return;
-  }
+    /* We don't want assertion or errors to be caused in host, making sure
+       all functions are called in the proper state.*/
+    if (unitp->siop->state != HAL_DRV_STATE_READY) {
+      ectxp->r0 = (uint32_t)HAL_RET_INV_STATE;
+      return;
+    }
 
-  switch (sub) {
-  case SB_VUART_SELCFG:
-    {
-      uint32_t cfgnum = ectxp->r1;
-      size_t n = ectxp->r2;
-      void *p = (void *)ectxp->r3;
-      const void *confp;
+    switch (sub) {
+    case SB_VUART_SELCFG:
+      {
+        uint32_t cfgnum = ectxp->r1;
+        size_t n = ectxp->r2;
+        void *p = (void *)ectxp->r3;
+        const void *confp;
+        msg_t msg;
 
-      /* Check on configuration index.*/
-      if (cfgnum >= sbp->vioconf->uartconfs->cfgsnum) {
-        ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
-        return;
-      }
+        /* Check on configuration index.*/
+        if ((sbp->vioconf->uartconfs == NULL) ||
+            (cfgnum >= sbp->vioconf->uartconfs->cfgsnum)) {
+          ectxp->r0 = (uint32_t)HAL_RET_NO_RESOURCE;
+          return;
+        }
 
-      /* Check on configuration buffer size.*/
-      if (n > sizeof (hal_sio_config_t)) {
-        ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
-        return;
-      }
+        /* Check on configuration buffer size.*/
+        if (n > sizeof (hal_sio_config_t)) {
+          ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
+          return;
+        }
 
-      /* Check on configuration buffer area.*/
-      if (!sb_is_valid_write_range(sbp, p, n)) {
-        ectxp->r0 = (uint32_t)CH_RET_EFAULT;
-        /* TODO enforce fault instead.*/
+        /* Check on configuration buffer area.*/
+        if ((n > 0U) && !sb_is_valid_write_range(sbp, p, n)) {
+          ectxp->r0 = (uint32_t)CH_RET_EFAULT;
+          /* TODO enforce fault instead.*/
+          break;
+        }
+
+        /* Specified VUART configuration.*/
+        confp = &sbp->vioconf->uartconfs->cfgs[cfgnum];
+        msg = drvSetCfgX(unitp->siop, confp);
+
+        /* Copying the standard part of the configuration into the sandbox
+           space in the specified position.*/
+        if (msg == HAL_RET_SUCCESS) {
+          if (n > 0U) {
+            memcpy(p, confp, n);
+          }
+          ectxp->r0 = (uint32_t)HAL_RET_SUCCESS;
+        }
+        else {
+          ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
+        }
+
         break;
       }
-
-      /* Specified VUART configuration.*/
-      confp = drvSelectCfgX(unitp->siop, cfgnum);
-
-      /* Copying the standard part of the configuration into the sandbox
-         space in the specified position.*/
-      if (confp != NULL) {
-        memcpy(p, confp, n);
-        ectxp->r0 = (uint32_t)HAL_RET_SUCCESS;
-      }
-      else {
-        ectxp->r0 = (uint32_t)HAL_RET_CONFIG_ERROR;
-      }
-
-      break;
-    }
-  case SB_VUART_ISRXE:
-    {
-      ectxp->r0 = (uint32_t)sioIsRXEmptyX(unitp->siop);
-      break;
-    }
-  case SB_VUART_ISRXI:
-    {
-      ectxp->r0 = (uint32_t)sioIsRXIdleX(unitp->siop);
-      break;
-    }
-  case SB_VUART_ISTXF:
-    {
-      ectxp->r0 = (uint32_t)sioIsTXFullX(unitp->siop);
-      break;
-    }
-  case SB_VUART_ISTXO:
-    {
-      ectxp->r0 = (uint32_t)sioIsTXOngoingX(unitp->siop);
-      break;
-    }
-  case SB_VUART_HASERR:
-    {
-      ectxp->r0 = (uint32_t)sioHasRXErrorsX(unitp->siop);
-      break;
-    }
-  case SB_VUART_READ:
-    {
-      uint8_t *buffer = (uint8_t *)ectxp->r1;
-      size_t n = (size_t)ectxp->r2;
-
-      if (!sb_is_valid_write_range(sbp, buffer, n)) {
-        ectxp->r0 = (uint32_t)CH_RET_EFAULT;
-        /* TODO enforce fault instead.*/
+    case SB_VUART_ISRXE:
+      {
+        ectxp->r0 = (uint32_t)sioIsRXEmptyX(unitp->siop);
         break;
       }
-
-      ectxp->r0 = sioAsyncReadX(unitp->siop, buffer, n);
-      break;
-    }
-  case SB_VUART_WRITE:
-    {
-      const uint8_t *buffer = (const uint8_t *)ectxp->r1;
-      size_t n = (size_t)ectxp->r2;
-
-      if (!sb_is_valid_read_range(sbp, buffer, n)) {
-        ectxp->r0 = (uint32_t)CH_RET_EFAULT;
-        /* TODO enforce fault instead.*/
+    case SB_VUART_ISRXI:
+      {
+        ectxp->r0 = (uint32_t)sioIsRXIdleX(unitp->siop);
         break;
       }
+    case SB_VUART_ISTXF:
+      {
+        ectxp->r0 = (uint32_t)sioIsTXFullX(unitp->siop);
+        break;
+      }
+    case SB_VUART_ISTXO:
+      {
+        ectxp->r0 = (uint32_t)sioIsTXOngoingX(unitp->siop);
+        break;
+      }
+    case SB_VUART_HASERR:
+      {
+        ectxp->r0 = (uint32_t)sioHasRXErrorsX(unitp->siop);
+        break;
+      }
+    case SB_VUART_READ:
+      {
+        uint8_t *buffer = (uint8_t *)ectxp->r1;
+        size_t n = (size_t)ectxp->r2;
 
-      ectxp->r0 = sioAsyncWriteX(unitp->siop, buffer, n);
-      break;
+        if (!sb_is_valid_write_range(sbp, buffer, n)) {
+          ectxp->r0 = (uint32_t)CH_RET_EFAULT;
+          /* TODO enforce fault instead.*/
+          break;
+        }
+
+        ectxp->r0 = sioAsyncReadX(unitp->siop, buffer, n);
+        break;
+      }
+    case SB_VUART_WRITE:
+      {
+        const uint8_t *buffer = (const uint8_t *)ectxp->r1;
+        size_t n = (size_t)ectxp->r2;
+
+        if (!sb_is_valid_read_range(sbp, buffer, n)) {
+          ectxp->r0 = (uint32_t)CH_RET_EFAULT;
+          /* TODO enforce fault instead.*/
+          break;
+        }
+
+        ectxp->r0 = sioAsyncWriteX(unitp->siop, buffer, n);
+        break;
+      }
+    case SB_VUART_GET:
+      {
+        ectxp->r0 = sioGetX(unitp->siop);
+        break;
+      }
+    case SB_VUART_PUT:
+      {
+        sioPutX(unitp->siop, (uint_fast16_t)ectxp->r1);
+        ectxp->r0 = (uint32_t)0;
+        break;
+      }
+    case SB_VUART_WREN:
+      {
+        sioWriteEnableFlagsX(unitp->siop, (sioevents_t)ectxp->r1);
+        ectxp->r0 = (uint32_t)0;
+        break;
+      }
+    case SB_VUART_GCERR:
+      {
+        ectxp->r0 = (uint32_t)sioGetAndClearErrorsX(unitp->siop);
+        break;
+      }
+    case SB_VUART_GCEVT:
+      {
+        ectxp->r0 = (uint32_t)sioGetAndClearEventsX(unitp->siop,
+                                                    (sioevents_t)ectxp->r1);
+        break;
+      }
+    case SB_VUART_GEVT:
+      {
+        ectxp->r0 = (uint32_t)sioGetEventsX(unitp->siop);
+        break;
+      }
+    case SB_VUART_CTL:
+      {
+        ectxp->r0 = (uint32_t)sioControlX(unitp->siop,
+                                          (unsigned int)ectxp->r1,
+                                          (void *)ectxp->r2);
+        break;
+      }
+    default:
+      ectxp->r0 = (uint32_t)CH_RET_ENOSYS;
+      return;
     }
-  case SB_VUART_GET:
-    {
-      ectxp->r0 = sioGetX(unitp->siop);
-      break;
-    }
-  case SB_VUART_PUT:
-    {
-      sioPutX(unitp->siop, (uint_fast16_t)ectxp->r1);
-      ectxp->r0 = (uint32_t)0;
-      break;
-    }
-  case SB_VUART_WREN:
-    {
-      sioWriteEnableFlagsX(unitp->siop, (sioevents_t)ectxp->r1);
-      ectxp->r0 = (uint32_t)0;
-      break;
-    }
-  case SB_VUART_GCERR:
-    {
-      ectxp->r0 = (uint32_t)sioGetAndClearErrorsX(unitp->siop);
-      break;
-    }
-  case SB_VUART_GCEVT:
-    {
-      ectxp->r0 = (uint32_t)sioGetAndClearEventsX(unitp->siop,
-                                                  (sioevents_t)ectxp->r1);
-      break;
-    }
-  case SB_VUART_GEVT:
-    {
-      ectxp->r0 = (uint32_t)sioGetEventsX(unitp->siop);
-      break;
-    }
-  case SB_VUART_CTL:
-    /* falls through */
-  default:
-    /* Silently ignored.*/
-    break;
   }
 }
 

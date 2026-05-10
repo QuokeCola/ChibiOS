@@ -1,13 +1,12 @@
 [#ftl]
 [#--
-    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
     ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation version 3 of the License.
 
     ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -125,18 +124,24 @@
 #define STM32_IRQ_EXTI4_PRIORITY            ${doc.STM32_IRQ_EXTI4_PRIORITY!"6"}
 #define STM32_IRQ_EXTI5_9_PRIORITY          ${doc.STM32_IRQ_EXTI5_9_PRIORITY!"6"}
 #define STM32_IRQ_EXTI10_15_PRIORITY        ${doc.STM32_IRQ_EXTI10_15_PRIORITY!"6"}
-#define STM32_IRQ_EXTI164041_PRIORITY       ${doc.STM32_IRQ_EXTI164041_PRIORITY!"6"}
-#define STM32_IRQ_EXTI17_PRIORITY           ${doc.STM32_IRQ_EXTI17_PRIORITY!"6"}
-#define STM32_IRQ_EXTI18_PRIORITY           ${doc.STM32_IRQ_EXTI18_PRIORITY!"6"}
-#define STM32_IRQ_EXTI19_PRIORITY           ${doc.STM32_IRQ_EXTI19_PRIORITY!"6"}
-#define STM32_IRQ_EXTI20_PRIORITY           ${doc.STM32_IRQ_EXTI20_PRIORITY!"6"}
-#define STM32_IRQ_EXTI212229_PRIORITY       ${doc.STM32_IRQ_EXTI212229_PRIORITY!"6"}
-#define STM32_IRQ_EXTI30_32_PRIORITY        ${doc.STM32_IRQ_EXTI30_32_PRIORITY!"6"}
-#define STM32_IRQ_EXTI33_PRIORITY           ${doc.STM32_IRQ_EXTI33_PRIORITY!"6"}
 
 #define STM32_IRQ_FDCAN1_PRIORITY           ${doc.STM32_IRQ_FDCAN1_PRIORITY!"10"}
 #define STM32_IRQ_FDCAN2_PRIORITY           ${doc.STM32_IRQ_FDCAN2_PRIORITY!"10"}
 #define STM32_IRQ_FDCAN3_PRIORITY           ${doc.STM32_IRQ_FDCAN3_PRIORITY!"10"}
+
+#define STM32_IRQ_I2C1_PRIORITY             ${doc.STM32_IRQ_I2C1_PRIORITY!"5"}
+#define STM32_IRQ_I2C2_PRIORITY             ${doc.STM32_IRQ_I2C2_PRIORITY!"5"}
+#define STM32_IRQ_I2C3_PRIORITY             ${doc.STM32_IRQ_I2C3_PRIORITY!"5"}
+#define STM32_IRQ_I2C4_PRIORITY             ${doc.STM32_IRQ_I2C4_PRIORITY!"5"}
+
+#define STM32_IRQ_ADC1_2_PRIORITY           ${doc.STM32_IRQ_ADC1_2_PRIORITY!"5"}
+#define STM32_IRQ_ADC3_PRIORITY             ${doc.STM32_IRQ_ADC3_PRIORITY!"5"}
+#define STM32_IRQ_ADC4_PRIORITY             ${doc.STM32_IRQ_ADC4_PRIORITY!"5"}
+#define STM32_IRQ_ADC5_PRIORITY             ${doc.STM32_IRQ_ADC5_PRIORITY!"5"}
+
+#define STM32_IRQ_RTC_TAMP_STAMP_PRIORITY   ${doc.STM32_IRQ_RTC_TAMP_STAMP_PRIORITY!"6"}
+#define STM32_IRQ_RTC_WKUP_PRIORITY         ${doc.STM32_IRQ_RTC_WKUP_PRIORITY!"6"}
+#define STM32_IRQ_RTC_ALARM_PRIORITY        ${doc.STM32_IRQ_RTC_ALARM_PRIORITY!"6"}
 
 #define STM32_IRQ_TIM1_BRK_TIM15_PRIORITY   ${doc.STM32_IRQ_TIM1_BRK_TIM15_PRIORITY!"7"}
 #define STM32_IRQ_TIM1_UP_TIM16_PRIORITY    ${doc.STM32_IRQ_TIM1_UP_TIM16_PRIORITY!"7"}
@@ -146,12 +151,14 @@
 #define STM32_IRQ_TIM3_PRIORITY             ${doc.STM32_IRQ_TIM3_PRIORITY!"7"}
 #define STM32_IRQ_TIM4_PRIORITY             ${doc.STM32_IRQ_TIM4_PRIORITY!"7"}
 #define STM32_IRQ_TIM5_PRIORITY             ${doc.STM32_IRQ_TIM5_PRIORITY!"7"}
-#define STM32_IRQ_TIM6_PRIORITY             ${doc.STM32_IRQ_TIM6_PRIORITY!"7"}
-#define STM32_IRQ_TIM7_PRIORITY             ${doc.STM32_IRQ_TIM7_PRIORITY!"7"}
+#define STM32_IRQ_TIM6_DAC_PRIORITY         ${doc.STM32_IRQ_TIM6_DAC_PRIORITY!"7"}
+#define STM32_IRQ_TIM7_DAC_PRIORITY         ${doc.STM32_IRQ_TIM7_DAC_PRIORITY!"7"}
 #define STM32_IRQ_TIM8_UP_PRIORITY          ${doc.STM32_IRQ_TIM8_UP_PRIORITY!"7"}
 #define STM32_IRQ_TIM8_CC_PRIORITY          ${doc.STM32_IRQ_TIM8_CC_PRIORITY!"7"}
 #define STM32_IRQ_TIM20_UP_PRIORITY         ${doc.STM32_IRQ_TIM20_UP_PRIORITY!"7"}
 #define STM32_IRQ_TIM20_CC_PRIORITY         ${doc.STM32_IRQ_TIM20_CC_PRIORITY!"7"}
+
+#define STM32_IRQ_QUADSPI1_PRIORITY         ${doc.STM32_IRQ_QUADSPI1_PRIORITY!"10"}
 
 #define STM32_IRQ_USART1_PRIORITY           ${doc.STM32_IRQ_USART1_PRIORITY!"12"}
 #define STM32_IRQ_USART2_PRIORITY           ${doc.STM32_IRQ_USART2_PRIORITY!"12"}
@@ -159,6 +166,147 @@
 #define STM32_IRQ_UART4_PRIORITY            ${doc.STM32_IRQ_UART4_PRIORITY!"12"}
 #define STM32_IRQ_UART5_PRIORITY            ${doc.STM32_IRQ_UART5_PRIORITY!"12"}
 #define STM32_IRQ_LPUART1_PRIORITY          ${doc.STM32_IRQ_LPUART1_PRIORITY!"12"}
+
+/*
+ * ADC driver system settings.
+ */
+#define STM32_ADC_DUAL_MODE                 ${doc.STM32_ADC_DUAL_MODE!"FALSE"}
+#define STM32_ADC_COMPACT_SAMPLES           ${doc.STM32_ADC_COMPACT_SAMPLES!"FALSE"}
+#define STM32_ADC_USE_ADC1                  ${doc.STM32_ADC_USE_ADC1!"FALSE"}
+#define STM32_ADC_USE_ADC2                  ${doc.STM32_ADC_USE_ADC2!"FALSE"}
+#define STM32_ADC_USE_ADC3                  ${doc.STM32_ADC_USE_ADC3!"FALSE"}
+#define STM32_ADC_USE_ADC4                  ${doc.STM32_ADC_USE_ADC4!"FALSE"}
+#define STM32_ADC_USE_ADC5                  ${doc.STM32_ADC_USE_ADC5!"FALSE"}
+#define STM32_ADC_ADC1_DMA_STREAM           ${doc.STM32_ADC_ADC1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_ADC_ADC2_DMA_STREAM           ${doc.STM32_ADC_ADC2_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_ADC_ADC3_DMA_STREAM           ${doc.STM32_ADC_ADC3_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_ADC_ADC4_DMA_STREAM           ${doc.STM32_ADC_ADC4_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_ADC_ADC5_DMA_STREAM           ${doc.STM32_ADC_ADC5_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_ADC_ADC1_DMA_PRIORITY         ${doc.STM32_ADC_ADC1_DMA_PRIORITY!"2"}
+#define STM32_ADC_ADC2_DMA_PRIORITY         ${doc.STM32_ADC_ADC2_DMA_PRIORITY!"2"}
+#define STM32_ADC_ADC3_DMA_PRIORITY         ${doc.STM32_ADC_ADC3_DMA_PRIORITY!"2"}
+#define STM32_ADC_ADC4_DMA_PRIORITY         ${doc.STM32_ADC_ADC4_DMA_PRIORITY!"2"}
+#define STM32_ADC_ADC5_DMA_PRIORITY         ${doc.STM32_ADC_ADC5_DMA_PRIORITY!"2"}
+#define STM32_ADC_ADC12_CLOCK_MODE          ${doc.STM32_ADC_ADC12_CLOCK_MODE!"ADC_CCR_CKMODE_AHB_DIV4"}
+#define STM32_ADC_ADC345_CLOCK_MODE         ${doc.STM32_ADC_ADC345_CLOCK_MODE!"ADC_CCR_CKMODE_AHB_DIV4"}
+#define STM32_ADC_ADC12_PRESC               ${doc.STM32_ADC_ADC12_PRESC!"ADC_CCR_PRESC_DIV2"}
+#define STM32_ADC_ADC345_PRESC              ${doc.STM32_ADC_ADC345_PRESC!"ADC_CCR_PRESC_DIV2"}
+
+/*
+ * CAN driver system settings.
+ */
+#define STM32_CAN_USE_FDCAN1                ${doc.STM32_CAN_USE_FDCAN1!"FALSE"}
+#define STM32_CAN_USE_FDCAN2                ${doc.STM32_CAN_USE_FDCAN2!"FALSE"}
+#define STM32_CAN_USE_FDCAN3                ${doc.STM32_CAN_USE_FDCAN3!"FALSE"}
+#define STM32_CAN_FDCAN_PRESC               ${doc.STM32_CAN_FDCAN_PRESC!"FDCAN_CONFIG_CKDIV_PDIV_1"}
+
+/*
+ * DAC driver system settings.
+ */
+#define STM32_DAC_DUAL_MODE                 ${doc.STM32_DAC_DUAL_MODE!"FALSE"}
+#define STM32_DAC_USE_DAC1_CH1              ${doc.STM32_DAC_USE_DAC1_CH1!"FALSE"}
+#define STM32_DAC_USE_DAC1_CH2              ${doc.STM32_DAC_USE_DAC1_CH2!"FALSE"}
+#define STM32_DAC_USE_DAC2_CH1              ${doc.STM32_DAC_USE_DAC2_CH1!"FALSE"}
+#define STM32_DAC_USE_DAC3_CH1              ${doc.STM32_DAC_USE_DAC3_CH1!"FALSE"}
+#define STM32_DAC_USE_DAC3_CH2              ${doc.STM32_DAC_USE_DAC3_CH2!"FALSE"}
+#define STM32_DAC_USE_DAC4_CH1              ${doc.STM32_DAC_USE_DAC4_CH1!"FALSE"}
+#define STM32_DAC_USE_DAC4_CH2              ${doc.STM32_DAC_USE_DAC4_CH2!"FALSE"}
+#define STM32_DAC_DAC1_CH1_DMA_PRIORITY     ${doc.STM32_DAC_DAC1_CH1_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC1_CH2_DMA_PRIORITY     ${doc.STM32_DAC_DAC1_CH2_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC2_CH1_DMA_PRIORITY     ${doc.STM32_DAC_DAC2_CH1_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC3_CH1_DMA_PRIORITY     ${doc.STM32_DAC_DAC3_CH1_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC3_CH2_DMA_PRIORITY     ${doc.STM32_DAC_DAC3_CH2_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC4_CH1_DMA_PRIORITY     ${doc.STM32_DAC_DAC4_CH1_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC4_CH2_DMA_PRIORITY     ${doc.STM32_DAC_DAC4_CH2_DMA_PRIORITY!"2"}
+#define STM32_DAC_DAC1_CH1_DMA_STREAM       ${doc.STM32_DAC_DAC1_CH1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC1_CH2_DMA_STREAM       ${doc.STM32_DAC_DAC1_CH2_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC2_CH1_DMA_STREAM       ${doc.STM32_DAC_DAC2_CH1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC3_CH1_DMA_STREAM       ${doc.STM32_DAC_DAC3_CH1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC3_CH2_DMA_STREAM       ${doc.STM32_DAC_DAC3_CH2_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC4_CH1_DMA_STREAM       ${doc.STM32_DAC_DAC4_CH1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_DAC_DAC4_CH2_DMA_STREAM       ${doc.STM32_DAC_DAC4_CH2_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+
+/*
+ * EFL driver system settings.
+ */
+#define STM32_FLASH_WAIT_TIME_MS            ${doc.STM32_FLASH_WAIT_TIME_MS!"22"}
+
+/*
+ * GPT driver system settings.
+ */
+#define STM32_GPT_USE_TIM1                  ${doc.STM32_GPT_USE_TIM1!"FALSE"}
+#define STM32_GPT_USE_TIM2                  ${doc.STM32_GPT_USE_TIM2!"FALSE"}
+#define STM32_GPT_USE_TIM3                  ${doc.STM32_GPT_USE_TIM3!"FALSE"}
+#define STM32_GPT_USE_TIM4                  ${doc.STM32_GPT_USE_TIM4!"FALSE"}
+#define STM32_GPT_USE_TIM5                  ${doc.STM32_GPT_USE_TIM5!"FALSE"}
+#define STM32_GPT_USE_TIM6                  ${doc.STM32_GPT_USE_TIM6!"FALSE"}
+#define STM32_GPT_USE_TIM7                  ${doc.STM32_GPT_USE_TIM7!"FALSE"}
+#define STM32_GPT_USE_TIM8                  ${doc.STM32_GPT_USE_TIM8!"FALSE"}
+#define STM32_GPT_USE_TIM15                 ${doc.STM32_GPT_USE_TIM15!"FALSE"}
+#define STM32_GPT_USE_TIM16                 ${doc.STM32_GPT_USE_TIM16!"FALSE"}
+#define STM32_GPT_USE_TIM17                 ${doc.STM32_GPT_USE_TIM17!"FALSE"}
+#define STM32_GPT_USE_TIM20                 ${doc.STM32_GPT_USE_TIM20!"FALSE"}
+
+/*
+ * I2C driver system settings.
+ */
+#define STM32_I2C_USE_I2C1                  ${doc.STM32_I2C_USE_I2C1!"FALSE"}
+#define STM32_I2C_USE_I2C2                  ${doc.STM32_I2C_USE_I2C2!"FALSE"}
+#define STM32_I2C_USE_I2C3                  ${doc.STM32_I2C_USE_I2C3!"FALSE"}
+#define STM32_I2C_USE_I2C4                  ${doc.STM32_I2C_USE_I2C4!"FALSE"}
+#define STM32_I2C_USE_DMA                   ${doc.STM32_I2C_USE_DMA!"TRUE"}
+#define STM32_I2C_I2C1_DMA_CHANNEL          ${doc.STM32_I2C_I2C1_DMA_CHANNEL!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2C_I2C2_DMA_CHANNEL          ${doc.STM32_I2C_I2C2_DMA_CHANNEL!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2C_I2C3_DMA_CHANNEL          ${doc.STM32_I2C_I2C3_DMA_CHANNEL!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2C_I2C4_DMA_CHANNEL          ${doc.STM32_I2C_I2C4_DMA_CHANNEL!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2C_I2C1_DMA_PRIORITY         ${doc.STM32_I2C_I2C1_DMA_PRIORITY!"1"}
+#define STM32_I2C_I2C2_DMA_PRIORITY         ${doc.STM32_I2C_I2C2_DMA_PRIORITY!"1"}
+#define STM32_I2C_I2C3_DMA_PRIORITY         ${doc.STM32_I2C_I2C3_DMA_PRIORITY!"1"}
+#define STM32_I2C_I2C4_DMA_PRIORITY         ${doc.STM32_I2C_I2C4_DMA_PRIORITY!"1"}
+#define STM32_I2C_DMA_ERROR_HOOK(i2cp)      ${doc.STM32_I2C_DMA_ERROR_HOOK!"osalSysHalt(\"DMA failure\")"}
+
+/*
+ * I2S driver system settings.
+ */
+#define STM32_I2S_USE_SPI2                  ${doc.STM32_I2S_USE_SPI2!"FALSE"}
+#define STM32_I2S_USE_SPI3                  ${doc.STM32_I2S_USE_SPI3!"FALSE"}
+#define STM32_I2S_SPI2_MODE                 ${doc.STM32_I2S_SPI2_MODE!"(STM32_I2S_MODE_MASTER | STM32_I2S_MODE_RX)"}
+#define STM32_I2S_SPI3_MODE                 ${doc.STM32_I2S_SPI3_MODE!"(STM32_I2S_MODE_MASTER | STM32_I2S_MODE_RX)"}
+#define STM32_I2S_SPI2_IRQ_PRIORITY         ${doc.STM32_I2S_SPI2_IRQ_PRIORITY!"10"}
+#define STM32_I2S_SPI3_IRQ_PRIORITY         ${doc.STM32_I2S_SPI3_IRQ_PRIORITY!"10"}
+#define STM32_I2S_SPI2_DMA_PRIORITY         ${doc.STM32_I2S_SPI2_DMA_PRIORITY!"1"}
+#define STM32_I2S_SPI3_DMA_PRIORITY         ${doc.STM32_I2S_SPI3_DMA_PRIORITY!"1"}
+#define STM32_I2S_SPI2_RX_DMA_STREAM        ${doc.STM32_I2S_SPI2_RX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2S_SPI2_TX_DMA_STREAM        ${doc.STM32_I2S_SPI2_TX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2S_SPI3_RX_DMA_STREAM        ${doc.STM32_I2S_SPI3_RX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2S_SPI3_TX_DMA_STREAM        ${doc.STM32_I2S_SPI3_TX_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_I2S_DMA_ERROR_HOOK(i2sp)      ${doc.STM32_I2S_DMA_ERROR_HOOK!"osalSysHalt(\"DMA failure\")"}
+
+/*
+ * ICU driver system settings.
+ */
+#define STM32_ICU_USE_TIM1                  ${doc.STM32_ICU_USE_TIM1!"FALSE"}
+#define STM32_ICU_USE_TIM2                  ${doc.STM32_ICU_USE_TIM2!"FALSE"}
+#define STM32_ICU_USE_TIM3                  ${doc.STM32_ICU_USE_TIM3!"FALSE"}
+#define STM32_ICU_USE_TIM4                  ${doc.STM32_ICU_USE_TIM4!"FALSE"}
+#define STM32_ICU_USE_TIM5                  ${doc.STM32_ICU_USE_TIM5!"FALSE"}
+#define STM32_ICU_USE_TIM8                  ${doc.STM32_ICU_USE_TIM8!"FALSE"}
+#define STM32_ICU_USE_TIM15                 ${doc.STM32_ICU_USE_TIM15!"FALSE"}
+#define STM32_ICU_USE_TIM20                 ${doc.STM32_ICU_USE_TIM20!"FALSE"}
+
+/*
+ * PWM driver system settings.
+ */
+#define STM32_PWM_USE_TIM1                  ${doc.STM32_PWM_USE_TIM1!"FALSE"}
+#define STM32_PWM_USE_TIM2                  ${doc.STM32_PWM_USE_TIM2!"FALSE"}
+#define STM32_PWM_USE_TIM3                  ${doc.STM32_PWM_USE_TIM3!"FALSE"}
+#define STM32_PWM_USE_TIM4                  ${doc.STM32_PWM_USE_TIM4!"FALSE"}
+#define STM32_PWM_USE_TIM5                  ${doc.STM32_PWM_USE_TIM5!"FALSE"}
+#define STM32_PWM_USE_TIM8                  ${doc.STM32_PWM_USE_TIM8!"FALSE"}
+#define STM32_PWM_USE_TIM15                 ${doc.STM32_PWM_USE_TIM15!"FALSE"}
+#define STM32_PWM_USE_TIM16                 ${doc.STM32_PWM_USE_TIM16!"FALSE"}
+#define STM32_PWM_USE_TIM17                 ${doc.STM32_PWM_USE_TIM17!"FALSE"}
+#define STM32_PWM_USE_TIM20                 ${doc.STM32_PWM_USE_TIM20!"FALSE"}
 
 /*
  * SIO driver system settings.
@@ -200,5 +348,42 @@
  */
 #define STM32_ST_IRQ_PRIORITY               ${doc.STM32_ST_IRQ_PRIORITY!"8"}
 #define STM32_ST_USE_TIMER                  ${doc.STM32_ST_USE_TIMER!"2"}
+
+/*
+ * RTC driver system settings.
+ */
+#define STM32_RTC_PRESA_VALUE               ${doc.STM32_RTC_PRESA_VALUE!"32"}
+#define STM32_RTC_PRESS_VALUE               ${doc.STM32_RTC_PRESS_VALUE!"1024"}
+#define STM32_RTC_CR_INIT                   ${doc.STM32_RTC_CR_INIT!"0U"}
+
+/*
+ * TRNG driver system settings.
+ */
+#define STM32_TRNG_USE_RNG1                 ${doc.STM32_TRNG_USE_RNG1!"FALSE"}
+#define STM32_TRNG_ERROR_CLEAR_ATTEMPTS     ${doc.STM32_TRNG_ERROR_CLEAR_ATTEMPTS!"1000"}
+#define STM32_TRNG_DATA_FETCH_ATTEMPTS      ${doc.STM32_TRNG_DATA_FETCH_ATTEMPTS!"1000"}
+
+/*
+ * USB driver system settings.
+ */
+#define STM32_USB_USE_USB1                  ${doc.STM32_USB_USE_USB1!"FALSE"}
+#define STM32_USB_LOW_POWER_ON_SUSPEND      ${doc.STM32_USB_LOW_POWER_ON_SUSPEND!"FALSE"}
+#define STM32_USB_USB1_HP_IRQ_PRIORITY      ${doc.STM32_USB_USB1_HP_IRQ_PRIORITY!"13"}
+#define STM32_USB_USB1_LP_IRQ_PRIORITY      ${doc.STM32_USB_USB1_LP_IRQ_PRIORITY!"14"}
+
+/*
+ * WDG driver system settings.
+ */
+#define STM32_WDG_USE_IWDG                  ${doc.STM32_WDG_USE_IWDG!"FALSE"}
+
+/*
+ * WSPI driver system settings.
+ */
+#define STM32_WSPI_USE_QUADSPI1             ${doc.STM32_WSPI_USE_QUADSPI1!"FALSE"}
+#define STM32_WSPI_QUADSPI1_DMA_STREAM      ${doc.STM32_WSPI_QUADSPI1_DMA_STREAM!"STM32_DMA_STREAM_ID_ANY"}
+#define STM32_WSPI_QUADSPI1_PRESCALER_VALUE ${doc.STM32_WSPI_QUADSPI1_PRESCALER_VALUE!"1"}
+#define STM32_WSPI_QUADSPI1_DMA_PRIORITY    ${doc.STM32_WSPI_QUADSPI1_DMA_PRIORITY!"1"}
+#define STM32_WSPI_QUADSPI1_DMA_IRQ_PRIORITY ${doc.STM32_WSPI_QUADSPI1_DMA_IRQ_PRIORITY!"10"}
+#define STM32_WSPI_DMA_ERROR_HOOK(wspip)    ${doc.STM32_WSPI_DMA_ERROR_HOOK!"osalSysHalt(\"DMA failure\")"}
 
 #endif /* XMCUCONF_H */

@@ -77,13 +77,20 @@
 *****************************************************************************
 
 *** Next ***
+- NEW: Thread mode for EP0 handling in USB HAL driver.
+- NEW: ADC driver in XHAL.
+- NEW: RTC driver in XHAL.
+- NEW: Added EFL driver for simulator and a simulator MFS test application.
+- NEW: Added simulator support for x84-64 on Posix/Linux.
+- NEW: Added XSHELL_EXIT_HOOK to xshell.
+- NEW: Memory areas functions in OSLIB addressed for portability.
+- NEW: Implemented better chThdSleepUntil() in NIL using the same logic used
+       in the RT implementation.
 - NEW: Function chSftIntegrityCheckI() rewritten to be much more efficient in
        performing lists integrity checks.
 - NEW: Added to RT a dedicated functional safety module, the function
        chSysIntegrityCheckI() has been moved in this module and renamed to
        chSftIntegrityCheckI().
-- NEW: I2Cv4 support added to STM32C0xx, STM32G0xx, STM32G4xx families. This
-       driver only require one DMA channel vs two of the old implementations.
 - NEW: Added multicore memory classes modifiers to RT in order to support
        NUMA architectures and non-coherent cache architectures.
 - NEW: Added MPU initialization settings in ARMv7-M, ARv7-M-ALT, ARMv8-ML-ALT
@@ -92,9 +99,8 @@
        ports. Specifically, saved few cycles on the context switch code path.
 - NEW: Added missing context switch hook in ARMv7-M-ALT and ARMv8-M-ML-ALT
        ports.
-- NEW: Added chRegGarbageCollect() function to registry for simplified
-       dynamic threads management.
-- NEW: Added integration demos for VFS+LittleFS/FatFS+XSHELL.
+- NEW: Added integration demos for VFS+LittleFS/FatFS+XSHELL, now also
+       available on STM32U0 Nucleo-64.
 - NEW: Added faster context switch modes to ARMv7-M and ARMv8-M ports. The
        new modes allow to avoid saving FP context for threads that do not
        use the FPU.

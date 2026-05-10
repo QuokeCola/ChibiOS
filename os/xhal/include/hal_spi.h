@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -103,7 +103,7 @@
 /**
  * @brief       Support for SPI user configurations.
  * @note        When enabled the user must provide a variable named @p
- *              sio_configurations of type @p sio_configurations_t.
+ *              spi_configurations of type @p spi_configurations_t.
  */
 #if !defined(SPI_USE_CONFIGURATIONS) || defined(__DOXYGEN__)
 #define SPI_USE_CONFIGURATIONS              FALSE
@@ -136,7 +136,7 @@
 /**
  * @brief       Return a pointer to the configuration structure.
  *
- * @param         ip            Pointer to the @p hal_sio_driver_c object.
+ * @param         ip            Pointer to the @p hal_spi_driver_c object.
  * @return                      A pointer to the configuration structure.
  *
  * @notapi
@@ -147,7 +147,7 @@
 /**
  * @brief       Retrieves a configuration field.
  *
- * @param         ip            Pointer to the @p hal_sio_driver_c object.
+ * @param         ip            Pointer to the @p hal_spi_driver_c object.
  * @param         field         Configuration field to be retrieved.
  * @return                      The field value.
  *
@@ -155,6 +155,58 @@
  */
 #define __spi_getfield(ip, field)                                           \
   (__spi_getconf(ip)->field)
+
+/**
+ * @brief       Common ISR code, half buffer event.
+ *
+ * @param[in,out] spip          Pointer to the SPI driver instance.
+ *
+ * @notapi
+ */
+#define _spi_isr_half_code(spip)                                            \
+  do {                                                                      \
+    __cbdrv_invoke_half_cb(spip);                                           \
+    __spi_wakeup_state_isr(spip, HAL_DRV_STATE_HALF);                       \
+  } while (false)
+
+/**
+ * @brief       Common ISR code, full buffer event.
+ *
+ * @param[in,out] spip          Pointer to the SPI driver instance.
+ *
+ * @notapi
+ */
+#define _spi_isr_full_code(spip)                                            \
+  do {                                                                      \
+    __cbdrv_invoke_full_cb(spip);                                           \
+    __spi_wakeup_state_isr(spip, HAL_DRV_STATE_FULL);                       \
+  } while (false)
+
+/**
+ * @brief       Common ISR code, transfer complete event.
+ *
+ * @param[in,out] spip          Pointer to the SPI driver instance.
+ *
+ * @notapi
+ */
+#define _spi_isr_complete_code(spip)                                        \
+  do {                                                                      \
+    __cbdrv_invoke_complete_cb(spip);                                       \
+    __spi_wakeup_state_isr(spip, HAL_DRV_STATE_COMPLETE);                   \
+  } while (false)
+
+/**
+ * @brief       Common ISR code, transfer error event.
+ *
+ * @param[in,out] spip          Pointer to the SPI driver instance.
+ *
+ * @notapi
+ */
+#define _spi_isr_error_code(spip)                                           \
+  do {                                                                      \
+    __cbdrv_invoke_error_cb(spip);                                          \
+    __spi_wakeup_isr(spip, MSG_RESET);                                      \
+  } while (false)
 
 /*===========================================================================*/
 /* Module data structures and types.                                         */
@@ -208,9 +260,9 @@ struct hal_spi_config {
   spi_mode_t                mode;
   /* End of the mandatory fields.*/
   spi_lld_config_fields;
-#if (defined(SPI_CONFIG_EXT_FIELS)) || defined (__DOXYGEN__)
+#if (defined(SPI_CONFIG_EXT_FIELDS)) || defined (__DOXYGEN__)
   SPI_CONFIG_EXT_FIELDS
-#endif /* defined(SPI_CONFIG_EXT_FIELS) */
+#endif /* defined(SPI_CONFIG_EXT_FIELDS) */
 };
 
 /**
@@ -254,12 +306,12 @@ struct hal_spi_driver_vmt {
   /* From base_object_c.*/
   void (*dispose)(void *ip);
   /* From hal_base_driver_c.*/
-  msg_t (*start)(void *ip);
+  msg_t (*start)(void *ip, const void *config);
   void (*stop)(void *ip);
   const void * (*setcfg)(void *ip, const void *config);
   const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
-  void (*setcb)(void *ip, drv_cb_t cb);
+  void (*oncbset)(void *ip, drv_cb_t cb);
   /* From hal_spi_driver_c.*/
 };
 
@@ -313,8 +365,12 @@ struct hal_spi_driver {
    * @brief       Synchronization point for transfer.
    */
   thread_reference_t        sync_transfer;
+  /**
+   * @brief       State being synchronized.
+   */
+  driver_state_t            sync_state;
 #endif /* SPI_USE_SYNCHRONIZATION == TRUE */
-#if defined(SPI_DRIVER_EXT_FIELS)
+#if defined(SPI_DRIVER_EXT_FIELDS)
   SPI_DRIVER_EXT_FIELDS
 #endif
   /* End of the mandatory fields.*/
@@ -332,7 +388,7 @@ extern "C" {
   /* Methods of hal_spi_driver_c.*/
   void *__spi_objinit_impl(void *ip, const void *vmt);
   void __spi_dispose_impl(void *ip);
-  msg_t __spi_start_impl(void *ip);
+  msg_t __spi_start_impl(void *ip, const void *config);
   void __spi_stop_impl(void *ip);
   const void *__spi_setcfg_impl(void *ip, const void *config);
   const void *__spi_selcfg_impl(void *ip, unsigned cfgnum);
@@ -347,8 +403,10 @@ extern "C" {
   msg_t spiStopTransferI(void *ip, size_t *np);
   msg_t spiStopTransfer(void *ip, size_t *np);
 #if (SPI_USE_SYNCHRONIZATION == TRUE) || defined (__DOXYGEN__)
-  msg_t spiSynchronizeS(void *ip, sysinterval_t timeout);
-  msg_t spiSynchronize(void *ip, sysinterval_t timeout);
+  msg_t spiSynchronizeStateS(void *ip, driver_state_t state,
+                             sysinterval_t timeout);
+  msg_t spiSynchronizeState(void *ip, driver_state_t state,
+                            sysinterval_t timeout);
   msg_t spiIgnore(void *ip, size_t n);
   msg_t spiExchange(void *ip, size_t n, const void *txbuf, void *rxbuf);
   msg_t spiSend(void *ip, size_t n, const void *txbuf);
@@ -449,6 +507,27 @@ static inline void __spi_wakeup_isr(void *ip, msg_t msg) {
   osalSysUnlockFromISR();
 }
 
+/**
+ * @brief       Wakes up a thread waiting for an SPI transfer state.
+ * @note        This function is meant to be used in the low level drivers
+ *              implementations only.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
+ * @param[in]     state         State being synchronized.
+ *
+ * @notapi
+ */
+CC_FORCE_INLINE
+static inline void __spi_wakeup_state_isr(void *ip, driver_state_t state) {
+  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
+
+  osalSysLockFromISR();
+  if (self->sync_state == state) {
+    osalThreadResumeI(&self->sync_transfer, MSG_OK);
+  }
+  osalSysUnlockFromISR();
+}
+
 #else
 
 CC_FORCE_INLINE
@@ -457,6 +536,14 @@ static inline void __spi_wakeup_isr(void *ip, msg_t msg) {
 
   (void)self;
   (void)msg;
+}
+
+CC_FORCE_INLINE
+static inline void __spi_wakeup_state_isr(void *ip, driver_state_t state) {
+  hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
+
+  (void)self;
+  (void)state;
 }
 #endif /* SPI_USE_SYNCHRONIZATION == TRUE */
 /** @} */

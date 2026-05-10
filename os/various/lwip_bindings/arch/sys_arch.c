@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -151,6 +151,10 @@ err_t sys_mbox_new(sys_mbox_t *mbox, int size) {
 #if !CH_LWIP_USE_MEM_POOLS
   *mbox = chHeapAlloc(NULL, sizeof(mailbox_t) + sizeof(msg_t) * size);
 #else
+  if (size > (int)TCPIP_MBOX_SIZE) {
+    SYS_STATS_INC(mbox.err);
+    return ERR_MEM;
+  }
   *mbox = chPoolAlloc(&lwip_sys_arch_mbox_pool);
 #endif
   if (*mbox == 0) {

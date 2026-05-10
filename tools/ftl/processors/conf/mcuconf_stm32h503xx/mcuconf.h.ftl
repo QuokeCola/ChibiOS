@@ -1,13 +1,12 @@
 [#ftl]
 [#--
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
     ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation version 3 of the License.
 
     ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -54,7 +53,7 @@
 /*
  * ICache settings.
  */
-#define STM32_ICACHE_CR                     ${doc.STM32_ICACHE_CR!"(ICACHE_CR_EN)"}
+#define STM32_ICACHE_CR                     ${doc.STM32_ICACHE_CR!"(ICACHE_CR_WAYSEL | ICACHE_CR_EN)"}
 #define STM32_ICACHE_CRR0                   ${doc.STM32_ICACHE_CRR0!"(0U)"}
 #define STM32_ICACHE_CRR1                   ${doc.STM32_ICACHE_CRR1!"(0U)"}
 #define STM32_ICACHE_CRR2                   ${doc.STM32_ICACHE_CRR2!"(0U)"}
@@ -63,7 +62,7 @@
 /*
  * PWR settings.
  */
-#define STM32_PWR_VOSCR                     ${doc.STM32_PWR_VOSCR!"STM32_VOS_RANGE0"}
+#define STM32_PWR_VOSCR                     ${doc.STM32_PWR_VOSCR!"PWR_VOSCR_VOS_RANGE0"}
 #define STM32_PWR_BDCR                      ${doc.STM32_PWR_BDCR!"(0U)"}
 #define STM32_PWR_SCCR                      ${doc.STM32_PWR_SCCR!"(0U)"}
 #define STM32_PWR_VMCR                      ${doc.STM32_PWR_VMCR!"(0U)"}
@@ -81,56 +80,57 @@
 #define STM32_HSE_ENABLED                   ${doc.STM32_HSE_ENABLED!"FALSE"}
 #define STM32_LSI_ENABLED                   ${doc.STM32_LSI_ENABLED!"FALSE"}
 #define STM32_LSE_ENABLED                   ${doc.STM32_LSE_ENABLED!"FALSE"}
-#define STM32_SW                            ${doc.STM32_SW!"STM32_SW_PLL1P"}
-#define STM32_PLL1SRC                       ${doc.STM32_PLL1SRC!"STM32_PLL1SRC_HSI"}
+#define STM32_SW                            ${doc.STM32_SW!"RCC_CFGR1_SW_PLL1P"}
+#define STM32_PLL1SRC                       ${doc.STM32_PLL1SRC!"RCC_PLL1CFGR_PLL1SRC_HSI"}
 #define STM32_PLL1M_VALUE                   ${doc.STM32_PLL1M_VALUE!"16"}
 #define STM32_PLL1N_VALUE                   ${doc.STM32_PLL1N_VALUE!"250"}
 #define STM32_PLL1P_VALUE                   ${doc.STM32_PLL1P_VALUE!"2"}
 #define STM32_PLL1Q_VALUE                   ${doc.STM32_PLL1Q_VALUE!"4"}
 #define STM32_PLL1R_VALUE                   ${doc.STM32_PLL1R_VALUE!"2"}
-#define STM32_PLL2SRC                       ${doc.STM32_PLL2SRC!"STM32_PLL2SRC_HSI"}
+#define STM32_PLL2SRC                       ${doc.STM32_PLL2SRC!"RCC_PLL2CFGR_PLL2SRC_HSI"}
 #define STM32_PLL2M_VALUE                   ${doc.STM32_PLL2M_VALUE!"16"}
 #define STM32_PLL2N_VALUE                   ${doc.STM32_PLL2N_VALUE!"250"}
 #define STM32_PLL2P_VALUE                   ${doc.STM32_PLL2P_VALUE!"2"}
 #define STM32_PLL2Q_VALUE                   ${doc.STM32_PLL2Q_VALUE!"2"}
 #define STM32_PLL2R_VALUE                   ${doc.STM32_PLL2R_VALUE!"2"}
-#define STM32_HPRE                          ${doc.STM32_HPRE!"STM32_HPRE_DIV1"}
-#define STM32_PPRE1                         ${doc.STM32_PPRE1!"STM32_PPRE1_DIV1"}
-#define STM32_PPRE2                         ${doc.STM32_PPRE2!"STM32_PPRE2_DIV1"}
-#define STM32_PPRE3                         ${doc.STM32_PPRE3!"STM32_PPRE3_DIV1"}
-#define STM32_STOPWUCK                      ${doc.STM32_STOPWUCK!"STM32_STOPWUCK_HSI"}
-#define STM32_STOPKERWUCK                   ${doc.STM32_STOPKERWUCK!"STM32_STOPKERWUCK_HSI"}
-#define STM32_RTCPRE_VALUE                  ${doc.STM32_RTCPRE_VALUE!"STM32_RTCPRE_NOCLOCK"}
-#define STM32_MCO1SEL                       ${doc.STM32_MCO1SEL!"STM32_MCO1SEL_HSI"}
-#define STM32_MCO1PRE_VALUE                 ${doc.STM32_MCO1PRE_VALUE!"STM32_MCO1PRE_NOCLOCK"}
-#define STM32_MCO2SEL                       ${doc.STM32_MCO2SEL!"STM32_MCO2SEL_SYSCLK"}
-#define STM32_MCO2PRE_VALUE                 ${doc.STM32_MCO2PRE_VALUE!"STM32_MCO2PRE_NOCLOCK"}
-#define STM32_LSCOSEL                       ${doc.STM32_LSCOSEL!"STM32_LSCOSEL_NOCLOCK"}
+#define STM32_HPRE                          ${doc.STM32_HPRE!"RCC_CFGR2_HPRE_DIV1"}
+#define STM32_PPRE1                         ${doc.STM32_PPRE1!"RCC_CFGR2_PPRE1_DIV1"}
+#define STM32_PPRE2                         ${doc.STM32_PPRE2!"RCC_CFGR2_PPRE2_DIV1"}
+#define STM32_PPRE3                         ${doc.STM32_PPRE3!"RCC_CFGR2_PPRE3_DIV1"}
+#define STM32_STOPWUCK                      ${doc.STM32_STOPWUCK!"RCC_CFGR1_STOPWUCK_HSI"}
+#define STM32_STOPKERWUCK                   ${doc.STM32_STOPKERWUCK!"RCC_CFGR1_STOPKERWUCK_HSI"}
+#define STM32_RTCPRE_VALUE                  ${doc.STM32_RTCPRE_VALUE!"RCC_CFGR1_RTCPRE_NOCLOCK"}
+#define STM32_TIMPRE                        ${doc.STM32_TIMPRE!"RCC_CFGR1_TIMPRE_LOW"}
+#define STM32_MCO1SEL                       ${doc.STM32_MCO1SEL!"RCC_CFGR1_MCO1SEL_HSI"}
+#define STM32_MCO1PRE_VALUE                 ${doc.STM32_MCO1PRE_VALUE!"RCC_CFGR1_MCO1PRE_NOCLOCK"}
+#define STM32_MCO2SEL                       ${doc.STM32_MCO2SEL!"RCC_CFGR1_MCO2SEL_SYSCLK"}
+#define STM32_MCO2PRE_VALUE                 ${doc.STM32_MCO2PRE_VALUE!"RCC_CFGR1_MCO2PRE_NOCLOCK"}
+#define STM32_LSCOSEL                       ${doc.STM32_LSCOSEL!"RCC_BDCR_LSCOSEL_NOCLOCK"}
 
 /*
  * Peripherals clock sources.
  */
-#define STM32_USART1SEL                     ${doc.STM32_USART1SEL!"STM32_USART1SEL_PCLK2"}
-#define STM32_USART2SEL                     ${doc.STM32_USART2SEL!"STM32_USART2SEL_PCLK1"}
-#define STM32_USART3SEL                     ${doc.STM32_USART3SEL!"STM32_USART3SEL_PCLK1"}
-#define STM32_LPUART1SEL                    ${doc.STM32_LPUART1SEL!"STM32_LPUART1SEL_PCLK3"}
-#define STM32_TIMICSEL                      ${doc.STM32_TIMICSEL!"STM32_TIMICSEL_NOCLK"}
-#define STM32_LPTIM1SEL                     ${doc.STM32_LPTIM1SEL!"STM32_LPTIM1SEL_PCLK3"}
-#define STM32_LPTIM2SEL                     ${doc.STM32_LPTIM2SEL!"STM32_LPTIM2SEL_PCLK1"}
-#define STM32_SPI1SEL                       ${doc.STM32_SPI1SEL!"STM32_SPI1SEL_PLL1Q"}
-#define STM32_SPI2SEL                       ${doc.STM32_SPI2SEL!"STM32_SPI2SEL_PLL1Q"}
-#define STM32_SPI3SEL                       ${doc.STM32_SPI3SEL!"STM32_SPI3SEL_PLL1Q"}
-#define STM32_SYSTICKSEL                    ${doc.STM32_SYSTICKSEL!"STM32_SYSTICKSEL_HCLKDIV8"}
-#define STM32_USBSEL                        ${doc.STM32_USBSEL!"STM32_USBSEL_NOCLOCK"}
-#define STM32_I2C1SEL                       ${doc.STM32_I2C1SEL!"STM32_I2C1SEL_PCLK1"}
-#define STM32_I2C2SEL                       ${doc.STM32_I2C2SEL!"STM32_I2C2SEL_PCLK1"}
-#define STM32_I3C1SEL                       ${doc.STM32_I3C1SEL!"STM32_I3C1SEL_PCLK1"}
-#define STM32_ADCDACSEL                     ${doc.STM32_ADCDACSEL!"STM32_ADCDACSEL_HCLK"}
-#define STM32_DACSEL                        ${doc.STM32_DACSEL!"STM32_DACSEL_IGNORE"}
-#define STM32_RNGSEL                        ${doc.STM32_RNGSEL!"STM32_RNGSEL_IGNORE"}
-#define STM32_FDCANSEL                      ${doc.STM32_FDCANSEL!"STM32_FDCANSEL_IGNORE"}
-#define STM32_CKPERSEL                      ${doc.STM32_CKPERSEL!"STM32_CKPERSEL_HSI"}
-#define STM32_RTCSEL                        ${doc.STM32_RTCSEL!"STM32_RTCSEL_NOCLOCK"}
+#define STM32_USART1SEL                     ${doc.STM32_USART1SEL!"RCC_CCIPR1_USART1SEL_PCLK2"}
+#define STM32_USART2SEL                     ${doc.STM32_USART2SEL!"RCC_CCIPR1_USART2SEL_PCLK1"}
+#define STM32_USART3SEL                     ${doc.STM32_USART3SEL!"RCC_CCIPR1_USART3SEL_PCLK1"}
+#define STM32_LPUART1SEL                    ${doc.STM32_LPUART1SEL!"RCC_CCIPR3_LPUART1SEL_PCLK3"}
+#define STM32_TIMICSEL                      ${doc.STM32_TIMICSEL!"RCC_CCIPR1_TIMICSEL_NOCLK"}
+#define STM32_LPTIM1SEL                     ${doc.STM32_LPTIM1SEL!"RCC_CCIPR2_LPTIM1SEL_PCLK3"}
+#define STM32_LPTIM2SEL                     ${doc.STM32_LPTIM2SEL!"RCC_CCIPR2_LPTIM2SEL_PCLK1"}
+#define STM32_SPI1SEL                       ${doc.STM32_SPI1SEL!"RCC_CCIPR3_SPI1SEL_PLL1Q"}
+#define STM32_SPI2SEL                       ${doc.STM32_SPI2SEL!"RCC_CCIPR3_SPI2SEL_PLL1Q"}
+#define STM32_SPI3SEL                       ${doc.STM32_SPI3SEL!"RCC_CCIPR3_SPI3SEL_PLL1Q"}
+#define STM32_SYSTICKSEL                    ${doc.STM32_SYSTICKSEL!"RCC_CCIPR4_SYSTICKSEL_HCLKDIV8"}
+#define STM32_USBSEL                        ${doc.STM32_USBSEL!"RCC_CCIPR4_USBSEL_NOCLOCK"}
+#define STM32_I2C1SEL                       ${doc.STM32_I2C1SEL!"RCC_CCIPR4_I2C1SEL_PCLK1"}
+#define STM32_I2C2SEL                       ${doc.STM32_I2C2SEL!"RCC_CCIPR4_I2C2SEL_PCLK1"}
+#define STM32_I3C1SEL                       ${doc.STM32_I3C1SEL!"RCC_CCIPR4_I3C1SEL_PCLK1"}
+#define STM32_ADCDACSEL                     ${doc.STM32_ADCDACSEL!"RCC_CCIPR5_ADCDACSEL_HCLK"}
+#define STM32_DACSEL                        ${doc.STM32_DACSEL!"RCC_CCIPR5_DACSEL_IGNORE"}
+#define STM32_RNGSEL                        ${doc.STM32_RNGSEL!"RCC_CCIPR5_RNGSEL_IGNORE"}
+#define STM32_FDCANSEL                      ${doc.STM32_FDCANSEL!"RCC_CCIPR5_FDCANSEL_IGNORE"}
+#define STM32_CKPERSEL                      ${doc.STM32_CKPERSEL!"RCC_CCIPR5_CKPERSEL_HSI"}
+#define STM32_RTCSEL                        ${doc.STM32_RTCSEL!"RCC_BDCR_RTCSEL_NOCLOCK"}
 
 /*
  * IRQ system settings.
@@ -155,6 +155,8 @@
 #define STM32_IRQ_EXTI15_PRIORITY           ${doc.STM32_IRQ_EXTI15_PRIORITY!"6"}
 #define STM32_IRQ_EXTI17_PRIORITY           ${doc.STM32_IRQ_EXTI17_PRIORITY!"6"}
 #define STM32_IRQ_EXTI19_PRIORITY           ${doc.STM32_IRQ_EXTI19_PRIORITY!"6"}
+
+#define STM32_IRQ_FDCAN1_PRIORITY           ${doc.STM32_IRQ_FDCAN1_PRIORITY!"10"}
 
 #define STM32_IRQ_I2C1_PRIORITY             ${doc.STM32_IRQ_I2C1_PRIORITY!"5"}
 #define STM32_IRQ_I2C2_PRIORITY             ${doc.STM32_IRQ_I2C2_PRIORITY!"5"}

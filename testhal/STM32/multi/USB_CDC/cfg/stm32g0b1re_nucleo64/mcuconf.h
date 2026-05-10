@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@
 #define STM32_NO_INIT                       FALSE
 #define STM32_CLOCK_DYNAMIC                 TRUE
 #define STM32_VOS                           STM32_VOS_RANGE1
-#define STM32_PWR_CR2                       (STM32_PVDRT_LEV0 | STM32_PVDFT_LEV0 | STM32_PVDE_DISABLED)
+#define STM32_PWR_CR2                       (PWR_CR2_VDDIO2_MONITORING_ENABLED | STM32_PVDRT_LEV0 | STM32_PVDFT_LEV0 | STM32_PVDE_DISABLED)
 #define STM32_PWR_CR3                       (PWR_CR3_EIWUL)
 #define STM32_PWR_CR4                       (0U)
 #define STM32_PWR_PUCRA                     (0U)
@@ -127,7 +127,7 @@
 #define STM32_IRQ_USART2_LP2_PRIORITY       2
 #define STM32_IRQ_USART3_4_5_6_LP1_PRIORITY 2
 
-#define STM32_IRQ_USB1_PRIORITY             3
+#define STM32_IRQ_USB1_UCPD1_2_PRIORITY     3
 
 /*
  * ADC driver system settings.

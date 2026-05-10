@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -520,6 +520,23 @@
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
 
+/* Inclusion of SMP support, if enabled.*/
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+#if !defined(_FROM_ASM_)
+#if !defined(__CHIBIOS_RT__)
+#error "SMP is supported in RT only"
+#endif
+
+#include "chcoresmp.h"
+
+#if !defined(PORT_CORES_NUMBER)
+#error "PORT_CORES_NUMBER not defined in chcoresmp.h"
+#endif
+
+#endif
+#else /* CH_CFG_SMP_MODE != TRUE */
+#endif /* CH_CFG_SMP_MODE != TRUE */
+
 #if (PORT_SWITCHED_REGIONS_NUMBER < 0) || (PORT_SWITCHED_REGIONS_NUMBER > 8)
   #error "invalid PORT_SWITCHED_REGIONS_NUMBER value"
 #endif
@@ -555,15 +572,10 @@
 #define PORT_SAVE_CONTROL               FALSE
 #endif
 
-#if (PORT_USE_SYSCALL == TRUE) || (CH_DBG_ENABLE_STACK_CHECK == TRUE) ||    \
-    defined(__DOXYGEN__)
 /**
  * @brief   PSPLIM as part of the saved thread context.
  */
 #define PORT_SAVE_PSPLIM                TRUE
-#else
-#define PORT_SAVE_PSPLIM                FALSE
-#endif
 
 /**
  * @name    Architecture
@@ -631,6 +643,8 @@
  * @brief   Port-specific information string.
  */
 #define PORT_INFO                       "Normal mode without TZ"
+#elif PORT_KERNEL_MODE == PORT_KERNEL_MODE_HOST
+#define PORT_INFO                       "TZ guest mode"
 #elif PORT_KERNEL_MODE == PORT_KERNEL_MODE_GUEST
 #define PORT_INFO                       "TZ guest mode"
 #else
@@ -697,6 +711,10 @@
  * @brief   Minimum usable priority for normal ISRs.
  */
 #define CORTEX_MIN_KERNEL_PRIORITY      (CORTEX_PRIORITY_PENDSV - 1U)
+
+#elif PORT_KERNEL_MODE == PORT_KERNEL_MODE_HOST
+
+/* TBD */
 
 #elif PORT_KERNEL_MODE == PORT_KERNEL_MODE_GUEST
 #define CORTEX_PRIORITY_SVCALL          (CORTEX_MAXIMUM_PRIORITY +          \
@@ -799,9 +817,7 @@ struct port_intctx {
   uint32_t              r11;
   uint32_t              lr_exc;
   /* Special registers context.*/
-#if (PORT_SAVE_PSPLIM == TRUE) || defined(__DOXYGEN__)
   uint32_t              splim;
-#endif
 #if (PORT_SAVE_CONTROL == TRUE) || defined(__DOXYGEN__)
   uint32_t              control;
 #endif
@@ -868,10 +884,19 @@ struct port_context {
  * @note    Enforcing a long context when FPU is enabled else using a
  *          short context.
  */
-#if (CORTEX_USE_FPU == TRUE) || defined(__DOXYGEN__)
-  #define CORTEX_EXC_RETURN         0xFFFFFFACU
-#else
-  #define CORTEX_EXC_RETURN         0xFFFFFFBCU
+#if (PORT_KERNEL_MODE == PORT_KERNEL_MODE_NORMAL) ||                        \
+    (PORT_KERNEL_MODE == PORT_KERNEL_MODE_HOST) || defined (__DOXYGEN__)
+  #if (CORTEX_USE_FPU == TRUE) || defined(__DOXYGEN__)
+    #define CORTEX_EXC_RETURN       0xFFFFFFEDU
+  #else
+    #define CORTEX_EXC_RETURN       0xFFFFFFFDU
+  #endif
+#elif PORT_KERNEL_MODE == PORT_KERNEL_MODE_GUEST
+  #if CORTEX_USE_FPU == TRUE
+    #define CORTEX_EXC_RETURN       0xFFFFFFACU
+  #else
+    #define CORTEX_EXC_RETURN       0xFFFFFFBCU
+  #endif
 #endif
 
 /**
@@ -892,12 +917,8 @@ struct port_context {
 /**
  * @brief   Initialization of stack check part of thread context.
  */
-#if (PORT_SAVE_PSPLIM == TRUE) || defined(__DOXYGEN__)
 #define __PORT_SETUP_CONTEXT_SPLIM(tp, wbase)                               \
     (tp)->ctx.regs.splim = (uint32_t)(wbase)
-#else
-#define __PORT_SETUP_CONTEXT_SPLIM(tp, wbase)
-#endif
 
 /**
  * @brief   Initialization of FPU part of thread context.
@@ -1141,7 +1162,6 @@ struct port_context {
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void PendSV_Handler(void);
   void port_init(os_instance_t *oip);
   void __port_thread_start(void);
 #ifdef __cplusplus
@@ -1201,6 +1221,9 @@ __STATIC_FORCEINLINE bool port_is_isr_context(void) {
 __STATIC_FORCEINLINE void port_lock(void) {
 
   __set_BASEPRI(CORTEX_BASEPRI_KERNEL);
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_take();
+#endif
 }
 
 /**
@@ -1210,6 +1233,9 @@ __STATIC_FORCEINLINE void port_lock(void) {
  */
 __STATIC_FORCEINLINE void port_unlock(void) {
 
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_release();
+#endif
   __set_BASEPRI(CORTEX_BASEPRI_DISABLED);
 }
 
@@ -1281,6 +1307,7 @@ __STATIC_FORCEINLINE void port_wait_for_interrupt(void) {
 #endif
 }
 
+#if !defined(port_rt_get_counter_value)
 /**
  * @brief   Returns the current value of the realtime counter.
  *
@@ -1290,6 +1317,7 @@ __STATIC_FORCEINLINE rtcnt_t port_rt_get_counter_value(void) {
 
   return DWT->CYCCNT;
 }
+#endif
 
 /*lint -restore*/
 
@@ -1302,7 +1330,11 @@ __STATIC_FORCEINLINE rtcnt_t port_rt_get_counter_value(void) {
 #if !defined(_FROM_ASM_)
 
 #if CH_CFG_ST_TIMEDELTA > 0
+#if (CH_CFG_SMP_MODE == TRUE) && (PORT_CORES_NUMBER > 1)
+#include "chcoresmp_timer.h"
+#else
 #include "chcore_timer.h"
+#endif
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */
 
 #endif /* !defined(_FROM_ASM_) */

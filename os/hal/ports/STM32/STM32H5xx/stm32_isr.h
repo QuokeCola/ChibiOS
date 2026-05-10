@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -156,6 +156,19 @@
 #define STM32_EXTI13_NUMBER                 24
 #define STM32_EXTI14_NUMBER                 25
 #define STM32_EXTI15_NUMBER                 26
+
+/*
+ * FDCAN units.
+ */
+#define STM32_FDCAN1_IT0_HANDLER            VectorDC
+#define STM32_FDCAN1_IT1_HANDLER            VectorE0
+#define STM32_FDCAN2_IT0_HANDLER            Vector1F4
+#define STM32_FDCAN2_IT1_HANDLER            Vector1F8
+
+#define STM32_FDCAN1_IT0_NUMBER             39
+#define STM32_FDCAN1_IT1_NUMBER             40
+#define STM32_FDCAN2_IT0_NUMBER             109
+#define STM32_FDCAN2_IT1_NUMBER             110
 
 /*
  * ETH units.

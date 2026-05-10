@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -59,6 +58,27 @@ static void vrq_privileged_code(void) {
 }
 
 CC_FORCE_INLINE
+static inline struct port_extctx *vrq_set_doomed(sb_class_t *sbp) {
+
+  /* The fake frame is placed at u_data->base, the very start of the sandbox
+     data region. This deliberately overwrites a few bytes of sandbox data,
+     which is acceptable because the sandbox is already in a terminal state
+     (its stack has overflowed and it cannot recover). On exception return
+     the CPU will branch to vrq_privileged_code, a kernel address outside
+     the sandbox's MPU regions, causing an immediate fault and sandbox
+     termination.*/
+  struct port_extctx *ectxp = (struct port_extctx *)(void *)sbp->u_data->base;
+
+  ectxp->pc = (uint32_t)vrq_privileged_code;
+  ectxp->xpsr   = 0x01000000U;
+#if CORTEX_USE_FPU == TRUE
+  ectxp->fpscr  = FPU->FPDSCR;
+#endif
+
+  return ectxp;
+}
+
+CC_FORCE_INLINE
 static inline void vrq_initctx(sb_class_t *sbp,
                                struct port_extctx *ectxp,
                                sb_vrqnum_t nvrq) {
@@ -78,7 +98,7 @@ static inline void vrq_initctx(sb_class_t *sbp,
   ectxp->r12    = 0U;
   ectxp->lr_thd = 0U;
 #endif
-  ectxp->pc     = ((const sb_header_t *)(void *)sbp->regions[0].area.base)->hdr_vrq;
+  ectxp->pc     = sbp->vrq_entry;
   ectxp->xpsr   = 0x01000000U;
 #if CORTEX_USE_FPU == TRUE
   ectxp->fpscr  = FPU->FPDSCR;
@@ -91,23 +111,24 @@ static void vrq_pushctx_other(sb_class_t *sbp, sb_vrqnum_t nvrq) {
   struct port_extctx *ectxp;
 
   /* Current stack frame position.*/
-  ectxp = (struct port_extctx *)sbp->u_psp;
+//  ectxp = (struct port_extctx *)sbp->u_psp;
 
   /* Position of the new stack frame, it depends on FPU settings and state.*/
-  ectxp = (struct port_extctx *)(sbp->u_psp - sizeof (struct port_extctx));
+  ectxp = (struct port_extctx *)((uintptr_t)sbp->thread.ctx.sp - sizeof (struct port_extctx));
 
   /* Checking if the new frame is within the sandbox else failure.*/
-  if (!sb_is_valid_write_range(sbp, (void *)ectxp, sizeof (struct port_extctx))) {
+  if (!chMemIsSpaceWithinX(sbp->u_data, (void *)ectxp, sizeof (struct port_extctx))) {
     /* Making the sandbox return on a privileged address, this
        will cause a fault and sandbox termination.*/
-    ectxp->pc = (uint32_t)vrq_privileged_code;
+    ectxp = vrq_set_doomed(sbp);
   }
   else {
     /* Creating a new context for the VRQ handler return.*/
     vrq_initctx(sbp, ectxp, nvrq);
   }
 
-  sbp->u_psp = (uint32_t)ectxp;
+//  sbp->u_psp = (uint32_t)ectxp;
+  sbp->thread.ctx.sp = ectxp;
 }
 
 /* Encouraging a tail call on this function.*/
@@ -119,19 +140,19 @@ static void vrq_pushctx_this(sb_class_t *sbp, uint32_t psp, sb_vrqnum_t nvrq) {
   ectxp = (struct port_extctx *)(psp - sizeof (struct port_extctx));
 
   /* Checking if the new frame is within the sandbox else failure.*/
-  if (!sb_is_valid_write_range(sbp, (void *)ectxp, sizeof (struct port_extctx))) {
+  if (!chMemIsSpaceWithinX(sbp->u_data, (void *)ectxp, sizeof (struct port_extctx))) {
     /* Making the sandbox return on a privileged address, this
        will cause a fault and sandbox termination.*/
-    ectxp->pc = (uint32_t)vrq_privileged_code;
+    ectxp = vrq_set_doomed(sbp);
   }
   else {
     /* Creating a new context for the VRQ handler return.*/
     vrq_initctx(sbp, ectxp, nvrq);
-    __set_PSP((uint32_t)ectxp);
-#if PORT_SAVE_PSPLIM
-    __set_PSPLIM(sbp->u_psplim);
-#endif
   }
+  __set_PSP((uint32_t)ectxp);
+#if defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE)
+  __set_PSPLIM((uint32_t)sbp->u_data->base);
+#endif
 }
 
 CC_NO_INLINE
@@ -155,7 +176,7 @@ static void delay_cb(virtual_timer_t *vtp, void *arg) {
 
   (void)vtp;
 
-  sbVRQTriggerFromISR(sbp, SB_CFG_ALARM_VRQ);
+  sbVRQTriggerFromISR(sbp, SB_VRQ_ALARM);
 }
 
 /*===========================================================================*/
@@ -176,6 +197,10 @@ static void delay_cb(virtual_timer_t *vtp, void *arg) {
  */
 
 void sbVRQSetFlagsI(sb_class_t *sbp, sb_vrqnum_t nvrq, uint32_t flags) {
+  const sb_vrqnum_t vrq_num =
+    (sb_vrqnum_t)(sizeof sbp->vrq.flags / sizeof sbp->vrq.flags[0]);
+
+  chDbgCheck(nvrq < vrq_num);
 
   sbp->vrq.flags[nvrq] |= flags;
 }
@@ -191,10 +216,19 @@ void sbVRQSetFlagsI(sb_class_t *sbp, sb_vrqnum_t nvrq, uint32_t flags) {
  * @sclass
  */
 void sbVRQTriggerS(sb_class_t *sbp, sb_vrqnum_t nvrq) {
+  const sb_vrqnum_t vrq_num =
+    (sb_vrqnum_t)(sizeof sbp->vrq.flags / sizeof sbp->vrq.flags[0]);
 
   chDbgCheckClassS();
 
+  chDbgCheck(nvrq < vrq_num);
   chDbgAssert(sbp->thread.owner == currcore, "different core");
+
+  /* Late producers can still target a sandbox object during teardown or
+     restart windows, those VRQs must be ignored once the thread is dead.*/
+  if (chThdTerminatedX(&sbp->thread)) {
+    return;
+  }
 
   /* Adding VRQ mask to the pending mask.*/
   sbp->vrq.wtmask |= (sb_vrqmask_t)(1U << nvrq);
@@ -247,10 +281,19 @@ void sbVRQTriggerS(sb_class_t *sbp, sb_vrqnum_t nvrq) {
  * @iclass
  */
 void sbVRQTriggerI(sb_class_t *sbp, sb_vrqnum_t nvrq) {
+  const sb_vrqnum_t vrq_num =
+    (sb_vrqnum_t)(sizeof sbp->vrq.flags / sizeof sbp->vrq.flags[0]);
 
   chDbgCheckClassI();
 
+  chDbgCheck(nvrq < vrq_num);
   chDbgAssert(sbp->thread.owner == currcore, "different core");
+
+  /* Late producers can still target a sandbox object during teardown or
+     restart windows, those VRQs must be ignored once the thread is dead.*/
+  if (chThdTerminatedX(&sbp->thread)) {
+    return;
+  }
 
   /* Adding VRQ mask to the pending mask.*/
   sbp->vrq.wtmask |= (sb_vrqmask_t)(1U << nvrq);
@@ -304,12 +347,19 @@ void sb_sysc_vrq_set_alarm(sb_class_t *sbp, struct port_extctx *ectxp) {
   sysinterval_t interval = (sysinterval_t )ectxp->r0;
   bool reload = (bool)ectxp->r1;
 
+  if (interval == TIME_IMMEDIATE) {
+    ectxp->r0 = (uint32_t)CH_RET_EINVAL;
+    return;
+  }
+
   if (reload) {
     chVTSetContinuous(&sbp->vrq.alarm_vt, interval, delay_cb, (void *)sbp);
   }
   else {
     chVTSet(&sbp->vrq.alarm_vt, interval, delay_cb, (void *)sbp);
   }
+
+  ectxp->r0 = (uint32_t)CH_RET_SUCCESS;
 }
 
 void sb_sysc_vrq_reset_alarm(sb_class_t *sbp, struct port_extctx *ectxp) {
@@ -336,6 +386,13 @@ void sb_sysc_vrq_wait(sb_class_t *sbp, struct port_extctx *ectxp) {
 
 void sb_fastc_vrq_gcsts(sb_class_t *sbp, struct port_extctx *ectxp) {
   uint32_t nvrq = ectxp->r0;
+  const uint32_t vrq_num =
+    (uint32_t)(sizeof (sbp->vrq.flags) / sizeof (sbp->vrq.flags[0]));
+
+  if (nvrq >= vrq_num) {
+    ectxp->r0 = (uint32_t)CH_RET_EINVAL;
+    return;
+  }
 
   /* Cast because vrq.flags[] could be configured to be a smaller type.*/
   ectxp->r0 = (uint32_t)sbp->vrq.flags[nvrq];
@@ -431,7 +488,7 @@ void sb_fastc_vrq_return(sb_class_t *sbp, struct port_extctx *ectxp) {
     ectxp->r12    = 0U;
     ectxp->lr_thd = 0U;
 #endif
-    ectxp->pc     = ((const sb_header_t *)(void *)sbp->regions[0].area.base)->hdr_vrq;
+    ectxp->pc     = sbp->vrq_entry;
     ectxp->xpsr   = 0x01000000U;
 #if CORTEX_USE_FPU == TRUE
     ectxp->fpscr  = FPU->FPDSCR;
@@ -439,8 +496,11 @@ void sb_fastc_vrq_return(sb_class_t *sbp, struct port_extctx *ectxp) {
   }
   else {
 
-    /* Discarding the return current context, returning on the previous one.
-       TODO: Check for overflows????*/
+    /* Discarding the current VRQ context, returning on the previous one.
+       No overflow check is needed here: the frame at ectxp was pushed by
+       vrq_pushctx_this() which already verified that the new frame fit within
+       u_data. Incrementing ectxp recovers the pre-VRQ PSP value, which was
+       valid sandbox memory before the VRQ was injected and has not moved.*/
     ectxp++;
 
     /* Re-enabling VRQs globally.*/
@@ -448,8 +508,8 @@ void sb_fastc_vrq_return(sb_class_t *sbp, struct port_extctx *ectxp) {
 
     /* Keeping the current return context.*/
     __set_PSP((uint32_t)ectxp);
-#if PORT_SAVE_PSPLIM
-    __set_PSPLIM(sbp->u_psplim);
+#if defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE)
+    __set_PSPLIM((uint32_t)sbp->u_data->base);
 #endif
   }
 }
@@ -478,8 +538,8 @@ void __sb_vrq_check_pending(sb_class_t *sbp, struct port_extctx *ectxp) {
   }
 
   __set_PSP((uint32_t)ectxp);
-#if PORT_SAVE_PSPLIM
-  __set_PSPLIM(sbp->u_psplim);
+#if defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE)
+  __set_PSPLIM((uint32_t)sbp->u_data->base);
 #endif
 }
 

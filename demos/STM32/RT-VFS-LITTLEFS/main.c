@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -128,9 +128,9 @@ static NullStream nullstream;
 
 /* Stream to be exposed under /dev as files.*/
 static const drv_streams_element_t streams[] = {
-  {"VSIOD1", (sequential_stream_i *)&PORTAB_SIOD1, VFS_MODE_S_IFCHR},
-  {"null", (sequential_stream_i *)&nullstream, VFS_MODE_S_IFCHR},
-  {NULL, NULL, 0}
+  {"VSIOD1", (sequential_stream_i *)&PORTAB_SIOD1, NULL, VFS_MODE_S_IFCHR},
+  {"null", (sequential_stream_i *)&nullstream, NULL, VFS_MODE_S_IFCHR},
+  {NULL, NULL, NULL, 0}
 };
 
 /*===========================================================================*/
@@ -139,60 +139,7 @@ static const drv_streams_element_t streams[] = {
 
 #define SHELL_WA_SIZE       THD_STACK_SIZE(2048)
 
-static void cmd_halt(xshell_manager_t *smp, BaseSequentialStream *stream,
-                     int argc, char *argv[]) {
-
-  (void)smp;
-  (void)argv;
-
-  if (argc != 1) {
-    xshellUsage(stream, "halt");
-    return;
-  }
-
-  chprintf(stream, XSHELL_NEWLINE_STR "halted");
-  chThdSleepMilliseconds(10);
-  chSysHalt("shell halt");
-}
-
-/* Can be measured using dd if=/dev/xxxx of=/dev/null bs=512 count=10000.*/
-static void cmd_write(xshell_manager_t *smp, BaseSequentialStream *stream,
-                      int argc, char *argv[]) {
-  static uint8_t buf[] =
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-
-  (void)smp;
-  (void)argv;
-
-  if (argc != 1) {
-    xshellUsage(stream, "write");
-    return;
-  }
-
-  while (chnGetTimeout((BaseChannel *)stream, TIME_IMMEDIATE) == Q_TIMEOUT) {
-    chnWrite(stream, buf, sizeof buf - 1);
-  }
-  chprintf(stream, XSHELL_NEWLINE_STR "stopped" XSHELL_NEWLINE_STR);
-}
-
 static const xshell_command_t commands[] = {
-  {"halt", cmd_halt},
-  {"write", cmd_write},
   {NULL, NULL}
 };
 
@@ -310,10 +257,9 @@ int main(void) {
 
   /* Normal main() thread activity, spawning shells.*/
   while (true) {
-    thread_t *shelltp = xshellSpawn(&sm1,
-                                    (BaseSequentialStream *)vfsGetFileStream(file1),
-                                    NORMALPRIO + 1);
-    chThdWait(shelltp);               /* Waiting termination.             */
+    xshell_t *xshp = xshellSpawn(&sm1, (BaseSequentialStream *)vfsGetFileStream(file1),
+                                 NORMALPRIO + 1, NULL);
+    chThdWait(&xshp->thread);
     chThdSleepMilliseconds(500);
   }
 

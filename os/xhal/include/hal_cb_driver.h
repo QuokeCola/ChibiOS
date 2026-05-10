@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -184,12 +184,12 @@ struct hal_cb_driver_vmt {
   /* From base_object_c.*/
   void (*dispose)(void *ip);
   /* From hal_base_driver_c.*/
-  msg_t (*start)(void *ip);
+  msg_t (*start)(void *ip, const void *config);
   void (*stop)(void *ip);
   const void * (*setcfg)(void *ip, const void *config);
   const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
-  void (*setcb)(void *ip, drv_cb_t cb);
+  void (*oncbset)(void *ip, drv_cb_t cb);
 };
 
 /**
@@ -250,6 +250,7 @@ extern "C" {
   /* Methods of hal_cb_driver_c.*/
   void *__cbdrv_objinit_impl(void *ip, const void *vmt);
   void __cbdrv_dispose_impl(void *ip);
+  void __cbdrv_oncbset_impl(void *ip, drv_cb_t cb);
   void __cbdrv_setcb_impl(void *ip, drv_cb_t cb);
 #ifdef __cplusplus
 }
@@ -261,6 +262,31 @@ extern "C" {
 
 /**
  * @name        Virtual methods of hal_cb_driver_c
+ * @{
+ */
+/**
+ * @brief       Callback-set hook.
+ * @details     This hook is invoked after the callback field has been updated
+ *              by @p drvSetCallbackX(). The default implementation does
+ *              nothing; derived drivers can override it for low-level side
+ *              effects such as enabling or disabling callback-related IRQs.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_cb_driver_c instance.
+ * @param         cb            Callback function to be associated. Passing @p
+ *                              NULL disables the existing callback, if any.
+ *
+ * @xclass
+ */
+CC_FORCE_INLINE
+static inline void __cbdrv_on_cb_set(void *ip, drv_cb_t cb) {
+  hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
+
+  self->vmt->oncbset(ip, cb);
+}
+/** @} */
+
+/**
+ * @name        Inline methods of hal_cb_driver_c
  * @{
  */
 /**
@@ -276,14 +302,9 @@ CC_FORCE_INLINE
 static inline void drvSetCallbackX(void *ip, drv_cb_t cb) {
   hal_cb_driver_c *self = (hal_cb_driver_c *)ip;
 
-  self->vmt->setcb(ip, cb);
+  __cbdrv_setcb_impl(self, cb);
 }
-/** @} */
 
-/**
- * @name        Inline methods of hal_cb_driver_c
- * @{
- */
 /**
  * @brief       Returns the callback associated to the driver instance.
  *

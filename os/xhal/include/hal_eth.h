@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,6 +33,21 @@
 /* Module constants.                                                         */
 /*===========================================================================*/
 
+/**
+ * @name    ETH event flags
+ * @{
+ */
+/**
+ * @brief       Frame transmitted event flag.
+ */
+#define ETH_FLAGS_TX                        (1U << 0)
+
+/**
+ * @brief       Frame received event flag.
+ */
+#define ETH_FLAGS_RX                        (1U << 1)
+/** @} */
+
 /*===========================================================================*/
 /* Module pre-compile time settings.                                         */
 /*===========================================================================*/
@@ -58,7 +73,7 @@
 /**
  * @brief       Support for ETH user configurations.
  * @note        When enabled the user must provide a variable named @p
- *              sio_configurations of type @p sio_configurations_t.
+ *              eth_configurations of type @p eth_configurations_t.
  */
 #if !defined(ETH_USE_CONFIGURATIONS) || defined(__DOXYGEN__)
 #define ETH_USE_CONFIGURATIONS              FALSE
@@ -91,7 +106,7 @@
 /**
  * @brief       Return a pointer to the configuration structure.
  *
- * @param         ip            Pointer to the @p hal_sio_driver_c object.
+ * @param         ip            Pointer to the @p hal_eth_driver_c object.
  * @return                      A pointer to the configuration structure.
  *
  * @notapi
@@ -102,7 +117,7 @@
 /**
  * @brief       Retrieves a configuration field.
  *
- * @param         ip            Pointer to the @p hal_sio_driver_c object.
+ * @param         ip            Pointer to the @p hal_eth_driver_c object.
  * @param         field         Configuration field to be retrieved.
  * @return                      The field value.
  *
@@ -116,14 +131,14 @@
 /*===========================================================================*/
 
 /**
- * @brief       Type of a receive handle.
+ * @brief       Type of an opaque receive handle token.
  */
-typedef void * eth_receive_handle_t;
+typedef uintptr_t eth_receive_handle_t;
 
 /**
- * @brief       Type of a transmit handle.
+ * @brief       Type of an opaque transmit handle token.
  */
-typedef void * eth_transmit_handle_t;
+typedef uintptr_t eth_transmit_handle_t;
 
 /**
  * @brief       Type of structure representing a ETH driver.
@@ -204,12 +219,12 @@ struct hal_eth_driver_vmt {
   /* From base_object_c.*/
   void (*dispose)(void *ip);
   /* From hal_base_driver_c.*/
-  msg_t (*start)(void *ip);
+  msg_t (*start)(void *ip, const void *config);
   void (*stop)(void *ip);
   const void * (*setcfg)(void *ip, const void *config);
   const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
-  void (*setcb)(void *ip, drv_cb_t cb);
+  void (*oncbset)(void *ip, drv_cb_t cb);
   /* From hal_eth_driver_c.*/
 };
 
@@ -274,6 +289,10 @@ struct hal_eth_driver {
    */
   event_source_t            es;
 #endif /* ETH_USE_EVENTS == TRUE */
+  /**
+   * @brief       Cached ETH callback event flags.
+   */
+  eventflags_t              lastflags;
 #if defined(ETH_DRIVER_EXT_FIELS)
   ETH_DRIVER_EXT_FIELDS
 #endif
@@ -292,7 +311,7 @@ extern "C" {
   /* Methods of hal_eth_driver_c.*/
   void *__eth_objinit_impl(void *ip, const void *vmt);
   void __eth_dispose_impl(void *ip);
-  msg_t __eth_start_impl(void *ip);
+  msg_t __eth_start_impl(void *ip, const void *config);
   void __eth_stop_impl(void *ip);
   const void *__eth_setcfg_impl(void *ip, const void *config);
   const void *__eth_selcfg_impl(void *ip, unsigned cfgnum);
@@ -341,12 +360,12 @@ static inline hal_eth_driver_c *ethObjectInit(hal_eth_driver_c *self) {
  *
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
  * @return                      The receive handle.
- * @retval NULL                 If a received frame is not available.
+ * @retval 0                    If a received frame is not available.
  *
- * @iclass
+ * @xclass
  */
 CC_FORCE_INLINE
-static inline eth_receive_handle_t ethGetReceiveHandleI(void *ip) {
+static inline eth_receive_handle_t ethGetReceiveHandleX(void *ip) {
   hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
 
   return eth_lld_get_receive_handle(self);
@@ -357,15 +376,47 @@ static inline eth_receive_handle_t ethGetReceiveHandleI(void *ip) {
  *
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
  * @return                      The transmit handle.
- * @retval NULL                 If an empty transmit frame is not available.
+ * @retval 0                    If an empty transmit frame is not available.
  *
- * @iclass
+ * @xclass
  */
 CC_FORCE_INLINE
-static inline eth_transmit_handle_t ethGetTransmitHandleI(void *ip) {
+static inline eth_transmit_handle_t ethGetTransmitHandleX(void *ip) {
   hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
 
   return eth_lld_get_transmit_handle(self);
+}
+
+/**
+ * @brief       Checks a receive handle validity.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
+ * @param[in]     rxh           Receive handle.
+ * @return                      The receive handle validity.
+ *
+ * @xclass
+ */
+CC_FORCE_INLINE
+static inline bool ethIsRXHandleValidX(void *ip, eth_receive_handle_t rxh) {
+  hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
+
+  return eth_lld_is_receive_handle_valid(self, rxh);
+}
+
+/**
+ * @brief       Checks a transmit handle validity.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
+ * @param[in]     txh           Transmit handle.
+ * @return                      The transmit handle validity.
+ *
+ * @xclass
+ */
+CC_FORCE_INLINE
+static inline bool ethIsTXHandleValidX(void *ip, eth_transmit_handle_t txh) {
+  hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
+
+  return eth_lld_is_transmit_handle_valid(self, txh);
 }
 
 /**

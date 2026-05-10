@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -814,7 +814,7 @@
 /**
  * @brief   Minimum PLLs input clock frequency.
  */
-#define STM32_PLLIN_MIN             4000000
+#define STM32_PLLIN_MIN             3995000 /*Tolerance for MSIPLL real frequency.*/
 
 /**
  * @brief   Maximum VCO clock frequency at current voltage setting.
@@ -824,7 +824,7 @@
 /**
  * @brief   Minimum VCO clock frequency at current voltage setting.
  */
-#define STM32_PLLVCO_MIN            64000000
+#define STM32_PLLVCO_MIN            63950000 /*Tolerance for MSIPLL real frequency.*/
 
 /**
  * @brief   Maximum PLL-P output clock frequency.
@@ -893,7 +893,7 @@
 #define STM32_LSECLK_MIN            32768
 #define STM32_LSECLK_BYP_MIN        32768
 #define STM32_PLLIN_MAX             16000000
-#define STM32_PLLIN_MIN             4000000
+#define STM32_PLLIN_MIN             3995000 /*Tolerance for MSIPLL real frequency.*/
 #define STM32_PLLVCO_MAX            128000000
 #define STM32_PLLVCO_MIN            64000000
 #define STM32_PLLP_MAX              26000000

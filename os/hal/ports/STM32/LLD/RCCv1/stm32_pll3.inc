@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -435,7 +435,7 @@ __STATIC_INLINE void pll3_setup(uint32_t cfgr, uint32_t divr, uint32_t fracr) {
 
 #if STM32_RCC_HAS_PLL3
   /* PLL3 activation.*/
-  RCC->PLL3CFGR  = cfgr & ~STM32_PLLFRACEN_MASK;
+  RCC->PLL3CFGR  = cfgr & ~RCC_PLL3CFGR_PLL3FRACEN_Msk;
   RCC->PLL3DIVR  = divr;
   RCC->PLL3FRACR = fracr;
   RCC->PLL3CFGR  = cfgr;

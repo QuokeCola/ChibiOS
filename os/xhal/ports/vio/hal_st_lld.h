@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@
 #ifndef HAL_ST_LLD_H
 #define HAL_ST_LLD_H
 
+#include "sbsysc.h"
+
 /*===========================================================================*/
 /* Driver constants.                                                         */
 /*===========================================================================*/
@@ -39,12 +41,6 @@
  * @name    Configuration options
  * @{
  */
-/**
- * @brief   SysTick timer IRQ priority.
- */
-#if !defined(STM32_ST_IRQ_PRIORITY) || defined(__DOXYGEN__)
-#define STM32_ST_VRQ_VECTOR                 0
-#endif
 /** @} */
 
 /*===========================================================================*/
@@ -63,6 +59,10 @@
 
 #error "invalid OSAL_ST_MODE"
 
+#endif
+
+#if (PORT_USE_LOCAL_SYSTICK == FALSE) && ((SB_VRQ_ALARM < 0) || (SB_VRQ_ALARM > 31))
+#error "invalid SB_VRQ_ALARM value"
 #endif
 
 /*===========================================================================*/

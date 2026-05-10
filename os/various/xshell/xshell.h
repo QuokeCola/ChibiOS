@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -144,12 +144,17 @@
 
 /* Forward.*/
 typedef struct xshell_manager xshell_manager_t;
+typedef struct xshell xshell_t;
+
+/**
+ * @brief   Type of a shell release callback.
+ */
+typedef void (*xshell_callback_t)(xshell_t *xshp, void *par);
 
 /**
  * @brief   Type of a command handler function.
  */
-typedef void (*xshellcmd_t)(xshell_manager_t *smp, shell_stream_i *chp,
-                            int argc, char *argv[]);
+typedef void (*xshellcmd_t)(xshell_t *xshp, int argc, char *argv[], char *envp[]);
 
 /**
  * @brief   Type of a shell custom command structure.
@@ -217,21 +222,21 @@ typedef struct xshell_manager {
    * @brief   Associated configuration.
    */
   const xshell_manager_config_t *config;
-#if XSHELL_PROMPT_STR_LENGTH > 0
-  /**
-   * @brief   Shells current prompt string.
-   */
-  char                          prompt[XSHELL_PROMPT_STR_LENGTH + 1];
-#endif
   /**
    * @brief   Shell events;
    */
   event_source_t                events;
+#if defined(XSHELL_MGR_EXTRA_FIELDS)
+  /* Extra fields defined in xshellconf.h.*/
+  XSHELL_MGR_EXTRA_FIELDS
+#endif
+} xshell_manager_t;
+
 #if (XSHELL_HISTORY_DEPTH > 0) || defined(__DOXYGEN__)
-  /**
-   * @brief   Mutex protecting the history buffer.
-   */
-  mutex_t                       history_mutex;
+/**
+ * @brief   Type of a shell history.
+ */
+typedef struct xshell_history {
   /**
    * @brief   Head of history circular buffer.
    */
@@ -244,12 +249,57 @@ typedef struct xshell_manager {
    * @brief   History buffer.
    */
   char                          history_buffer[XSHELL_HISTORY_DEPTH][XSHELL_LINE_LENGTH];
+} xshell_history_t;
 #endif
-#if defined(XSHELL_MGR_EXTRA_FIELDS)
+
+/**
+ * @brief   Type of a shell instance.
+ */
+typedef struct xshell {
+  /**
+   * @brief   I/O stream associated to the shell.
+   */
+  shell_stream_i                *stream;
+  /**
+   * @brief   Shell environment or @p NULL.
+   */
+  char                          **envp;
+  /**
+   * @brief   Thread running this shell.
+   */
+  thread_t                      thread;
+  /**
+   * @brief   Shell command line buffer.
+   */
+  char                          line[XSHELL_LINE_LENGTH];
+#if (XSHELL_HISTORY_DEPTH > 0) || defined(__DOXYGEN__)
+  xshell_history_t              history;
+#endif
+  /**
+   * @brief   Command argument pointers array.
+   * @note    1st argument is the command name itself, the array is
+   *          NULL-terminated.
+   */
+  char *args[XSHELL_MAX_ARGUMENTS + 2];
+  /**
+   * @brief   Insert mode flag.
+   */
+  bool                          insert_mode;
+#if defined(XSHELL_EXTRA_FIELDS)
   /* Extra fields defined in xshellconf.h.*/
-  XSHELL_MGR_EXTRA_FIELDS
+  XSHELL_EXTRA_FIELDS
 #endif
-} xshell_manager_t;
+#if XSHELL_PROMPT_STR_LENGTH > 0
+  /**
+   * @brief   Shells current prompt string.
+   */
+  char                          prompt[XSHELL_PROMPT_STR_LENGTH + 1];
+#endif
+  /**
+   * @brief   Shell events;
+   */
+  event_source_t                events;
+} xshell_t;
 
 /*===========================================================================*/
 /* Module macros.                                                            */
@@ -277,17 +327,6 @@ typedef struct xshell_manager {
  */
 #define _shell_clr_line(stream)   chprintf(stream, "\033[K")
 
-/**
- * @brief   Prints out usage message
- *
- * @param[in] stream            pointer to a stream interface
- * @param[in] message           pointer to message string
- *
- * @api
- */
-#define xshellUsage(stream, message)                                        \
-  chprintf(stream, "Usage: %s" XSHELL_NEWLINE_STR, message)
-
 /*===========================================================================*/
 /* External declarations.                                                    */
 /*===========================================================================*/
@@ -297,11 +336,16 @@ extern "C" {
 #endif
   void xshellObjectInit(xshell_manager_t *smp,
                         const xshell_manager_config_t *config);
-  thread_t *xshellSpawn(xshell_manager_t *smp,
+  xshell_t *xshellSpawn(xshell_manager_t *smp,
                         shell_stream_i *stream,
-                        tprio_t prio);
-  bool xshellGetLine(xshell_manager_t *smp, shell_stream_i *stream,
-                     char *line, size_t size);
+                        tprio_t prio,
+                        char *envp[]);
+  bool xshellGetLine(xshell_t *xshp, char *line, size_t size);
+  ucnt_t xshellGarbageCollect(xshell_manager_t *smp, xshell_callback_t cb, void *par);
+#if XSHELL_HISTORY_DEPTH > 0
+  void xshellClearHistory(xshell_t *xshp);
+#endif
+  void xshellUsage(xshell_t *xshp, const char *message, ...);
 #ifdef __cplusplus
 }
 #endif
@@ -309,6 +353,73 @@ extern "C" {
 /*===========================================================================*/
 /* Module inline functions.                                                  */
 /*===========================================================================*/
+
+/**
+ * @brief   Returns the shell manager associated to a shell.
+ *
+ * @param[in] xshp              pointer to a @p xshell_t object
+ * @return                      Pointer to a @p shell_manager_t object.
+ *
+ * @api
+ */
+static inline xshell_manager_t *xshellGetManager(xshell_t *xshp) {
+
+  return xshp->thread.object;
+}
+
+/**
+ * @brief   Returns the stream associated to a shell.
+ *
+ * @param[in] xshp              pointer to a @p xshell_t object
+ * @return                      stream reference.
+ *
+ * @api
+ */
+static inline shell_stream_i *xshellGetStream(xshell_t *xshp) {
+
+  return xshp->stream;
+}
+
+/**
+ * @brief   Returns the thread associated to a shell.
+ *
+ * @param[in] xshp              pointer to a @p xshell_t object
+ * @return                      thread reference.
+ *
+ * @api
+ */
+static inline thread_t *xshellGetThread(xshell_t *xshp) {
+
+  return &xshp->thread;
+}
+
+#if (XSHELL_HISTORY_DEPTH > 0) || defined(__DOXYGEN__)
+/**
+ * @brief   Returns the history object of a shell.
+ *
+ * @param[in] xshp              pointer to a @p xshell_t object
+ * @return                      Pointer to a @p xshell_history_t object.
+ *
+ * @api
+ */
+static inline xshell_history_t *xshellGetHistory(xshell_t *xshp) {
+
+  return &xshp->history;
+}
+#endif
+
+/**
+ * @brief   Waits for a shell to terminate.
+ *
+ * @param[in] xshp              pointer to a @p xshell_t object
+ * @return                      The shell exit code.
+ *
+ * @api
+ */
+static inline msg_t xshellWait(xshell_t *xshp) {
+
+  return chThdWait(&xshp->thread);
+}
 
 #endif /* XSHELL_H */
 

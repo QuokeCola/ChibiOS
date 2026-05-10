@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -43,10 +42,12 @@
  *              - Zeroing of objects on dispose.
  *              .
  *          - Level 2:
- *              - Ready list backward pointer check on insertion.
+ *              - Ready list and wait queues backward pointer check on
+ *                insertion.
  *              .
  *          - Level 3:
- *              - Ready list forward pointer validation on insertion.
+ *              - Ready list and wait queues forward pointer validation on
+ *                insertion.
  *              .
  *          .
  * @{

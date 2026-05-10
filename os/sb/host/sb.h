@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -29,12 +28,15 @@
 #define SB_H
 
 #include "hal.h"
-#include "vfs.h"
 #include "errcodes.h"
 
 #include "sbhdr.h"
 #include "sbsysc.h"
 #include "sbconf.h"
+
+#if SB_CFG_ENABLE_VFS == TRUE
+#include "vfs.h"
+#endif
 
 /*===========================================================================*/
 /* Module constants.                                                         */
@@ -103,10 +105,6 @@
 
 #if !defined(SB_CFG_ENABLE_VRQ) || defined(__DOXYGEN__)
 #error "SB_CFG_ENABLE_VRQ not defined in sbconf.h"
-#endif
-
-#if !defined(SB_CFG_ALARM_VRQ) || defined(__DOXYGEN__)
-#error "SB_CFG_ALARM_VRQ not defined in sbconf.h"
 #endif
 
 #if !defined(SB_CFG_ENABLE_VIO) || defined(__DOXYGEN__)
@@ -187,8 +185,9 @@
 #error "invalid SB_CFG_NUM_REGIONS value"
 #endif
 
-#if (SB_CFG_ALARM_VRQ < 0) || (SB_CFG_ALARM_VRQ > 31)
-#error "invalid SB_CFG_ALARM_VRQ value"
+#if (PORT_SWITCHED_REGIONS_NUMBER > 0) &&                                  \
+    (SB_CFG_NUM_REGIONS < PORT_SWITCHED_REGIONS_NUMBER)
+#error "SB_CFG_NUM_REGIONS must be >= PORT_SWITCHED_REGIONS_NUMBER"
 #endif
 
 /*===========================================================================*/
@@ -239,18 +238,25 @@ struct sb_class {
    * @brief   SandBox regions.
    * @note    Region zero is always used for code execution. The data
    *          region is assumed to be the first region in the list with
-   *          attribute @p SB_REG_WRITABLE.
+   *          attribute @p SB_REG_ATTR_WRITABLE.
    */
   sb_memory_region_t            regions[SB_CFG_NUM_REGIONS];
+  /**
+   * @brief   Pointer to the memory area used for data and stack.
+   * @note    The user stack pointer is assumed to stay within this area,
+   *          relocating it to other areas is forbidden, the base of this
+   *          area is used for user-PSPLIM on ARMv8-M architecture.
+   */
+  const memory_area_t           *u_data;
   /**
    * @brief   Saved unprivileged PSP position.
    */
   uint32_t                      u_psp;
-#if (PORT_SAVE_PSPLIM == TRUE) || defined(__DOXYGEN__)
+#if (SB_CFG_ENABLE_VRQ == TRUE) || defined(__DOXYGEN__)
   /**
-   * @brief   Saved unprivileged PSPLIM position.
+   * @brief   Cached VRQ handler entry address.
    */
-  uint32_t                      u_psplim;
+  uint32_t                      vrq_entry;
 #endif
 #if (SB_CFG_ENABLE_VIO == TRUE) || defined(__DOXYGEN__)
   /**

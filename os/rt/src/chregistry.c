@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -143,48 +142,6 @@ ROMCONST chdebug_t ch_debug = {
   .off_inst_rfcu            = (uint8_t)0
 #endif
 };
-
-#if (CH_CFG_USE_DYNAMIC == TRUE) || defined(__DOXYGEN__)
-/**
- * @brief   Threads garbage collection.
- * @details This function scans the registry in order to locate all threads
- *          associated to the specified object, for each thread a reference
- *          is released causing, if the reference counter drops to zero, the
- *          memory to be released.
- * @note    This function assumes that the thread reference created when the
- *          thread is started is not released by the thread creator and is
- *          left dangling. This dangling reference is what this function
- *          releases.
- *
- * @param[in] object    object pointer to be searched
- * @return              The number of found threads.
- *
- * @api
- */
-ucnt_t chRegGarbageCollect(void *object) {
-  thread_t *tp;
-  ucnt_t n = (ucnt_t)0;
-
-  tp = chRegFirstThread();
-  do {
-    if (chThdGetObjectX(tp) == object) {
-
-      /* Found threads-*/
-      n++;
-
-      /* If it has at least one reference then releasing it, note, it has
-         one extra reference which is this scan "tp", this is why it is
-         checking for "greater than two".*/
-      if (tp->refs >= (trefs_t)2) {
-        chThdRelease(tp);
-      }
-    }
-    tp = chRegNextThread(tp);
-  } while (tp != NULL);
-
-  return n;
-}
-#endif /* CH_CFG_USE_DYNAMIC == TRUE */
 
 /**
  * @brief   Returns the first thread in the system.

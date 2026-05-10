@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -77,20 +77,12 @@ CC_NO_INLINE void port_syslock_noinline(void) {
   __dbg_check_lock();
 }
 
-#if (PORT_SAVE_PSPLIM == TRUE) || defined(__DOXYGEN__)
-CC_NO_INLINE uint32_t port_get_s_psp(void) {
+CC_NO_INLINE uint64_t port_get_s_psp(void) {
   thread_t *tp = __sch_get_currthread();
 
-  return (uint32_t)__sch_get_currthread()->waend;
   return ((uint64_t)(uint32_t)(tp->wabase) << 32) |
          ((uint64_t)(uint32_t)(tp->waend) << 0);
 }
-#else
-CC_NO_INLINE uint32_t port_get_s_psp(void) {
-
-  return (uint32_t)__sch_get_currthread()->waend;
-}
-#endif
 
 CC_WEAK void __port_do_fastcall_entry(uint32_t n, struct port_extctx *ectxp) {
 
@@ -116,14 +108,15 @@ CC_WEAK void __port_do_syscall_return(void) {
 
 /**
  * @brief   Tail ISR context switch code.
+ *
+ * @return              The threads pointers encoded in a single 64 bits value.
  */
-void PendSV_Handler(void) {
+uint64_t __port_schedule_next(void) {
 
   /* Note, not an error, we are outside the ISR already.*/
   chSysLock();
 
   if (likely(chSchIsPreemptionRequired())) {
-    extern void port_pendsv_tail(thread_t *ntp, thread_t *otp);
     thread_t *otp, *ntp;
 
     otp = chThdGetSelfX();
@@ -133,11 +126,12 @@ void PendSV_Handler(void) {
     __stats_ctxswc(ntp, otp);
     CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp);
 
-    port_pendsv_tail(ntp, otp);
-    return;
+    return ((uint64_t)(uint32_t)otp << 32) | ((uint64_t)(uint32_t)ntp << 0);
   }
 
   chSysUnlock();
+
+  return (uint64_t)0;
 }
 
 /**
@@ -165,11 +159,11 @@ void port_init(os_instance_t *oip) {
 #if PORT_USE_FPU_FAST_SWITCHING == 0
     /* No lazy context saving, always long exception context.*/
     control = CONTROL_FPCA_Msk | CONTROL_SPSEL_Msk;
-    FPU->FPCCR = 0U;
+    FPU->FPCCR = FPU_FPCCR_ASPEN_Msk;
 #elif PORT_USE_FPU_FAST_SWITCHING == 1
     /* Lazy context saving enabled, always long exception context.*/
     control = CONTROL_FPCA_Msk | CONTROL_SPSEL_Msk;
-    FPU->FPCCR = FPU_FPCCR_LSPEN_Msk;
+    FPU->FPCCR = FPU_FPCCR_ASPEN_Msk | FPU_FPCCR_LSPEN_Msk;
 #else /*PORT_USE_FPU_FAST_SWITCHING >= 2 */
     /* Lazy context saving enabled, automatic FPCA control.*/
     control = CONTROL_SPSEL_Msk;
@@ -186,6 +180,10 @@ void port_init(os_instance_t *oip) {
   /* DWT cycle counter enable.*/
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+#if defined(port_smp_init)
+  port_smp_init(oip);
+#endif
 
   /* Initialization of the system vectors used by the port.*/
   NVIC_SetPriority(SVCall_IRQn, CORTEX_PRIORITY_SVCALL);

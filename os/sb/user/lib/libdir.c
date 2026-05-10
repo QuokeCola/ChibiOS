@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include <reent.h>
 
@@ -74,6 +75,13 @@ struct dirent *readdir (DIR *dirp) {
     }
 
     dep = (struct dirent *)(dirp->buf + dirp->next);
+    if ((dep->d_reclen == 0U) ||
+        ((dirp->next + dep->d_reclen) > dirp->size)) {
+      dirp->next = 0;
+      dirp->size = 0;
+      __errno_r(_REENT) = EINVAL;
+      return NULL;
+    }
     dirp->next += dep->d_reclen;
 
     return dep;

@@ -1,13 +1,12 @@
 [#ftl]
 [#--
-    ChibiOS - Copyright (C) 2006..2019 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
     ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation version 3 of the License.
 
     ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -52,7 +51,7 @@
 #define STM32_NO_INIT                       ${doc.STM32_NO_INIT!"FALSE"}
 #define STM32_CLOCK_DYNAMIC                 ${doc.STM32_CLOCK_DYNAMIC!"FALSE"}
 #define STM32_VOS                           ${doc.STM32_VOS!"STM32_VOS_RANGE1"}
-#define STM32_PWR_CR2                       ${doc.STM32_PWR_CR2!"(STM32_PVDRT_LEV0 | STM32_PVDFT_LEV0 | STM32_PVDE_DISABLED)"}
+#define STM32_PWR_CR2                       ${doc.STM32_PWR_CR2!"(PWR_CR2_VDDIO2_MONITORING_ENABLED | STM32_PVDRT_LEV0 | STM32_PVDFT_LEV0 | STM32_PVDE_DISABLED)"}
 #define STM32_PWR_CR3                       ${doc.STM32_PWR_CR3!"(PWR_CR3_EIWUL)"}
 #define STM32_PWR_CR4                       ${doc.STM32_PWR_CR4!"(0U)"}
 #define STM32_PWR_PUCRA                     ${doc.STM32_PWR_PUCRA!"(0U)"}
@@ -138,7 +137,7 @@
 #define STM32_IRQ_USART2_LP2_PRIORITY       ${doc.STM32_IRQ_USART2_LP2_PRIORITY!"2"}
 #define STM32_IRQ_USART3_4_5_6_LP1_PRIORITY ${doc.STM32_IRQ_USART3_4_5_6_LP1_PRIORITY!"2"}
 
-#define STM32_IRQ_USB1_PRIORITY             ${doc.STM32_IRQ_USB1_PRIORITY!"3"}
+#define STM32_IRQ_USB1_UCPD1_2_PRIORITY     ${doc.STM32_IRQ_USB1_UCPD1_2_PRIORITY!"3"}
 
 /*
  * ADC driver system settings.

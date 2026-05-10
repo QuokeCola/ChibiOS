@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2021 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -79,11 +79,11 @@
 #endif
 
 #if !defined(RP_SPI_SPI1_RX_DMA_CHANNEL)
-#error "RP_SPI_SPI0_RX_DMA_CHANNEL not defined in mcuconf.h"
+#error "RP_SPI_SPI1_RX_DMA_CHANNEL not defined in mcuconf.h"
 #endif
 
 #if !defined(RP_SPI_SPI1_TX_DMA_CHANNEL)
-#error "RP_SPI_SPI0_TX_DMA_CHANNEL not defined in mcuconf.h"
+#error "RP_SPI_SPI1_TX_DMA_CHANNEL not defined in mcuconf.h"
 #endif
 
 #if !defined(RP_SPI_SPI0_DMA_PRIORITY)

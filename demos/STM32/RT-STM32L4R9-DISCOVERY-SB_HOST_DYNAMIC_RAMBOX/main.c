@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -51,9 +51,9 @@ static NullStream nullstream;
 
 /* Streams to be exposed under /dev as files.*/
 static const drv_streams_element_t sb1_streams[] = {
-  {"VSD1", (sequential_stream_i *)&SD2, VFS_MODE_S_IFCHR},
-  {"null", (sequential_stream_i *)&nullstream, VFS_MODE_S_IFCHR},
-  {NULL, NULL, 0}
+  {"VSD1", (sequential_stream_i *)&SD2, NULL, VFS_MODE_S_IFCHR},
+  {"null", (sequential_stream_i *)&nullstream, NULL, VFS_MODE_S_IFCHR},
+  {NULL, NULL, NULL, 0}
 };
 
 /*===========================================================================*/

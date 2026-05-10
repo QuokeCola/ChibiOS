@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -74,11 +74,13 @@ extern "C" {
  * Stack size of test threads.
  */
 #if !defined(THREADS_STACK_SIZE)
-  #if defined(PORT_ARCHITECTURE_AVR) || defined(PORT__ARCHITECTURE_MSP430)
+  #if defined(PORT_ARCHITECTURE_AVR) || defined(PORT_ARCHITECTURE_MSP430)
     #define THREADS_STACK_SIZE      48
   #elif defined(PORT__ARCHITECTURE_STM8)
     #define THREADS_STACK_SIZE      64
   #elif defined(PORT__ARCHITECTURE_SIMIA32)
+    #define THREADS_STACK_SIZE      512
+  #elif defined(PORT_ARCHITECTURE_SIMX86_64)
     #define THREADS_STACK_SIZE      512
   #else
     #define THREADS_STACK_SIZE      192

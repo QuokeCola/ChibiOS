@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -118,15 +117,15 @@ UsageFault_Handler:
                 /* This thread is going to die so going back on
                    S-PSP and working safely from there.*/
                 bl          port_get_s_psp
-#if PORT_SAVE_PSPLIM
+#if defined(PORT_ARCHITECTURE_ARM_V8M_MAINLINE)
                 msr         PSPLIM, r1
 #endif
-#if CORTEX_USE_FPU /* TODO */
+#if CORTEX_USE_FPU
                 sub.w       r0, r0, #104
 #else
                 sub.w       r0, r0, #32
-                msr         PSP, r0
 #endif
+                msr         PSP, r0
 
                 /* Forcing return on exit syscall code with PSR
                    value as exit message.*/

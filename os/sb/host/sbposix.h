@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -60,6 +59,10 @@
 typedef struct {
   /**
    * @brief   VFS driver associated to the sandbox as root.
+   * @note    The object is owned by the host side. SB uses the pointed
+   *          driver instance directly so mutable state inside the driver,
+   *          such as the current working directory, is private to the
+   *          sandbox only if a distinct driver instance is associated to it.
    */
   vfs_driver_c                  *vfs_driver;
   /**

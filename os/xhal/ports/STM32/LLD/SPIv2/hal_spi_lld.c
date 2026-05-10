@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -258,17 +258,16 @@ static void spi_lld_serve_rx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Reporting the failure.*/
-    __cbdrv_invoke_error_cb(spip);
-    __spi_wakeup_isr(spip, HAL_RET_HW_FAILURE);
+    _spi_isr_error_code(spip);
   }
   else if ((__spi_getfield(spip, mode) & SPI_MODE_CIRCULAR) != 0U) {
     if ((flags & STM32_DMA_ISR_HTIF) != 0U) {
       /* Half buffer interrupt.*/
-      __cbdrv_invoke_half_cb(spip);
+      _spi_isr_half_code(spip);
     }
     if ((flags & STM32_DMA_ISR_TCIF) != 0U) {
       /* Full buffer interrupt.*/
-      __cbdrv_invoke_full_cb(spip);
+      _spi_isr_full_code(spip);
     }
   }
   else {
@@ -277,8 +276,7 @@ static void spi_lld_serve_rx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Operation finished interrupt.*/
-    __cbdrv_invoke_complete_cb(spip);
-    __spi_wakeup_isr(spip, MSG_OK);
+    _spi_isr_complete_code(spip);
   }
 }
 
@@ -302,8 +300,7 @@ static void spi_lld_serve_tx_interrupt(SPIDriver *spip, uint32_t flags) {
     dmaStreamDisable(spip->dmarx);
 
     /* Reporting the failure.*/
-    __cbdrv_invoke_error_cb(spip);
-    __spi_wakeup_isr(spip, HAL_RET_HW_FAILURE);
+    _spi_isr_error_code(spip);
   }
 }
 
@@ -319,18 +316,18 @@ static void spi_lld_serve_tx_interrupt(SPIDriver *spip, uint32_t flags) {
 static msg_t spi_lld_get_dma(SPIDriver *spip, uint32_t rxstream,
                              uint32_t txstream, uint32_t priority) {
 
-  spip->dmarx = dmaStreamAllocI(rxstream, priority,
-                                (stm32_dmaisr_t)spi_lld_serve_rx_interrupt,
-                                (void *)spip);
+  spip->dmarx = dmaStreamAlloc(rxstream, priority,
+                               (stm32_dmaisr_t)spi_lld_serve_rx_interrupt,
+                               (void *)spip);
   if (spip->dmarx == NULL) {
     return HAL_RET_NO_RESOURCE;
   }
 
-  spip->dmatx = dmaStreamAllocI(txstream, priority,
-                                (stm32_dmaisr_t)spi_lld_serve_tx_interrupt,
-                                (void *)spip);
+  spip->dmatx = dmaStreamAlloc(txstream, priority,
+                               (stm32_dmaisr_t)spi_lld_serve_tx_interrupt,
+                               (void *)spip);
   if (spip->dmatx == NULL) {
-    dmaStreamFreeI(spip->dmarx);
+    dmaStreamFree(spip->dmarx);
     return HAL_RET_NO_RESOURCE;
   }
 
@@ -470,6 +467,7 @@ void spi_lld_init(void) {
  * @notapi
  */
 msg_t spi_lld_start(SPIDriver *spip) {
+  const hal_spi_config_t *config = (const hal_spi_config_t *)spip->config;
   msg_t msg;
 
   /* Resetting TX pattern source.*/
@@ -596,8 +594,11 @@ msg_t spi_lld_start(SPIDriver *spip) {
   dmaStreamSetPeripheral(spip->dmatx, &spip->spi->DR);
 
   /* Configures the peripheral, it is not supposed to fail.*/
-  spip->config = spi_lld_setcfg(spip, &spi_default_config);
-  osalDbgAssert(spip->config != NULL, "default configuration failed");
+  if (config == NULL) {
+    config = &spi_default_config;
+  }
+  spip->config = spi_lld_setcfg(spip, config);
+  osalDbgAssert(spip->config != NULL, "configuration failed");
 
   return HAL_RET_SUCCESS;
 }
@@ -619,8 +620,8 @@ void spi_lld_stop(SPIDriver *spip) {
   spip->spi->CR2  = 0;
 
   /* DMA channels release.*/
-  dmaStreamFreeI(spip->dmatx);
-  dmaStreamFreeI(spip->dmarx);
+  dmaStreamFree(spip->dmatx);
+  dmaStreamFree(spip->dmarx);
   spip->dmarx = NULL;
   spip->dmatx = NULL;
 

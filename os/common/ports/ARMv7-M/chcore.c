@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -160,6 +159,10 @@ void port_init(os_instance_t *oip) {
   DWT->LAR = 0xC5ACCE55U;
 #endif
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+#if defined(port_smp_init)
+  port_smp_init(oip);
+#endif
 
   /* Initialization of the system vectors used by the port.*/
 #if CORTEX_SIMPLIFIED_PRIORITY == FALSE

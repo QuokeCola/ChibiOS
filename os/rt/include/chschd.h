@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -169,7 +168,13 @@ static inline void ch_sch_prio_insert(ch_queue_t *qp, ch_queue_t *tp) {
 
   ch_queue_t *cp = qp;
   do {
-    cp = cp->next;
+    ch_queue_t *next = cp->next;
+
+    /* Safety checks.*/
+    chSftValidateDataPointerX(3, next);
+    chSftAssert(2, next->prev == cp, "link back");
+
+    cp = next;
   } while ((cp != qp) &&
            (threadref(cp)->hdr.pqueue.prio >= threadref(tp)->hdr.pqueue.prio));
   tp->next       = cp;

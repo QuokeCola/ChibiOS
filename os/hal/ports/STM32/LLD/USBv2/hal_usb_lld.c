@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@
 /**
  * @brief   Gets the address of a TX buffer.
  */
-#define USB_GET_TX_BUFFER(ep)      (uint32_t *)(USB_DRD_PMAADDR +       \
+#define USB_GET_TX_BUFFER(udp)     (uint32_t *)(USB_DRD_PMAADDR +       \
                                                ((udp)->TXBD0 & 0x0000FFFFU))
 
 /**
@@ -394,7 +394,7 @@ static void usb_packet_write_from_buffer(USBDriver *usbp,
   }
 #endif /* STM32_USB_USE_FAST_COPY */
 
-  while (i > 0) {
+  while (i >= 4) {
     uint32_t w;
 
     w  = (uint32_t)(*buf++);
@@ -403,6 +403,25 @@ static void usb_packet_write_from_buffer(USBDriver *usbp,
     w |= (uint32_t)(*buf++) << 24;
     *pmap++ = w;
     i -= 4U;
+  }
+
+  if (i != 0) {
+    uint32_t w = 0U;
+
+    switch (i) {
+    case 3:
+      w |= (uint32_t)buf[2] << 16;
+      /* Falls through.*/
+    case 2:
+      w |= (uint32_t)buf[1] << 8;
+      /* Falls through.*/
+    case 1:
+      w |= (uint32_t)buf[0];
+      break;
+    default:
+      break;
+    }
+    *pmap++ = w;
   }
 }
 
@@ -518,10 +537,12 @@ msg_t usb_lld_start(USBDriver *usbp) {
 #if STM32_USB_USE_USB1
     if (&USBD1 == usbp) {
 
+#if defined(HAL_LLD_USE_CLOCK_MANAGEMENT)
       if ((STM32_USBCLK < (48000000U - STM32_USB_48MHZ_DELTA)) ||
           (STM32_USBCLK > (48000000U + STM32_USB_48MHZ_DELTA))) {
         return HAL_RET_CONFIG_ERROR;
       }
+#endif
 
       /* USB clock enabled.*/
       rccEnableUSB(true);
@@ -529,10 +550,6 @@ msg_t usb_lld_start(USBDriver *usbp) {
 
       /* Powers up the transceiver while holding the USB in reset state.*/
       usbp->usb->CNTR = USB_CNTR_USBRST;
-
-      /* Enabling the USB IRQ vectors, this also gives enough time to allow
-         the transceiver power up (1uS).*/
-      nvicEnableVector(STM32_USB1_NUMBER, STM32_IRQ_USB1_PRIORITY);
 
       /* Releases the USB reset.*/
       usbp->usb->CNTR = 0U;
@@ -558,8 +575,6 @@ void usb_lld_stop(USBDriver *usbp) {
   if (usbp->state != USB_STOP) {
 #if STM32_USB_USE_USB1
     if (&USBD1 == usbp) {
-
-      nvicDisableVector(STM32_USB1_NUMBER);
 
       usbp->usb->CNTR = USB_CNTR_PDWN | USB_CNTR_L2RES;
       rccDisableUSB();

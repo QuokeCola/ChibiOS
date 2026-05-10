@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -330,15 +330,15 @@
  *              be called from the @p cb callback handler.
  *
  * @param[in,out] siop          Pointer to the @p hal_sio_driver_c object
- * @param[in]     size          Maximum number of frames to read.
  * @param[out]    buffer        Buffer for the received data.
+ * @param[in]     n             Maximum number of frames to read.
  * @return                      The number of received frames.
  * @retval 0                    RX FIFO is empty.
  *
  * @xclass
  */
-#define sioAsyncReadX(siop, size, buffer)                                   \
-  sio_lld_read(siop, size, buffer)
+#define sioAsyncReadX(siop, buffer, n)                                      \
+  sio_lld_read(siop, buffer, n)
 
 /**
  * @brief       Writes data into the TX FIFO.
@@ -348,15 +348,15 @@
  *              be called from the @p cb callback handler.
  *
  * @param[in,out] siop          Pointer to the @p hal_sio_driver_c object
- * @param[in]     size          Maximum number of frames to read.
  * @param[in]     buffer        Buffer containing the data to be transmitted
+ * @param[in]     n             Maximum number of frames to read.
  * @return                      The number of transmitted frames.
  * @retval 0                    TX FIFO is full.
  *
  * @xclass
  */
-#define sioAsyncWriteX(siop, size, buffer)                                  \
-  sio_lld_write(siop, size, buffer)
+#define sioAsyncWriteX(siop, buffer, n)                                     \
+  sio_lld_write(siop, buffer, n)
 
 /**
  * @brief       Control operation on a serial port.
@@ -522,9 +522,9 @@ typedef struct hal_sio_driver SIODriver;
 struct hal_sio_config {
   /* End of the mandatory fields.*/
   sio_lld_config_fields;
-#if (defined(SIO_CONFIG_EXT_FIELS)) || defined (__DOXYGEN__)
+#if (defined(SIO_CONFIG_EXT_FIELDS)) || defined (__DOXYGEN__)
   SIO_CONFIG_EXT_FIELDS
-#endif /* defined(SIO_CONFIG_EXT_FIELS) */
+#endif /* defined(SIO_CONFIG_EXT_FIELDS) */
 };
 
 /**
@@ -569,12 +569,12 @@ struct hal_sio_driver_vmt {
   /* From base_object_c.*/
   void (*dispose)(void *ip);
   /* From hal_base_driver_c.*/
-  msg_t (*start)(void *ip);
+  msg_t (*start)(void *ip, const void *config);
   void (*stop)(void *ip);
   const void * (*setcfg)(void *ip, const void *config);
   const void * (*selcfg)(void *ip, unsigned cfgnum);
   /* From hal_cb_driver_c.*/
-  void (*setcb)(void *ip, drv_cb_t cb);
+  void (*oncbset)(void *ip, drv_cb_t cb);
   /* From hal_sio_driver_c.*/
 };
 
@@ -633,7 +633,7 @@ struct hal_sio_driver {
    * @brief       Enabled event flags.
    */
   sioevents_t               enabled;
-#if (HAL_USE_MUTUAL_EXCLUSION == TRUE) || defined (__DOXYGEN__)
+#if (SIO_USE_SYNCHRONIZATION == TRUE) || defined (__DOXYGEN__)
   /**
    * @brief       Synchronization point for RX.
    */
@@ -650,8 +650,8 @@ struct hal_sio_driver {
    * @brief       Synchronization point for TX-end.
    */
   thread_reference_t        sync_txend;
-#endif /* HAL_USE_MUTUAL_EXCLUSION == TRUE */
-#if defined(SIO_DRIVER_EXT_FIELS)
+#endif /* SIO_USE_SYNCHRONIZATION == TRUE */
+#if defined(SIO_DRIVER_EXT_FIELDS)
   SIO_DRIVER_EXT_FIELDS
 #endif
   /* End of the mandatory fields.*/
@@ -661,7 +661,8 @@ struct hal_sio_driver {
 
 /**
  * @class       hal_buffered_sio_c
- * @extends     hal_buffered_serial_c
+ * @extends     hal_base_driver_c
+ * @implements  asynchronous_channel_i
  *
  * @brief       This class implements a buffered channel interface on top of
  *              SIO.
@@ -682,11 +683,10 @@ struct hal_buffered_sio_vmt {
   /* From base_object_c.*/
   void (*dispose)(void *ip);
   /* From hal_base_driver_c.*/
-  msg_t (*start)(void *ip);
+  msg_t (*start)(void *ip, const void *config);
   void (*stop)(void *ip);
   const void * (*setcfg)(void *ip, const void *config);
   const void * (*selcfg)(void *ip, unsigned cfgnum);
-  /* From hal_buffered_serial_c.*/
   /* From hal_buffered_sio_c.*/
 };
 
@@ -763,7 +763,7 @@ extern "C" {
   /* Methods of hal_sio_driver_c.*/
   void *__sio_objinit_impl(void *ip, const void *vmt);
   void __sio_dispose_impl(void *ip);
-  msg_t __sio_start_impl(void *ip);
+  msg_t __sio_start_impl(void *ip, const void *config);
   void __sio_stop_impl(void *ip);
   const void *__sio_setcfg_impl(void *ip, const void *config);
   const void *__sio_selcfg_impl(void *ip, unsigned cfgnum);
@@ -784,9 +784,11 @@ extern "C" {
                             uint8_t *ib, size_t ibsize, uint8_t *ob,
                             size_t obsize);
   void __bsio_dispose_impl(void *ip);
-  msg_t __bsio_start_impl(void *ip);
+  msg_t __bsio_start_impl(void *ip, const void *config);
   void __bsio_stop_impl(void *ip);
   const void *__bsio_setcfg_impl(void *ip, const void *config);
+  void bsIncomingDataI(void *ip, uint8_t b);
+  msg_t bsRequestDataI(void *ip);
   /* Regular functions.*/
   void sioInit(void);
 #ifdef __cplusplus
@@ -845,6 +847,27 @@ static inline hal_buffered_sio_c *bsioObjectInit(hal_buffered_sio_c *self,
 
   return __bsio_objinit_impl(self, &__hal_buffered_sio_vmt, siop, ib, ibsize,
                              ob, obsize);
+}
+/** @} */
+
+/**
+ * @name        Inline methods of hal_buffered_sio_c
+ * @{
+ */
+/**
+ * @brief       Adds status flags to the flags mask.
+ * @details     This function is usually called from the I/O ISRs in order to
+ *              notify I/O conditions such as data events, errors, signal
+ *              changes etc.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_buffered_sio_c instance.
+ * @param[in]     flags         Event flags to be added.
+ */
+CC_FORCE_INLINE
+static inline void bsAddFlagsI(void *ip, eventflags_t flags) {
+  hal_buffered_sio_c *self = (hal_buffered_sio_c *)ip;
+
+  osalEventBroadcastFlagsI(&self->event, flags);
 }
 /** @} */
 

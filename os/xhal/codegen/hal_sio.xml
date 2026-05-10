@@ -6,7 +6,6 @@
   <imports>
     <import>hal_cb_driver.xml</import>
     <import>hal_channels.xml</import>
-    <import>hal_buffered_serial.xml</import>
   </imports>
   <public>
     <definitions_early>
@@ -251,14 +250,14 @@ do {
         <param name="siop" dir="both">pointer to the @p hal_sio_driver_c
           object
         </param>
-        <param name="size" dir="in">maximum number of frames to read
-        </param>
         <param name="buffer" dir="out">buffer for the received data
+        </param>
+        <param name="n" dir="in">maximum number of frames to read
         </param>
         <return>The number of received frames.</return>
         <retval value="0">RX FIFO is empty.</retval>
         <xclass />
-        <implementation><![CDATA[sio_lld_read(siop, size, buffer)]]></implementation>
+        <implementation><![CDATA[sio_lld_read(siop, buffer, n)]]></implementation>
       </macro>
       <macro name="sioAsyncWriteX">
         <brief>Writes data into the TX FIFO.</brief>
@@ -273,15 +272,15 @@ do {
         <param name="siop" dir="both">pointer to the @p hal_sio_driver_c
           object
         </param>
-        <param name="size" dir="in">maximum number of frames to read
-        </param>
         <param name="buffer" dir="in">buffer containing the data to be
           transmitted
+        </param>
+        <param name="n" dir="in">maximum number of frames to read
         </param>
         <return>The number of transmitted frames.</return>
         <retval value="0">TX FIFO is full.</retval>
         <xclass />
-        <implementation><![CDATA[sio_lld_write(siop, size, buffer)]]></implementation>
+        <implementation><![CDATA[sio_lld_write(siop, buffer, n)]]></implementation>
       </macro>
       <macro name="sioControlX">
         <brief>Control operation on a serial port.</brief>
@@ -443,7 +442,7 @@ do {
           <verbatim><![CDATA[
 /* End of the mandatory fields.*/
 sio_lld_config_fields;]]></verbatim>
-          <condition check="defined(SIO_CONFIG_EXT_FIELS)">
+          <condition check="defined(SIO_CONFIG_EXT_FIELDS)">
             <verbatim><![CDATA[
 SIO_CONFIG_EXT_FIELDS]]></verbatim>
           </condition>
@@ -496,12 +495,18 @@ return MSG_OK;]]></implementation>
                 <implementation><![CDATA[
 msg_t msg;
 
-msg = sioSynchronizeRX(self, TIME_INFINITE);
-if (msg != MSG_OK) {
-  return msg;
-}
+while (true) {
+  msg = sioSynchronizeRX(self, TIME_INFINITE);
+  if (msg == SIO_MSG_ERRORS) {
+    (void)sioGetAndClearErrors(self);
+    continue;
+  }
+  if (msg != MSG_OK) {
+    return msg;
+  }
 
-return sioGetX(self);]]></implementation>
+  return sioGetX(self);
+}]]></implementation>
               </method>
               <method shortname="unget">
                 <implementation><![CDATA[
@@ -537,12 +542,18 @@ return MSG_OK;]]></implementation>
                 <implementation><![CDATA[
 msg_t msg;
 
-msg = sioSynchronizeRX(self, timeout);
-if (msg != MSG_OK) {
-  return msg;
-}
+while (true) {
+  msg = sioSynchronizeRX(self, timeout);
+  if (msg == SIO_MSG_ERRORS) {
+    (void)sioGetAndClearErrors(self);
+    continue;
+  }
+  if (msg != MSG_OK) {
+    return msg;
+  }
 
-return sioGetX(self);]]></implementation>
+  return sioGetX(self);
+}]]></implementation>
               </method>
               <method shortname="getclr">
                 <implementation><![CDATA[
@@ -571,7 +582,7 @@ return HAL_RET_SUCCESS;]]></implementation>
           <field name="enabled" ctype="sioevents_t">
             <brief>Enabled event flags.</brief>
           </field>
-          <condition check="HAL_USE_MUTUAL_EXCLUSION == TRUE">
+          <condition check="SIO_USE_SYNCHRONIZATION == TRUE">
             <field name="sync_rx" ctype="thread_reference_t">
               <brief>Synchronization point for RX.</brief>
             </field>
@@ -586,7 +597,7 @@ return HAL_RET_SUCCESS;]]></implementation>
             </field>
           </condition>
           <verbatim><![CDATA[
-#if defined(SIO_DRIVER_EXT_FIELS)
+#if defined(SIO_DRIVER_EXT_FIELDS)
 SIO_DRIVER_EXT_FIELDS
 #endif
 /* End of the mandatory fields.*/
@@ -919,6 +930,10 @@ return msg;]]></implementation>
               <implementation><![CDATA[
 msg_t msg;
 
+if (config != NULL) {
+  self->config = config;
+}
+
 msg = sio_lld_start(self);
 if (msg == HAL_RET_SUCCESS) {
 #if SIO_USE_SYNCHRONIZATION == TRUE
@@ -928,6 +943,9 @@ if (msg == HAL_RET_SUCCESS) {
   /* If synchronization is disabled then no events by default.*/
   sioWriteEnableFlagsX(self, SIO_EV_NONE);
 #endif
+}
+else {
+  self->config = NULL;
 }
 
 return msg;]]></implementation>
@@ -962,9 +980,87 @@ return (const void *)sio_lld_selcfg(self, cfgnum);]]></implementation>
         </methods>
       </class>
       <class name="hal_buffered_sio" type="regular" namespace="bsio"
-        descr="buffered SIO wrapper" ancestorname="hal_buffered_serial">
+        descr="buffered SIO wrapper" ancestorname="hal_base_driver">
         <brief>This class implements a buffered channel interface on top of SIO.</brief>
+        <implements>
+          <if name="asynchronous_channel">
+            <method shortname="write">
+              <implementation><![CDATA[
+
+return oqWriteTimeout(&self->oqueue, bp, n, TIME_INFINITE);]]></implementation>
+            </method>
+            <method shortname="read">
+              <implementation><![CDATA[
+
+return iqReadTimeout(&self->iqueue, bp, n, TIME_INFINITE);]]></implementation>
+            </method>
+            <method shortname="put">
+              <implementation><![CDATA[
+
+return oqPutTimeout(&self->oqueue, b, TIME_INFINITE);]]></implementation>
+            </method>
+            <method shortname="get">
+              <implementation><![CDATA[
+
+return iqGetTimeout(&self->iqueue, TIME_INFINITE);]]></implementation>
+            </method>
+            <method shortname="unget">
+              <implementation><![CDATA[
+
+(void)self;
+(void)b;
+
+return STM_RESET;]]></implementation>
+            </method>
+            <method shortname="writet">
+              <implementation><![CDATA[
+
+return oqWriteTimeout(&self->oqueue, bp, n, timeout);]]></implementation>
+            </method>
+            <method shortname="readt">
+              <implementation><![CDATA[
+
+return iqReadTimeout(&self->iqueue, bp, n, timeout);]]></implementation>
+            </method>
+            <method shortname="putt">
+              <implementation><![CDATA[
+
+return oqPutTimeout(&self->oqueue, b, timeout);]]></implementation>
+            </method>
+            <method shortname="gett">
+              <implementation><![CDATA[
+
+return iqGetTimeout(&self->iqueue, timeout);]]></implementation>
+            </method>
+            <method shortname="getclr">
+              <implementation><![CDATA[
+
+(void)self;
+(void)mask;
+
+return 0;]]></implementation>
+            </method>
+            <method shortname="ctl">
+              <implementation><![CDATA[
+
+(void)self;
+(void)operation;
+(void)arg;
+
+return 0;]]></implementation>
+            </method>
+          </if>
+        </implements>
         <fields>
+          <field name="iqueue" ctype="input_queue_t">
+            <brief>Input queue.</brief>
+          </field>
+          <field name="oqueue" ctype="output_queue_t">
+            <brief>Output queue.</brief>
+          </field>
+          <field name="event" ctype="event_source_t">
+            <brief>I/O condition event source.</brief>
+          </field>
           <field name="siop" ctype="hal_sio_driver_c$I*">
             <brief>Pointer to the associated @p hal_sio_driver_c instance.</brief>
           </field>
@@ -978,15 +1074,35 @@ return (const void *)sio_lld_selcfg(self, cfgnum);]]></implementation>
             <param name="ob" ctype="uint8_t *" dir="in">Pointer to the output buffer.</param>
             <param name="obsize" ctype="size_t" dir="in">Size of the output buffer.</param>
             <implementation><![CDATA[
-__bs_objinit_impl((void *)self, vmt,
-                  ib, ibsize, NULL, NULL,
-                  ob, obsize, __bsio_onotify, (void *)self);
+__drv_objinit_impl(self, vmt);
+
+{
+  static const struct asynchronous_channel_vmt bsio_chn_vmt = {
+    .instance_offset      = offsetof(hal_buffered_sio_c, chn),
+    .write                = __bsio_chn_write_impl,
+    .read                 = __bsio_chn_read_impl,
+    .put                  = __bsio_chn_put_impl,
+    .get                  = __bsio_chn_get_impl,
+    .unget                = __bsio_chn_unget_impl,
+    .writet               = __bsio_chn_writet_impl,
+    .readt                = __bsio_chn_readt_impl,
+    .putt                 = __bsio_chn_putt_impl,
+    .gett                 = __bsio_chn_gett_impl,
+    .getclr               = __bsio_chn_getclr_impl,
+    .ctl                  = __bsio_chn_ctl_impl
+  };
+  oopIfObjectInit(&self->chn, &bsio_chn_vmt);
+}
+
+osalEventObjectInit(&self->event);
+iqObjectInit(&self->iqueue, ib, ibsize, NULL, NULL);
+oqObjectInit(&self->oqueue, ob, obsize, __bsio_onotify, (void *)self);
 drvSetArgumentX(siop, self);
 self->siop = siop;]]></implementation>
           </objinit>
           <dispose>
             <implementation><![CDATA[
-]]></implementation>
+__drv_dispose_impl(self);]]></implementation>
           </dispose>
           <override>
             <method shortname="start">
@@ -994,10 +1110,14 @@ self->siop = siop;]]></implementation>
 msg_t msg;
 
 /* Starting the undelying SIO driver.*/
-msg = drvStartS(self->siop);
+msg = drvStart(self->siop, config);
 if (msg == HAL_RET_SUCCESS) {
+  self->config = self->siop->config;
+  drvSetArgumentX(self->siop, self);
   drvSetCallbackX(self->siop, &__bsio_default_cb);
-  sioWriteEnableFlagsX(self->siop, SIO_EV_ALL_EVENTS);
+  sioWriteEnableFlagsX(self->siop,
+                       SIO_EV_ALL_ERRORS | SIO_EV_RX_NOTEMPTY |
+                       SIO_EV_RX_IDLE);
 }
 
 return msg;]]></implementation>
@@ -1005,7 +1125,7 @@ return msg;]]></implementation>
             <method shortname="stop">
               <implementation><![CDATA[
 
-drvStopS(self->siop);]]></implementation>
+drvStop(self->siop);]]></implementation>
             </method>
             <method shortname="setcfg">
               <implementation><![CDATA[
@@ -1014,6 +1134,68 @@ drvStopS(self->siop);]]></implementation>
 return __sio_setcfg_impl(self->siop, config);]]></implementation>
             </method>
           </override>
+          <regular>
+            <method name="bsIncomingDataI" ctype="void">
+              <brief>Handles incoming data.</brief>
+              <details><![CDATA[This function must be called from the input
+                interrupt service routine in order to enqueue incoming data
+                and generate the related events.]]></details>
+              <note><![CDATA[The incoming data event is only generated when
+                the input queue becomes non-empty.]]></note>
+              <param name="b" ctype="uint8_t" dir="in">the byte to be written
+                to the driver's Input Queue
+              </param>
+              <implementation><![CDATA[
+
+osalDbgCheckClassI();
+osalDbgCheck(self != NULL);
+
+if (iqIsEmptyI(&self->iqueue)) {
+  bsAddFlagsI(self, CHN_FL_RX_NOTEMPTY);
+}
+
+if (iqPutI(&self->iqueue, b) < MSG_OK) {
+  bsAddFlagsI(self, CHN_FL_BUFFER_FULL_ERR);
+}]]></implementation>
+            </method>
+            <method name="bsRequestDataI" ctype="msg_t">
+              <brief>Handles outgoing data.</brief>
+              <details><![CDATA[Must be called from the output interrupt
+                service routine in order to get the next byte to be
+                transmitted.]]></details>
+              <return>The byte value read from the driver's output queue.
+              </return>
+              <retval value="MSG_TIMEOUT">If the queue is empty.</retval>
+              <implementation><![CDATA[
+msg_t b;
+
+osalDbgCheckClassI();
+osalDbgCheck(self != NULL);
+
+b = oqGetI(&self->oqueue);
+if (b < MSG_OK) {
+  /* Note, this event is only added when the buffer becomes fully empty in
+     order to avoid continuous reporting.*/
+  bsAddFlagsI(self, CHN_FL_TX_NOTFULL);
+}
+
+return b;]]></implementation>
+            </method>
+          </regular>
+          <inline>
+            <method name="bsAddFlagsI" ctype="void">
+              <brief>Adds status flags to the flags mask.</brief>
+              <details><![CDATA[This function is usually called from the I/O
+                ISRs in order to notify I/O conditions such as data events,
+                errors, signal changes etc.]]></details>
+              <param name="flags" ctype="eventflags_t" dir="in">Event flags to
+                be added.
+              </param>
+              <implementation><![CDATA[
+
+osalEventBroadcastFlagsI(&self->event, flags);]]></implementation>
+            </method>
+          </inline>
         </methods>
       </class>
       
@@ -1044,23 +1226,14 @@ sio_lld_init();]]></implementation>
           <param name="n" ctype="size_t" />
           <param name="timeout" ctype="sysinterval_t" />
           <implementation><![CDATA[
-size_t i;
+msg_t msg;
 
-i = 0U;
-while (i < n) {
-  size_t written;
-  msg_t msg;
-
-  msg = sioSynchronizeTX(siop, timeout);
-  if (msg != MSG_OK) {
-    break;
-  }
-
-  written = sioAsyncWriteX(siop, bp, n - i);
-  i += written;
-  bp += written;
+msg = sioSynchronizeTX(siop, timeout);
+if (msg != MSG_OK) {
+  return 0U;
 }
-return i;]]></implementation>
+
+return sioAsyncWriteX(siop, bp, n);]]></implementation>
         </function>
         <function name="sio_sync_read" ctype="size_t">
           <param name="siop" ctype="hal_sio_driver_c *" />
@@ -1068,40 +1241,59 @@ return i;]]></implementation>
           <param name="n" ctype="size_t" />
           <param name="timeout" ctype="sysinterval_t" />
           <implementation><![CDATA[
-size_t i;
+msg_t msg;
 
-i = 0U;
-while (i < n) {
-  size_t read;
-  msg_t msg;
-
-  msg = sioSynchronizeRX(siop, timeout);
-  if (msg != MSG_OK) {
-    break;
-  }
-
-  read = sioAsyncReadX(siop, bp, n - i);
-  i += read;
-  bp += read;
+msg = sioSynchronizeRX(siop, timeout);
+if (msg == SIO_MSG_ERRORS) {
+  (void)sioGetAndClearErrors(siop);
 }
-return i;]]></implementation>
+else if (msg != MSG_OK) {
+  return 0U;
+}
+
+return sioAsyncReadX(siop, bp, n);]]></implementation>
         </function>
       </condition>
       <condition check="SIO_USE_BUFFERING == TRUE">
+        <function name="__bsio_update_tx_irq" ctype="void">
+          <param name="bsiop" ctype="hal_buffered_sio_c *"></param>
+          <param name="txdone" ctype="bool"></param>
+          <implementation><![CDATA[
+sioevents_t current;
+sioevents_t mask;
+
+current = sioGetEnableFlagsX(bsiop->siop);
+mask = current & ~(SIO_EV_TX_NOTFULL | SIO_EV_TX_END);
+if (!oqIsEmptyI(&bsiop->oqueue)) {
+  mask |= SIO_EV_TX_NOTFULL;
+}
+if (txdone) {
+  mask |= SIO_EV_TX_END;
+}
+if (mask != current) {
+  sioWriteEnableFlagsX(bsiop->siop, mask);
+}]]></implementation>
+        </function>
         <function name="__bsio_push_data" ctype="void">
           <param name="bsiop" ctype="hal_buffered_sio_c *"></param>
           <implementation><![CDATA[
+bool txdone;
 
+txdone = sioIsTXOngoingX(bsiop->siop);
 while (!sioIsTXFullX(bsiop->siop)) {
   msg_t msg;
 
   msg = oqGetI(&bsiop->oqueue);
   if (msg < MSG_OK) {
     bsAddFlagsI(bsiop, CHN_FL_TX_NOTFULL);
+    __bsio_update_tx_irq(bsiop, txdone);
     return;
   }
   sioPutX(bsiop->siop, (uint_fast16_t)msg);
-}]]></implementation>
+  txdone = true;
+}
+
+__bsio_update_tx_irq(bsiop, txdone);]]></implementation>
         </function>
         <function name="__bsio_pop_data" ctype="void">
           <param name="bsiop" ctype="hal_buffered_sio_c *"></param>
@@ -1120,23 +1312,26 @@ hal_sio_driver_c *siop = (hal_sio_driver_c *)ip;
 hal_buffered_sio_c *bsiop = (hal_buffered_sio_c *)siop->arg;
 sioevents_t events;
 
+if (bsiop == NULL) {
+  return;
+}
+
 osalSysLockFromISR();
+
+/* Drain/fill FIFOs before re-enabling data interrupts in the LLD.
+   NOTE: this assumes status/error flags are not cleared by data reads,
+   otherwise non-data events could be lost before sioGetAndClearEventsX(). */
+if (!sioIsRXEmptyX(siop)) {
+  __bsio_pop_data(bsiop);
+}
+if (!sioIsTXFullX(siop)) {
+  __bsio_push_data(bsiop);
+}
 
 /* Posting the non-data SIO events as channel event flags, the masks are
    made to match.*/
 events = sioGetAndClearEventsX(siop, SIO_EV_ALL_EVENTS);
 bsAddFlagsI(bsiop, (eventflags_t)(events & ~SIO_EV_ALL_DATA));
-
-/* RX FIFO event.*/
-if ((events & SIO_EV_RX_NOTEMPTY) != (sioevents_t)0) {
-
-  __bsio_pop_data(bsiop);
-}
-
-/* TX FIFO event.*/
-if ((events & SIO_EV_TX_NOTFULL) != (sioevents_t)0) {
-   __bsio_push_data(bsiop);
-}
 
 osalSysUnlockFromISR();]]></implementation>
         </function>

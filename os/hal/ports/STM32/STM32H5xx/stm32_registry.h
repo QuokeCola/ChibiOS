@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,6 +33,22 @@
  * @name    STM32H5xx capabilities
  * @{
  */
+
+/* DBGMCU helpers.*/
+#define STM32_DBGMCU_TIM1_STOP()            DBGMCU->APB2FZR |= DBGMCU_APB2FZR_DBG_TIM1_STOP
+#define STM32_DBGMCU_TIM2_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM2_STOP
+#define STM32_DBGMCU_TIM3_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM3_STOP
+#define STM32_DBGMCU_TIM4_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM4_STOP
+#define STM32_DBGMCU_TIM5_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM5_STOP
+#define STM32_DBGMCU_TIM6_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM6_STOP
+#define STM32_DBGMCU_TIM7_STOP()            DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM7_STOP
+#define STM32_DBGMCU_TIM8_STOP()            DBGMCU->APB2FZR |= DBGMCU_APB2FZR_DBG_TIM8_STOP
+#define STM32_DBGMCU_TIM12_STOP()           DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM12_STOP
+#define STM32_DBGMCU_TIM13_STOP()           DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM13_STOP
+#define STM32_DBGMCU_TIM14_STOP()           DBGMCU->APB1FZR1 |= DBGMCU_APB1FZR1_DBG_TIM14_STOP
+#define STM32_DBGMCU_TIM15_STOP()           DBGMCU->APB2FZR |= DBGMCU_APB2FZR_DBG_TIM15_STOP
+#define STM32_DBGMCU_TIM16_STOP()           DBGMCU->APB2FZR |= DBGMCU_APB2FZR_DBG_TIM16_STOP
+#define STM32_DBGMCU_TIM17_STOP()           DBGMCU->APB2FZR |= DBGMCU_APB2FZR_DBG_TIM17_STOP
 
 /*===========================================================================*/
 /* Common.                                                                   */
@@ -241,6 +257,7 @@
 #define STM32_SYSTEM_HAS_AHB4               FALSE
 #define STM32_PWR_HAS_UCPDR                 FALSE
 #define STM32_PWR_HAS_USBSCR                FALSE
+#define STM32_PWR_HAS_SECCFGR               FALSE
 
 /* ADC attributes.*/
 #define STM32_HAS_ADC1                      TRUE
@@ -412,6 +429,7 @@
 #define STM32_SYSTEM_HAS_AHB4               TRUE
 #define STM32_PWR_HAS_UCPDR                 TRUE
 #define STM32_PWR_HAS_USBSCR                TRUE
+#define STM32_PWR_HAS_SECCFGR               TRUE
 
 /* ADC attributes.*/
 #define STM32_HAS_ADC1                      TRUE

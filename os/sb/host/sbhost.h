@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -151,6 +150,13 @@ static inline void sbSetRegion(sb_class_t *sbp, unsigned region,
 #if (SB_CFG_ENABLE_VFS == TRUE) || defined(__DOXYGEN__)
 /**
  * @brief   Associates a VFS file system to a sandbox as root.
+ * @note    The passed driver instance is used directly and is not wrapped
+ *          nor duplicated by the SB subsystem.
+ * @note    In order to have a sandbox-private current working directory and
+ *          any other mutable filesystem state, the host code must associate
+ *          a distinct mutable VFS driver instance to each sandbox.
+ * @note    If the same VFS object is shared among sandboxes then the current
+ *          working directory and any other driver-local state are shared too.
  *
  * @param[in] sbp       pointer to a @p sb_class_t structure
  * @param[in] drvp      pointer to a @p vfs_driver_c structure or @p NULL

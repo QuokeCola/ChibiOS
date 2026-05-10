@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -53,9 +53,9 @@ hal_spi_driver_c SPID2;
 /*===========================================================================*/
 
 CC_FORCE_INLINE
-static inline uint32_t __spi_vspi_init(uint32_t nvuart) {
+static inline uint32_t __spi_vspi_init(uint32_t nvuart, size_t n, void *p) {
 
-  __syscall1r(226, VIO_CALL(SB_VSPI_INIT, nvuart));
+  __syscall3r(226, VIO_CALL(SB_VSPI_INIT, nvuart), n, p);
   return (uint32_t)r0;
 }
 
@@ -70,7 +70,7 @@ CC_FORCE_INLINE
 static inline uint32_t __spi_vspi_selcfg(uint32_t nvuart, uint32_t ncfg,
                                          size_t n, void *p) {
 
-  __syscall4r(226, VIO_CALL(SB_VSPI_SELCFG, nvuart), ncfg, n, p);
+  __syscall4r(98, VIO_CALL(SB_VSPI_SELCFG, nvuart), ncfg, n, p);
   return (uint32_t)r0;
 }
 
@@ -128,7 +128,7 @@ OSAL_IRQ_HANDLER(MK_VECTOR(VIO_VSPI1_IRQ)) {
 
 #if VIO_SPI_USE_VSPI2 || defined(__DOXYGEN__)
 #if !defined(VIO_VSPI2_SUPPRESS_ISR)
-OSAL_IRQ_HANDLER(MK_VECTOR(VIO_VPIO2_IRQ)) {
+OSAL_IRQ_HANDLER(MK_VECTOR(VIO_VSPI2_IRQ)) {
 
   OSAL_IRQ_PROLOGUE();
 
@@ -179,16 +179,24 @@ msg_t spi_lld_start(hal_spi_driver_c *spip) {
   }
 #if VIO_SPI_USE_VSPI1 == TRUE
   else if (&SPID1 == spip) {
-    msg = (msg_t)__spi_vspi_init(spip->nvspi);
+    msg = (msg_t)__spi_vspi_init(spip->nvspi,
+                                 sizeof (hal_spi_config_t),
+                                 &spip->cfgbuf);
   }
 #endif
 #if VIO_SPI_USE_VSPI2 == TRUE
   else if (&SPID2 == spip) {
-    msg = (msg_t)__spi_vspi_init(spip->nvspi);
+    msg = (msg_t)__spi_vspi_init(spip->nvspi,
+                                 sizeof (hal_spi_config_t),
+                                 &spip->cfgbuf);
   }
 #endif
   else {
     osalDbgAssert(false, "invalid SPI instance");
+  }
+
+  if (msg == HAL_RET_SUCCESS) {
+    spip->config = &spip->cfgbuf;
   }
 
   return msg;
@@ -221,15 +229,18 @@ void spi_lld_stop(hal_spi_driver_c *spip) {
     osalDbgAssert(false, "invalid SIO instance");
   }
 
-  osalDbgAssert(msg = HAL_RET_SUCCESS, "unexpected failure");
+  osalDbgAssert(msg == HAL_RET_SUCCESS, "unexpected failure");
 }
 
 /**
- * @brief   SPI configuration.
+ * @brief   Applies an explicit SPI configuration.
+ * @note    The VIO port does not accept arbitrary sandbox-provided
+ *          configurations. Only host-approved predefined configurations
+ *          selected using @p drvSelectCfgX() are supported.
  *
  * @param[in] spip      pointer to the @p hal_spi_driver_c object
  * @param[in] config    pointer to the @p hal_spi_config_t structure
- * @return              A pointer to the current configuration structure.
+ * @return              Always @p NULL in the VIO port.
  *
  * @notapi
  */
@@ -238,11 +249,14 @@ const hal_spi_config_t *spi_lld_setcfg(hal_spi_driver_c *spip, const hal_spi_con
   (void)spip;
   (void)config;
 
+  /* Explicit configurations are intentionally rejected in this port. */
   return NULL;
 }
 
 /**
- * @brief       Selects one of the pre-defined SPI configurations.
+ * @brief       Selects one of the host-defined SPI configurations.
+ * @note        The selected configuration is mirrored locally in
+ *              @p spip->cfgbuf after host-side validation and selection.
  *
  * @param[in] spip      pointer to the @p hal_spi_driver_c object
  * @param[in] cfgnum    driver configuration number
@@ -272,7 +286,7 @@ const hal_spi_config_t *spi_lld_selcfg(hal_spi_driver_c *spip, unsigned cfgnum) 
  */
 void spi_lld_select(hal_spi_driver_c *spip) {
 
-  __syscall1r(226, VIO_CALL(SB_VSPI_SELECT, spip->nvspi));
+  __syscall1r(98, VIO_CALL(SB_VSPI_SELECT, spip->nvspi));
 }
 
 /**
@@ -285,7 +299,7 @@ void spi_lld_select(hal_spi_driver_c *spip) {
  */
 void spi_lld_unselect(hal_spi_driver_c *spip) {
 
-  __syscall1r(226, VIO_CALL(SB_VSPI_UNSELECT, spip->nvspi));
+  __syscall1r(98, VIO_CALL(SB_VSPI_UNSELECT, spip->nvspi));
 }
 
 /**
@@ -404,11 +418,20 @@ msg_t spi_lld_stop_transfer(hal_spi_driver_c *spip, size_t *sizep) {
  * @return              The received data frame from the SPI bus.
  */
 uint16_t spi_lld_polled_exchange(hal_spi_driver_c *spip, uint16_t frame) {
+  uint16_t rxframe = 0U;
 
+#if SPI_USE_SYNCHRONIZATION == TRUE
+  msg_t msg;
+
+  msg = spiExchange(spip, 1U, &frame, &rxframe);
+  osalDbgAssert(msg == HAL_RET_SUCCESS, "unexpected failure");
+#else
   (void)spip;
   (void)frame;
+  osalDbgAssert(false, "SPI_USE_SYNCHRONIZATION required");
+#endif
 
-  return 0;
+  return rxframe;
 }
 
 #endif /* HAL_USE_SPI */

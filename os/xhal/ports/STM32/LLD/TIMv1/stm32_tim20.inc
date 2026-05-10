@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -113,12 +113,12 @@ OSAL_IRQ_HANDLER(STM32_TIM20_UP_HANDLER) {
 
 #if HAL_USE_GPT
 #if STM32_GPT_USE_TIM20
-  pwm_lld_serve_interrupt(&GPTD20);
+  gpt_lld_serve_interrupt(&GPTD20);
 #endif
 #endif
 #if HAL_USE_ICU
 #if STM32_ICU_USE_TIM20
-  pwm_lld_serve_interrupt(&ICUD20);
+  icu_lld_serve_interrupt(&ICUD20);
 #endif
 #endif
 #if HAL_USE_PWM
@@ -147,8 +147,10 @@ OSAL_IRQ_HANDLER(STM32_TIM20_CC_HANDLER) {
 #if HAL_USE_GPT
   /* Not used by GPT.*/
 #endif
+#if HAL_USE_ICU
 #if STM32_ICU_USE_TIM20
-  pwm_lld_serve_interrupt(&ICUD20);
+  icu_lld_serve_interrupt(&ICUD20);
+#endif
 #endif
 #if HAL_USE_PWM
 #if STM32_PWM_USE_TIM20

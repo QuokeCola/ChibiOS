@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -143,9 +142,9 @@ void chSysWaitSystemState(system_state_t state) {
 
 /**
  * @brief   System initialization.
- * @details After executing this function the current instructions stream
+ * @details After executing this function the current instruction stream
  *          becomes the main thread.
- * @pre     Interrupts must disabled before invoking this function.
+ * @pre     Interrupts must be disabled before invoking this function.
  * @post    The main thread is created with priority @p NORMALPRIO and
  *          interrupts are enabled.
  * @post    the system is in @p ch_sys_running state.

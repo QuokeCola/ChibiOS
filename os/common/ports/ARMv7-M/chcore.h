@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -228,7 +227,6 @@
 
 /**
  * @brief   RBAR register initialization for region 0.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR0_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR0_INIT             0U
@@ -236,7 +234,6 @@
 
 /**
  * @brief   RASR register initialization for region 0.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR0_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR0_INIT             0U
@@ -244,7 +241,6 @@
 
 /**
  * @brief   RBAR register initialization for region 1.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR1_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR1_INIT             0U
@@ -252,7 +248,6 @@
 
 /**
  * @brief   RASR register initialization for region 1.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR1_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR1_INIT             0U
@@ -260,7 +255,6 @@
 
 /**
  * @brief   RBAR register initialization for region 2.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR2_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR2_INIT             0U
@@ -268,7 +262,6 @@
 
 /**
  * @brief   RASR register initialization for region 2.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR2_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR2_INIT             0U
@@ -276,7 +269,6 @@
 
 /**
  * @brief   RBAR register initialization for region 3.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR3_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR3_INIT             0U
@@ -284,7 +276,6 @@
 
 /**
  * @brief   RASR register initialization for region 3.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR3_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR3_INIT             0U
@@ -292,7 +283,6 @@
 
 /**
  * @brief   RBAR register initialization for region 4.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR4_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR4_INIT             0U
@@ -300,7 +290,6 @@
 
 /**
  * @brief   RASR register initialization for region 4.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR4_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR4_INIT             0U
@@ -308,7 +297,6 @@
 
 /**
  * @brief   RBAR register initialization for region 5.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR5_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR5_INIT             0U
@@ -316,7 +304,6 @@
 
 /**
  * @brief   RASR register initialization for region 5.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR5_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR5_INIT             0U
@@ -324,7 +311,6 @@
 
 /**
  * @brief   RBAR register initialization for region 6.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR6_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR6_INIT             0U
@@ -332,7 +318,6 @@
 
 /**
  * @brief   RASR register initialization for region 6.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR6_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR6_INIT             0U
@@ -340,7 +325,6 @@
 
 /**
  * @brief   RBAR register initialization for region 7.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RBAR7_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RBAR7_INIT             0U
@@ -348,7 +332,6 @@
 
 /**
  * @brief   RASR register initialization for region 7.
- * @note    Memory regions must not overlap in ARMv8-M.
  */
 #if !defined(PORT_MPU_RASR7_INIT) || defined(__DOXYGEN__)
 #define PORT_MPU_RASR7_INIT             0U
@@ -357,6 +340,23 @@
 /*===========================================================================*/
 /* Derived constants and error checks.                                       */
 /*===========================================================================*/
+
+/* Inclusion of SMP support, if enabled.*/
+#if (CH_CFG_SMP_MODE == TRUE) || defined(__DOXYGEN__)
+#if !defined(_FROM_ASM_)
+#if !defined(__CHIBIOS_RT__)
+#error "SMP is supported in RT only"
+#endif
+
+#include "chcoresmp.h"
+
+#if !defined(PORT_CORES_NUMBER)
+#error "PORT_CORES_NUMBER not defined in chcoresmp.h"
+#endif
+
+#endif
+#else /* CH_CFG_SMP_MODE != TRUE */
+#endif /* CH_CFG_SMP_MODE != TRUE */
 
 #if (CORTEX_FAST_PRIORITIES < 0U) ||                                         \
     (CORTEX_FAST_PRIORITIES > (CORTEX_PRIORITY_LEVELS / 4U))
@@ -870,6 +870,9 @@ __STATIC_FORCEINLINE void port_lock(void) {
 #else /* CORTEX_SIMPLIFIED_PRIORITY */
   __disable_irq();
 #endif /* CORTEX_SIMPLIFIED_PRIORITY */
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_take();
+#endif
 }
 
 /**
@@ -879,6 +882,9 @@ __STATIC_FORCEINLINE void port_lock(void) {
  */
 __STATIC_FORCEINLINE void port_unlock(void) {
 
+#if CH_CFG_SMP_MODE == TRUE
+  port_spinlock_release();
+#endif
 #if CORTEX_SIMPLIFIED_PRIORITY == FALSE
   __set_BASEPRI(CORTEX_BASEPRI_DISABLED);
 #else /* CORTEX_SIMPLIFIED_PRIORITY */
@@ -960,6 +966,7 @@ __STATIC_FORCEINLINE void port_wait_for_interrupt(void) {
 #endif
 }
 
+#if !defined(port_rt_get_counter_value)
 /**
  * @brief   Returns the current value of the realtime counter.
  *
@@ -969,6 +976,7 @@ __STATIC_FORCEINLINE rtcnt_t port_rt_get_counter_value(void) {
 
   return DWT->CYCCNT;
 }
+#endif
 
 /*lint -restore */
 
@@ -981,7 +989,11 @@ __STATIC_FORCEINLINE rtcnt_t port_rt_get_counter_value(void) {
 #if !defined(_FROM_ASM_)
 
 #if CH_CFG_ST_TIMEDELTA > 0
+#if (CH_CFG_SMP_MODE == TRUE) && (PORT_CORES_NUMBER > 1)
+#include "chcoresmp_timer.h"
+#else
 #include "chcore_timer.h"
+#endif
 #endif /* CH_CFG_ST_TIMEDELTA > 0 */
 
 #endif /* !defined(_FROM_ASM_) */

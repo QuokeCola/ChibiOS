@@ -1,13 +1,12 @@
 [#ftl]
 [#--
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
     ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation version 3 of the License.
 
     ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -109,6 +108,13 @@
  */
 #if !defined(VFS_CFG_ENABLE_DRV_LITTLEFS) || defined(__DOXYGEN__)
 #define VFS_CFG_ENABLE_DRV_LITTLEFS         ${doc.VFS_CFG_ENABLE_DRV_LITTLEFS!"FALSE"}
+#endif
+
+/**
+ * @brief   Enables the VFS ROMFS Driver.
+ */
+#if !defined(VFS_CFG_ENABLE_DRV_ROMFS) || defined(__DOXYGEN__)
+#define VFS_CFG_ENABLE_DRV_ROMFS            ${doc.VFS_CFG_ENABLE_DRV_ROMFS!"FALSE"}
 #endif
 
 /** @} */
@@ -241,6 +247,25 @@
 #endif
 
 /** @} */
+
+/*===========================================================================*/
+/**
+ * @name ROMFS driver settings
+ * @{
+ */
+/*===========================================================================*/
+
+#if !defined(DRV_CFG_ROM_ENABLE_COMPRESSION) || defined(__DOXYGEN__)
+#define DRV_CFG_ROM_ENABLE_COMPRESSION      ${doc.DRV_CFG_ROM_ENABLE_COMPRESSION!"FALSE"}
+#endif
+
+#if !defined(DRV_CFG_ROM_DIR_NODES_NUM) || defined(__DOXYGEN__)
+#define DRV_CFG_ROM_DIR_NODES_NUM           ${doc.DRV_CFG_ROM_DIR_NODES_NUM!"1"}
+#endif
+
+#if !defined(DRV_CFG_ROM_FILE_NODES_NUM) || defined(__DOXYGEN__)
+#define DRV_CFG_ROM_FILE_NODES_NUM          ${doc.DRV_CFG_ROM_FILE_NODES_NUM!"4"}
+#endif
 
 #endif /* VFSCONF_H */
 

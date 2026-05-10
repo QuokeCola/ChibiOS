@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -166,7 +166,19 @@
 #endif
 
 /**
- * @brief   ETHD1 interrupt priority level setting.
+ * @brief   PHY detection timeout.
+ * @details Timeout for PHY address detection, the scan for a PHY is performed
+ *          the specified number of times before invoking the failure handler.
+ *          This setting applies only if the PHY address is not explicitly
+ *          set in the board header file using @p BOARD_PHY_ADDRESS. A zero
+ *          value disables the timeout and a single search is performed.
+ */
+#if !defined(STM32_ETH_PHY_TIMEOUT) || defined(__DOXYGEN__)
+#define STM32_ETH_PHY_TIMEOUT               100
+#endif
+
+/**
+ * @brief   Default MAC address.
  */
 #if !defined(STM32_ETH_ETH1_DEFAULT_MAC_ADDRESS) || defined(__DOXYGEN__)
 #define STM32_ETH_ETH1_DEFAULT_MAC_ADDRESS  {0xAA, 0x55, 0x13, 0x37, 0x01, 0x10}
@@ -187,6 +199,13 @@
 #endif
 
 /**
+ * @brief   ETHD1 interrupt priority level setting.
+ */
+#if !defined(STM32_ETH_ETH1_IRQ_PRIORITY) || defined(__DOXYGEN__)
+#define STM32_ETH_ETH1_IRQ_PRIORITY         13
+#endif
+
+/**
  * @brief   IP checksum offload.
  * @details The following modes are available:
  *          - 0 Function disabled.
@@ -201,6 +220,13 @@
  */
 #if !defined(STM32_ETH_IP_CHECKSUM_OFFLOAD) || defined(__DOXYGEN__)
 #define STM32_ETH_IP_CHECKSUM_OFFLOAD       0
+#endif
+
+/**
+ * @brief   Link connection type.
+ */
+#if !defined(STM32_ETH_PHY_LINK_TYPE) || defined(__DOXYGEN__)
+#define STM32_ETH_PHY_LINK_TYPE             MAC_LINK_DYNAMIC
 #endif
 /** @} */
 
@@ -222,30 +248,24 @@
 
 /**
  * @brief   Type of an STM32 Ethernet receive descriptor.
- * @note    The structure contains custom fields rdes4 and rdes5 used by
- *          the driver.
+ * @note    This structure must match the hardware descriptor layout.
  */
 typedef struct {
   volatile uint32_t         rdes0;
   volatile uint32_t         rdes1;
   volatile uint32_t         rdes2;
   volatile uint32_t         rdes3;
-  volatile uint32_t         offset;
-  volatile uint32_t         size;
 } stm32_eth_rx_descriptor_t;
 
 /**
  * @brief   Type of an STM32 Ethernet transmit descriptor.
- * @note    The structure contains custom fields tdes4 and tdes5 used by
- *          the driver.
+ * @note    This structure must match the hardware descriptor layout.
  */
 typedef struct {
   volatile uint32_t         tdes0;
   volatile uint32_t         tdes1;
   volatile uint32_t         tdes2;
   volatile uint32_t         tdes3;
-  volatile uint32_t         offset;
-  volatile uint32_t         size;
 } stm32_eth_tx_descriptor_t;
 
 /*===========================================================================*/
@@ -295,6 +315,10 @@ extern "C" {
                                          unsigned cfgnum);
   eth_receive_handle_t eth_lld_get_receive_handle(hal_eth_driver_c *ethp);
   eth_transmit_handle_t eth_lld_get_transmit_handle(hal_eth_driver_c *ethp);
+  bool eth_lld_is_receive_handle_valid(hal_eth_driver_c *ethp,
+                                       eth_receive_handle_t rxh);
+  bool eth_lld_is_transmit_handle_valid(hal_eth_driver_c *ethp,
+                                        eth_transmit_handle_t txh);
   void eth_lld_release_receive_handle(hal_eth_driver_c *ethp,
                                       eth_receive_handle_t rxh);
   void eth_lld_release_transmit_handle(hal_eth_driver_c *ethp,

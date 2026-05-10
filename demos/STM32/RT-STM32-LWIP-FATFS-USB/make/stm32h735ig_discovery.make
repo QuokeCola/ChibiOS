@@ -120,7 +120,7 @@ include $(CHIBIOS)/test/oslib/oslib_test.mk
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/shell/shell.mk
 include $(CHIBIOS)/os/various/fatfs_bindings/fatfs.mk
-include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+include $(CHIBIOS)/os/various/lwip_bindings/lwip_hal.mk
 include $(CHIBIOS)/os/various/httpd_fatfs_bindings/httpd_fatfs.mk
 
 # Define linker script file here
@@ -130,7 +130,6 @@ LDSCRIPT= $(STARTUPLD)/STM32H723xG_ITCM64k_AXI_NC.ld
 # setting.
 CSRC = $(ALLCSRC) \
        $(TESTSRC) \
-       $(CHIBIOS)/os/various/evtimer.c \
        $(CONFDIR)/portab.c \
        main.c
 

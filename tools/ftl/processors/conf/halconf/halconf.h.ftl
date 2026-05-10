@@ -1,13 +1,12 @@
 [#ftl]
 [#--
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
     ChibiOS is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+    the Free Software Foundation version 3 of the License.
 
     ChibiOS is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -40,9 +39,16 @@
 #define HALCONF_H
 
 #define _CHIBIOS_HAL_CONF_
-#define _CHIBIOS_HAL_CONF_VER_9_0_
+#define _CHIBIOS_HAL_CONF_VER_9_1_
 
 #include "mcuconf.h"
+
+/**
+ * @brief   Enables the HAL safety subsystem.
+ */
+#if !defined(HAL_USE_SAFETY) || defined(__DOXYGEN__)
+#define HAL_USE_SAFETY                      ${doc.HAL_USE_SAFETY!"FALSE"}
+#endif
 
 /**
  * @brief   Enables the PAL subsystem.
@@ -77,6 +83,13 @@
  */
 #if !defined(HAL_USE_DAC) || defined(__DOXYGEN__)
 #define HAL_USE_DAC                         ${doc.HAL_USE_DAC!"FALSE"}
+#endif
+
+/**
+ * @brief   Enables the display subsystem.
+ */
+#if !defined(HAL_USE_DSPL) || defined(__DOXYGEN__)
+#define HAL_USE_DSPL                        ${doc.HAL_USE_DSPL!"FALSE"}
 #endif
 
 /**
@@ -545,6 +558,15 @@
  */
 #if !defined(USB_USE_WAIT) || defined(__DOXYGEN__)
 #define USB_USE_WAIT                        ${doc.USB_USE_WAIT!"FALSE"}
+#endif
+
+/**
+ * @brief   Moves EP0 request handling to thread context.
+ * @note    When enabled the legacy requests hook callback is not available
+ *          and the application must provide a dedicated EP0 worker thread.
+ */
+#if !defined(USB_USE_EP0_THREAD) || defined(__DOXYGEN__)
+#define USB_USE_EP0_THREAD                  ${doc.USB_USE_EP0_THREAD!"FALSE"}
 #endif
 
 /*===========================================================================*/

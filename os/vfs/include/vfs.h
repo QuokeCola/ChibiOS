@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -111,6 +110,10 @@
 #include "drvlittlefs.h"
 #endif
 
+#if VFS_CFG_ENABLE_DRV_ROMFS == TRUE
+#include "drvromfs.h"
+#endif
+
 /* Only for testing, not a real driver.*/
 #define VFS_CFG_ENABLE_DRV_TEMPLATE         FALSE
 #define DRV_CFG_TEMPLATE_DIR_NODES_NUM      1
@@ -149,7 +152,7 @@ extern "C" {
                            vfs_offset_t offset,
                            vfs_seekmode_t whence);
   vfs_offset_t vfsGetFilePosition(vfs_file_node_c *vfnp);
-  sequential_stream_i *vfsGetFileStream(vfs_file_node_c *vfnp);
+  random_stream_i *vfsGetFileStream(vfs_file_node_c *vfnp);
 #ifdef __cplusplus
 }
 #endif

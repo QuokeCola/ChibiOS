@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -93,12 +93,13 @@ void *__eth_objinit_impl(void *ip, const void *vmt) {
   /* Initialization code.*/
 #if ETH_USE_SYNCHRONIZATION == TRUE
   osalThreadQueueObjectInit(&self->txqueue);
-  osalThreadQueueObjectInit(&self->txqueue);
+  osalThreadQueueObjectInit(&self->rxqueue);
 #endif
 
 #if ETH_USE_EVENTS == TRUE
   osalEventObjectInit(&self->es);
 #endif
+  self->lastflags = (eventflags_t)0U;
 
   /* Optional, user-defined initializer.*/
 #if defined(ETH_DRIVER_EXT_INIT_HOOK)
@@ -129,12 +130,26 @@ void __eth_dispose_impl(void *ip) {
  * @brief       Override of method @p __drv_start().
  *
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
+ * @param[in]     config        Driver configuration or @p NULL.
  * @return                      The operation status.
  */
-msg_t __eth_start_impl(void *ip) {
+msg_t __eth_start_impl(void *ip, const void *config) {
   hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
+  msg_t msg;
 
-  return eth_lld_start(self);
+  if (config != NULL) {
+    self->config = __eth_setcfg_impl(self, config);
+    if (self->config == NULL) {
+      return HAL_RET_CONFIG_ERROR;
+    }
+  }
+
+  msg = eth_lld_start(self);
+  if (msg != HAL_RET_SUCCESS) {
+    self->config = NULL;
+  }
+
+  return msg;
 }
 
 /**
@@ -185,7 +200,7 @@ const struct hal_eth_driver_vmt __hal_eth_driver_vmt = {
   .stop                     = __eth_stop_impl,
   .setcfg                   = __eth_setcfg_impl,
   .selcfg                   = __eth_selcfg_impl,
-  .setcb                    = __cbdrv_setcb_impl
+  .oncbset                  = __cbdrv_oncbset_impl
 };
 
 /**
@@ -197,20 +212,19 @@ const struct hal_eth_driver_vmt __hal_eth_driver_vmt = {
  *
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
  * @return                      The link status,
- * @retval false                If the link is active.
- * @retval true                 If the link is down or the driver is not in
- *                              active state.
+ * @retval true                 If the link is active.
+ * @retval false                If the link is down or the driver is not ready.
  *
  * @api
  */
 bool ethPollLinkStatus(void *ip) {
   hal_eth_driver_c *self = (hal_eth_driver_c *)ip;
 
-  if (drvGetStateX(self) == HAL_DRV_STATE_ACTIVE) {
+  if (drvGetStateX(self) == HAL_DRV_STATE_READY) {
     return eth_lld_poll_link_status(self);
   }
 
-  return true;
+  return false;
 }
 
 #if (ETH_USE_SYNCHRONIZATION == TRUE) || defined (__DOXYGEN__)
@@ -220,7 +234,7 @@ bool ethPollLinkStatus(void *ip) {
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
  * @param[in]     timeout       Receive timeout.
  * @return                      A receive handle.
- * @retval NULL                 If a received frame is not available within the
+ * @retval 0                    If a received frame is not available within the
  *                              specified timeout.
  */
 eth_receive_handle_t ethWaitReceiveHandle(void *ip, sysinterval_t timeout) {
@@ -228,14 +242,14 @@ eth_receive_handle_t ethWaitReceiveHandle(void *ip, sysinterval_t timeout) {
   eth_receive_handle_t rxh;
 
   osalDbgCheck(self != NULL);
-  osalDbgAssert(drvGetStateX(self) == HAL_DRV_STATE_ACTIVE, "not active");
+  osalDbgAssert(drvGetStateX(self) == HAL_DRV_STATE_READY, "not ready");
 
   osalSysLock();
 
-  while (((rxh = ethGetReceiveHandleI(self)) == NULL)) {
+  while ((rxh = ethGetReceiveHandleX(self)) == (eth_receive_handle_t)0U) {
     msg_t msg = osalThreadEnqueueTimeoutS(&self->rxqueue, timeout);
     if (msg == MSG_TIMEOUT) {
-      rxh = NULL;
+      rxh = (eth_receive_handle_t)0U;
       break;
     }
   }
@@ -251,7 +265,7 @@ eth_receive_handle_t ethWaitReceiveHandle(void *ip, sysinterval_t timeout) {
  * @param[in,out] ip            Pointer to a @p hal_eth_driver_c instance.
  * @param[in]     timeout       Transmit timeout.
  * @return                      A transmit handle.
- * @retval NULL                 If a transmit frame is not available within the
+ * @retval 0                    If a transmit frame is not available within the
  *                              specified timeout.
  */
 eth_transmit_handle_t ethWaitTransmitHandle(void *ip, sysinterval_t timeout) {
@@ -259,14 +273,14 @@ eth_transmit_handle_t ethWaitTransmitHandle(void *ip, sysinterval_t timeout) {
   eth_transmit_handle_t txh;
 
   osalDbgCheck(self != NULL);
-  osalDbgAssert(drvGetStateX(self) == HAL_DRV_STATE_ACTIVE, "not active");
+  osalDbgAssert(drvGetStateX(self) == HAL_DRV_STATE_READY, "not ready");
 
   osalSysLock();
 
-  while (((txh = ethGetTransmitHandleI(self)) == NULL)) {
+  while ((txh = ethGetTransmitHandleX(self)) == (eth_transmit_handle_t)0U) {
     msg_t msg = osalThreadEnqueueTimeoutS(&self->txqueue, timeout);
     if (msg == MSG_TIMEOUT) {
-      txh = NULL;
+      txh = (eth_transmit_handle_t)0U;
       break;
     }
   }

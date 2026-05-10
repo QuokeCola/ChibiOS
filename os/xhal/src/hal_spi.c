@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2025 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -93,6 +93,7 @@ void *__spi_objinit_impl(void *ip, const void *vmt) {
   /* Initialization code.*/
 #if SPI_USE_SYNCHRONIZATION == TRUE
   self->sync_transfer = NULL;
+  self->sync_state    = HAL_DRV_STATE_STOP;
 #endif
 
   /* Optional, user-defined initializer.*/
@@ -124,12 +125,23 @@ void __spi_dispose_impl(void *ip) {
  * @brief       Override of method @p __drv_start().
  *
  * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
+ * @param[in]     config        Driver configuration or @p NULL.
  * @return                      The operation status.
  */
-msg_t __spi_start_impl(void *ip) {
+msg_t __spi_start_impl(void *ip, const void *config) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
+  msg_t msg;
 
-  return spi_lld_start(self);
+  if (config != NULL) {
+    self->config = config;
+  }
+
+  msg = spi_lld_start(self);
+  if (msg != HAL_RET_SUCCESS) {
+    self->config = NULL;
+  }
+
+  return msg;
 }
 
 /**
@@ -180,7 +192,7 @@ const struct hal_spi_driver_vmt __hal_spi_driver_vmt = {
   .stop                     = __spi_stop_impl,
   .setcfg                   = __spi_setcfg_impl,
   .selcfg                   = __spi_selcfg_impl,
-  .setcb                    = __cbdrv_setcb_impl
+  .oncbset                  = __cbdrv_oncbset_impl
 };
 
 /**
@@ -523,17 +535,46 @@ msg_t spiStopTransfer(void *ip, size_t *np) {
 }
 
 #if (SPI_USE_SYNCHRONIZATION == TRUE) || defined (__DOXYGEN__)
-msg_t spiSynchronizeS(void *ip, sysinterval_t timeout) {
+/**
+ * @brief       Synchronizes with an SPI transfer state.
+ * @details     This function synchronizes with a future occurrence of the
+ *              specified transfer state. State occurrences are not buffered,
+ *              the waiting thread must already be waiting when the state is
+ *              reached. Waiting for @p HAL_DRV_STATE_COMPLETE in circular mode
+ *              waits until the transfer is explicitly stopped or failed.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
+ * @param[in]     state         State to synchronize with.
+ * @param[in]     timeout       Synchronization timeout.
+ * @return                      The synchronization result.
+ * @retval MSG_OK               If the requested state has been reached.
+ * @retval MSG_TIMEOUT          If synchronization timed out.
+ * @retval MSG_RESET            If transfer stopped or failed while waiting.
+ *
+ * @sclass
+ */
+msg_t spiSynchronizeStateS(void *ip, driver_state_t state,
+                           sysinterval_t timeout) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
   msg_t msg;
 
   osalDbgCheck(self != NULL);
+  osalDbgCheckClassS();
+  osalDbgCheck((state == HAL_DRV_STATE_HALF) ||
+               (state == HAL_DRV_STATE_FULL) ||
+               (state == HAL_DRV_STATE_COMPLETE));
   osalDbgAssert((self->state == HAL_DRV_STATE_ACTIVE) ||
-                (self->state == HAL_DRV_STATE_READY),
+                ((self->state == HAL_DRV_STATE_READY) &&
+                 (state == HAL_DRV_STATE_COMPLETE)),
                 "invalid state");
+  osalDbgCheck((state == HAL_DRV_STATE_COMPLETE) ||
+               ((__spi_getfield(self, mode) & SPI_MODE_CIRCULAR) != 0U));
+  osalDbgAssert(self->sync_transfer == NULL, "already waiting");
 
   if (self->state == HAL_DRV_STATE_ACTIVE) {
+    self->sync_state = state;
     msg = osalThreadSuspendTimeoutS(&self->sync_transfer, timeout);
+    self->sync_state = HAL_DRV_STATE_STOP;
   }
   else {
     msg = MSG_OK;
@@ -542,12 +583,33 @@ msg_t spiSynchronizeS(void *ip, sysinterval_t timeout) {
   return msg;
 }
 
-msg_t spiSynchronize(void *ip, sysinterval_t timeout) {
+/**
+ * @brief       Synchronizes with an SPI transfer state.
+ * @details     This function synchronizes with a future occurrence of the
+ *              specified transfer state. State occurrences are not buffered,
+ *              the waiting thread must already be waiting when the state is
+ *              reached. Waiting for @p HAL_DRV_STATE_COMPLETE in circular mode
+ *              waits until the transfer is explicitly stopped or failed.
+ *
+ * @param[in,out] ip            Pointer to a @p hal_spi_driver_c instance.
+ * @param[in]     state         State to synchronize with.
+ * @param[in]     timeout       Synchronization timeout.
+ * @return                      The synchronization result.
+ * @retval MSG_OK               If the requested state has been reached.
+ * @retval MSG_TIMEOUT          If synchronization timed out.
+ * @retval MSG_RESET            If transfer stopped or failed while waiting.
+ *
+ * @api
+ */
+msg_t spiSynchronizeState(void *ip, driver_state_t state,
+                          sysinterval_t timeout) {
   hal_spi_driver_c *self = (hal_spi_driver_c *)ip;
   msg_t msg;
 
+  osalDbgCheck(self != NULL);
+
   osalSysLock();
-  msg = spiSynchronizeS(self, timeout);
+  msg = spiSynchronizeStateS(self, state, timeout);
   osalSysUnlock();
 
   return msg;
@@ -576,7 +638,7 @@ msg_t spiIgnore(void *ip, size_t n) {
 
   msg = spiStartIgnoreI(self, n);
   if (msg == MSG_OK) {
-    msg = spiSynchronizeS(self, TIME_INFINITE);
+    msg = spiSynchronizeStateS(self, HAL_DRV_STATE_COMPLETE, TIME_INFINITE);
   }
 
   osalSysUnlock();
@@ -611,7 +673,7 @@ msg_t spiExchange(void *ip, size_t n, const void *txbuf, void *rxbuf) {
 
   msg = spiStartExchangeI(self, n, txbuf, rxbuf);
   if (msg == MSG_OK) {
-    msg = spiSynchronizeS(self, TIME_INFINITE);
+    msg = spiSynchronizeStateS(self, HAL_DRV_STATE_COMPLETE, TIME_INFINITE);
   }
 
   osalSysUnlock();
@@ -644,7 +706,7 @@ msg_t spiSend(void *ip, size_t n, const void *txbuf) {
 
   msg = spiStartSendI(self, n, txbuf);
   if (msg == MSG_OK) {
-    msg = spiSynchronizeS(self, TIME_INFINITE);
+    msg = spiSynchronizeStateS(self, HAL_DRV_STATE_COMPLETE, TIME_INFINITE);
   }
 
   osalSysUnlock();
@@ -677,7 +739,7 @@ msg_t spiReceive(void *ip, size_t n, void *rxbuf) {
 
   msg = spiStartReceiveI(self, n, rxbuf);
   if (msg == MSG_OK) {
-    msg = spiSynchronizeS(self, TIME_INFINITE);
+    msg = spiSynchronizeStateS(self, HAL_DRV_STATE_COMPLETE, TIME_INFINITE);
   }
 
   osalSysUnlock();

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,26 +30,42 @@ static uint8_t txbuf[32];
 
 #define SHELL_WA_SIZE       THD_STACK_SIZE(2048)
 
-static void cmd_halt(xshell_manager_t *smp, BaseSequentialStream *stream,
-                     int argc, char *argv[]) {
+static bool write_all(asynchronous_channel_i *chp, const uint8_t *bp,
+                      size_t n) {
 
-  (void)smp;
+  while (n > 0U) {
+    size_t written;
+
+    written = chnWrite(chp, bp, n);
+    if (written == 0U) {
+      return false;
+    }
+
+    bp += written;
+    n  -= written;
+  }
+
+  return true;
+}
+
+static void cmd_halt(xshell_t *xshp, int argc, char *argv[], char *envp[]) {
+
   (void)argv;
+  (void)envp;
 
   if (argc != 1) {
-    xshellUsage(stream, "halt");
+    xshellUsage(xshp, "halt");
     return;
   }
 
-  chprintf(stream, XSHELL_NEWLINE_STR "halted");
+  chprintf(xshp->stream, XSHELL_NEWLINE_STR "halted");
   chThdSleepMilliseconds(10);
   chSysHalt("shell halt");
 }
 
 /* Can be measured using dd if=/dev/xxxx of=/dev/null bs=512 count=10000.*/
-static void cmd_write(xshell_manager_t *smp, BaseSequentialStream *stream,
-                      int argc, char *argv[]) {
-  static uint8_t buf[] =
+static void cmd_write(xshell_t *xshp, int argc, char *argv[], char *envp[]) {
+  static const uint8_t buf[] =
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -67,32 +83,35 @@ static void cmd_write(xshell_manager_t *smp, BaseSequentialStream *stream,
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-  (void)smp;
   (void)argv;
+  (void)envp;
 
   if (argc != 1) {
-    xshellUsage(stream, "write");
+    xshellUsage(xshp, "write");
     return;
   }
 
-  while (chnGetTimeout((asynchronous_channel_i *)stream, TIME_IMMEDIATE) == Q_TIMEOUT) {
-    chnWrite(stream, buf, sizeof buf - 1);
+  while (chnGetTimeout((asynchronous_channel_i *)xshp->stream,
+                       TIME_IMMEDIATE) == Q_TIMEOUT) {
+    if (!write_all((asynchronous_channel_i *)xshp->stream,
+                   buf, sizeof buf - 1U)) {
+      break;
+    }
   }
-  chprintf(stream, XSHELL_NEWLINE_STR "stopped" XSHELL_NEWLINE_STR);
+  chprintf(xshp->stream, XSHELL_NEWLINE_STR "stopped" XSHELL_NEWLINE_STR);
 }
 
-static void cmd_sbcrash(xshell_manager_t *smp, BaseSequentialStream *stream,
-                        int argc, char *argv[]) {
+static void cmd_sbcrash(xshell_t *xshp, int argc, char *argv[], char *envp[]) {
 
-  (void)smp;
   (void)argv;
+  (void)envp;
 
   if (argc > 1) {
-    xshellUsage(stream, "sbcrash");
+    xshellUsage(xshp, "sbcrash");
     return;
   }
 
-  chprintf(stream, "\r\n\nCrashing...\r\n");
+  chprintf(xshp->stream, "\r\n\nCrashing...\r\n");
   chThdSleepMilliseconds(10);
 
   /* Test for exception on interrupt.*/
@@ -102,18 +121,17 @@ static void cmd_sbcrash(xshell_manager_t *smp, BaseSequentialStream *stream,
   }
 }
 
-static void cmd_sbexit(xshell_manager_t *smp, BaseSequentialStream *stream,
-                       int argc, char *argv[]) {
+static void cmd_sbexit(xshell_t *xshp, int argc, char *argv[], char *envp[]) {
 
-  (void)smp;
   (void)argv;
+  (void)envp;
 
   if (argc > 1) {
-    xshellUsage(stream, "sbexit");
+    xshellUsage(xshp, "sbexit");
     return;
   }
 
-  chprintf(stream, "\r\n\nExiting SandBox\r\n");
+  chprintf(xshp->stream, "\r\n\nExiting SandBox\r\n");
   chThdSleepMilliseconds(10);
   sbExit(MSG_OK);
 }
@@ -149,7 +167,7 @@ static THD_FUNCTION(thd1_func, arg) {
 
   chRegSetThreadName("blinker");
   while (true) {
-    palTogglePad(0, 0);
+    palTogglePad(IOPORT1, 0);
     chThdSleepMilliseconds(500);
   }
 }
@@ -188,16 +206,16 @@ int main(void) {
   bsioObjectInit(&bsio1, &SIOD1,
                  rxbuf, sizeof rxbuf,
                  txbuf, sizeof txbuf);
-  drvStart(&bsio1);
+  drvStart(&bsio1, NULL);
 
   /*
    * Normal main() thread activity, spawning shells.
    */
   while (true) {
-    thread_t *shelltp = xshellSpawn(&sm1,
-                                    (BaseSequentialStream *)oopGetIf(&bsio1, chn),
-                                    NORMALPRIO + 1);
-    chThdWait(shelltp);               /* Waiting termination.             */
+    xshell_t *xshp = xshellSpawn(&sm1,
+                                 (BaseSequentialStream *)oopGetIf(&bsio1, chn),
+                                 NORMALPRIO + 1, NULL);
+    chThdWait(&xshp->thread);
     chThdSleepMilliseconds(500);
   }
 }

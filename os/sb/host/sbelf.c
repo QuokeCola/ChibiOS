@@ -1,6 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006,2007,2008,2009,2010,2011,2012,2013,2014,
-              2015,2016,2017,2018,2019,2020,2021 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -38,6 +37,10 @@
 
 /* Relevant ELF file types.*/
 #define ET_EXEC                 2U
+
+/* Relevant machine and version.*/
+#define EM_ARM                  40U
+#define EV_CURRENT              1U
 
 /* Relevant section types.*/
 #define SHT_PROGBITS            1U
@@ -170,13 +173,28 @@ static const uint8_t elf32_header[16] = {
 /* Module local functions.                                                   */
 /*===========================================================================*/
 
+static msg_t vfs_read_exact(vfs_file_node_c *fnp, void *buf, size_t size) {
+  ssize_t ret;
+
+  ret = vfsReadFile(fnp, (uint8_t *)buf, size);
+  if (CH_RET_IS_ERROR(ret)) {
+    return (msg_t)ret;
+  }
+  if ((size_t)ret != size) {
+    return CH_RET_ENOEXEC;
+  }
+
+  return CH_RET_SUCCESS;
+}
+
 static msg_t area_is_intersecting(elf_load_context_t *ctxp,
                                  const memory_area_t *map) {
   elf_section_info_t *esip;
 
   /* Scanning allocated sections.*/
   for (esip = &ctxp->allocated[0]; esip < ctxp->next; esip++) {
-    if (chMemIsAreaIntersectingX(&esip->area, map)) {
+    if (chMemIsAreaIntersectingX(&esip->area, map) ||
+        chMemIsAreaIntersectingX(map, &esip->area)) {
       return true;
     }
   }
@@ -184,10 +202,49 @@ static msg_t area_is_intersecting(elf_load_context_t *ctxp,
   return false;
 }
 
+static msg_t build_mapped_area(const memory_area_t *map,
+                               uint32_t offset,
+                               uint32_t size,
+                               memory_area_t *dstp) {
+  uintptr_t base = (uintptr_t)map->base;
+
+  if ((uintptr_t)offset > (UINTPTR_MAX - base)) {
+    return CH_RET_ENOEXEC;
+  }
+
+  dstp->base = (void *)(base + (uintptr_t)offset);
+  dstp->size = (size_t)size;
+
+  if (!chMemIsAreaWithinX(map, dstp)) {
+    return CH_RET_ENOMEM;
+  }
+
+  return CH_RET_SUCCESS;
+}
+
+static msg_t build_mapped_address(const memory_area_t *map,
+                                  uint32_t offset,
+                                  size_t size,
+                                  uintptr_t *addressp) {
+  uintptr_t base = (uintptr_t)map->base;
+
+  if ((uintptr_t)offset > (UINTPTR_MAX - base)) {
+    return CH_RET_ENOEXEC;
+  }
+
+  *addressp = base + (uintptr_t)offset;
+  if (!chMemIsSpaceWithinX(map, (const void *)*addressp, size)) {
+    return CH_RET_ENOMEM;
+  }
+
+  return CH_RET_SUCCESS;
+}
+
 static msg_t allocate_section(elf_load_context_t *ctxp,
                               elf_secnum_t section,
                               const elf32_section_header_t *shp) {
   elf_section_info_t *esip;
+  msg_t ret;
 
   /* Checking if there is space in the sections table.*/
   if (ctxp->next >= &ctxp->allocated[SB_CFG_ELF_MAX_ALLOCATED]) {
@@ -196,14 +253,11 @@ static msg_t allocate_section(elf_load_context_t *ctxp,
 
   /* Adding an entry for this section.*/
   esip = ctxp->next;
-  esip->section   = section;
-  esip->area.base = ctxp->map->base + (size_t)shp->sh_addr;
-  esip->area.size = (size_t)shp->sh_size;
+  esip->section = section;
 
   /* Checking if the section can fit into the destination memory area.*/
-  if (!chMemIsAreaWithinX(ctxp->map, &esip->area)) {
-    return CH_RET_ENOMEM;
-  }
+  ret = build_mapped_area(ctxp->map, shp->sh_addr, shp->sh_size, &esip->area);
+  CH_RETURN_ON_ERROR(ret);
 
   /* Checking if this section is overlapping some other allocated section.*/
   if (area_is_intersecting(ctxp, &esip->area)) {
@@ -228,14 +282,11 @@ static msg_t allocate_load_section(elf_load_context_t *ctxp,
 
   /* Adding an entry for this section.*/
   esip = ctxp->next;
-  esip->section   = section;
-  esip->area.base = ctxp->map->base + (size_t)shp->sh_addr;
-  esip->area.size = (size_t)shp->sh_size;
+  esip->section = section;
 
   /* Checking if the section can fit into the destination memory area.*/
-  if (!chMemIsAreaWithinX(ctxp->map, &esip->area)) {
-    return CH_RET_ENOMEM;
-  }
+  ret = build_mapped_area(ctxp->map, shp->sh_addr, shp->sh_size, &esip->area);
+  CH_RETURN_ON_ERROR(ret);
 
   /* Checking if this section is overlapping some other allocated section.*/
   if (area_is_intersecting(ctxp, &esip->area)) {
@@ -245,7 +296,7 @@ static msg_t allocate_load_section(elf_load_context_t *ctxp,
   /* Loading section data.*/
   ret = vfsSetFilePosition(ctxp->fnp, (vfs_offset_t)shp->sh_offset, VFS_SEEK_SET);
   CH_RETURN_ON_ERROR(ret);
-  ret = vfsReadFile(ctxp->fnp, (void *)esip->area.base, esip->area.size);
+  ret = vfs_read_exact(ctxp->fnp, (void *)esip->area.base, esip->area.size);
   CH_RETURN_ON_ERROR(ret);
 
   ctxp->next++;
@@ -294,10 +345,14 @@ static void set_const16(uint32_t address, uint32_t val16) {
 static msg_t reloc_entry(elf_load_context_t *ctxp,
                          elf_section_info_t *esip,
                          elf32_rel_t *rp) {
-  uint32_t relocation_address, offset;
+  uintptr_t relocation_address;
+  uint32_t offset;
+  msg_t ret;
 
   /* Relocation point address.*/
-  relocation_address = (uint32_t)ctxp->map->base + rp->r_offset;
+  ret = build_mapped_address(ctxp->map, rp->r_offset, sizeof (uint32_t),
+                             &relocation_address);
+  CH_RETURN_ON_ERROR(ret);
   if (!chMemIsSpaceWithinX(&esip->area,
                            (const void *)relocation_address,
                            sizeof (uint32_t))) {
@@ -307,9 +362,15 @@ static msg_t reloc_entry(elf_load_context_t *ctxp,
   /* Handling the various relocation point types.*/
   switch (ELF32_R_TYPE(ELF32_R_TYPE(rp->r_info))) {
   case R_ARM_ABS32:
+    if (!MEM_IS_ALIGNED((const void *)relocation_address, sizeof (uint32_t))) {
+      return CH_RET_ENOEXEC;
+    }
     *((uint32_t *)relocation_address) += (uint32_t)ctxp->map->base;
     break;
   case R_ARM_THM_MOVW_ABS_NC:
+    if (!MEM_IS_ALIGNED((const void *)relocation_address, sizeof (uint16_t))) {
+      return CH_RET_ENOEXEC;
+    }
     /* Checking for consecutive "movw" relocations without a "movt", we
        consider this an error.*/
     if (ctxp->rel_movw_found) {
@@ -330,6 +391,9 @@ static msg_t reloc_entry(elf_load_context_t *ctxp,
 
     /* Checking if both instructions referred to the same symbol.*/
     if (ctxp->rel_movw_symbol != ELF32_R_SYM(rp->r_info)) {
+      return CH_RET_ENOEXEC;
+    }
+    if (!MEM_IS_ALIGNED((const void *)relocation_address, sizeof (uint16_t))) {
       return CH_RET_ENOEXEC;
     }
 
@@ -363,6 +427,10 @@ static msg_t reloc_section(elf_load_context_t *ctxp,
   size_t size, done_size, remaining_size;
   msg_t ret;
 
+  if ((esip->rel_size % sizeof (elf32_rel_t)) != 0U) {
+    return CH_RET_ENOEXEC;
+  }
+
   shbuf = vfs_buffer_take_wait();
   rbuf = (elf32_rel_t *)(void *)shbuf->buf;
 
@@ -386,11 +454,11 @@ static msg_t reloc_section(elf_load_context_t *ctxp,
                              esip->rel_off + (vfs_offset_t)done_size,
                              VFS_SEEK_SET);
     CH_BREAK_ON_ERROR(ret);
-    ret = vfsReadFile(ctxp->fnp, (void *)rbuf, size);
+    ret = vfs_read_exact(ctxp->fnp, (void *)rbuf, size);
     CH_BREAK_ON_ERROR(ret);
 
     /* Number of relocation entries in the buffer.*/
-    n = (unsigned)ret / (unsigned)sizeof (elf32_rel_t);
+    n = (unsigned)size / (unsigned)sizeof (elf32_rel_t);
     for (i = 0U; i < n; i++) {
       ret = reloc_entry(ctxp, esip, &rbuf[i]);
       CH_BREAK_ON_ERROR(ret);
@@ -399,6 +467,11 @@ static msg_t reloc_section(elf_load_context_t *ctxp,
 
     remaining_size -= size;
     done_size      += size;
+  }
+
+  /* A MOVW must be paired with a MOVT.*/
+  if (ctxp->rel_movw_found) {
+    ret = CH_RET_ENOEXEC;
   }
 
   vfs_buffer_release(shbuf);
@@ -436,7 +509,7 @@ msg_t sbElfLoad(vfs_file_node_c *fnp, const memory_area_t *map) {
     /* Reading the main ELF header.*/
     ret = vfsSetFilePosition(ctx.fnp, (vfs_offset_t)0, VFS_SEEK_SET);
     CH_RETURN_ON_ERROR(ret);
-    ret = vfsReadFile(ctx.fnp, (void *)&u.h, sizeof (elf32_header_t));
+    ret = vfs_read_exact(ctx.fnp, (void *)&u.h, sizeof (elf32_header_t));
     CH_RETURN_ON_ERROR(ret);
 
     /* Checking for the expected header.*/
@@ -449,7 +522,12 @@ msg_t sbElfLoad(vfs_file_node_c *fnp, const memory_area_t *map) {
       return CH_RET_ENOEXEC;
     }
 
-    /* TODO more consistency checks.*/
+    if ((u.h.e_machine != EM_ARM) ||
+        (u.h.e_version != EV_CURRENT) ||
+        (u.h.e_ehsize != sizeof (elf32_header_t)) ||
+        (u.h.e_shentsize != sizeof (elf32_section_header_t))) {
+      return CH_RET_ENOEXEC;
+    }
 
     /* Storing info required later.*/
 //    ctx.entry        = u.h.e_entry;
@@ -469,7 +547,7 @@ msg_t sbElfLoad(vfs_file_node_c *fnp, const memory_area_t *map) {
                                                    (vfs_offset_t)sizeof (elf32_section_header_t)),
                                VFS_SEEK_SET);
       CH_RETURN_ON_ERROR(ret);
-      ret = vfsReadFile(ctx.fnp, (void *)&u.sh, sizeof (elf32_section_header_t));
+      ret = vfs_read_exact(ctx.fnp, (void *)&u.sh, sizeof (elf32_section_header_t));
       CH_RETURN_ON_ERROR(ret);
 
       /* Empty sections are not processed.*/
@@ -576,7 +654,7 @@ msg_t sbElfGetAllocation(vfs_file_node_c *fnp, size_t *sizep) {
     /* Reading the main ELF header.*/
     ret = vfsSetFilePosition(fnp, (vfs_offset_t)0, VFS_SEEK_SET);
     CH_RETURN_ON_ERROR(ret);
-    ret = vfsReadFile(fnp, (void *)&u.h, sizeof (elf32_header_t));
+    ret = vfs_read_exact(fnp, (void *)&u.h, sizeof (elf32_header_t));
     CH_RETURN_ON_ERROR(ret);
 
     /* Checking for the expected header.*/
@@ -589,7 +667,12 @@ msg_t sbElfGetAllocation(vfs_file_node_c *fnp, size_t *sizep) {
       return CH_RET_ENOEXEC;
     }
 
-    /* TODO more consistency checks.*/
+    if ((u.h.e_machine != EM_ARM) ||
+        (u.h.e_version != EV_CURRENT) ||
+        (u.h.e_ehsize != sizeof (elf32_header_t)) ||
+        (u.h.e_shentsize != sizeof (elf32_section_header_t))) {
+      return CH_RET_ENOEXEC;
+    }
   }
 
   /* Loading phase, scanning section headers.*/
@@ -607,7 +690,7 @@ msg_t sbElfGetAllocation(vfs_file_node_c *fnp, size_t *sizep) {
                                                (vfs_offset_t)sizeof (elf32_section_header_t)),
                                VFS_SEEK_SET);
       CH_RETURN_ON_ERROR(ret);
-      ret = vfsReadFile(fnp, (void *)&u.sh, sizeof (elf32_section_header_t));
+      ret = vfs_read_exact(fnp, (void *)&u.sh, sizeof (elf32_section_header_t));
       CH_RETURN_ON_ERROR(ret);
 
       /* Empty sections are not processed.*/

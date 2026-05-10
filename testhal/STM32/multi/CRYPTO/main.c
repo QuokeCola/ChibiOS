@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -90,8 +90,8 @@ int main(void) {
       crySHA256Final(&CRYD1, &ctx256, digest);
 
       cryLoadAESTransientKey(&CRYD1, sizeof (key), key);
-      cryEncryptAES(&CRYD1, (crykey_t)0, data, out);
-      cryDecryptAES(&CRYD1, (crykey_t)0, data, out);
+      cryEncryptAESX(&CRYD1, (crykey_t)0, data, out);
+      cryDecryptAESX(&CRYD1, (crykey_t)0, data, out);
       cryEncryptAES_ECB(&CRYD1, (crykey_t)0, 16U, data, out);
       cryDecryptAES_ECB(&CRYD1, (crykey_t)0, 16U, data, out);
       cryEncryptAES_CBC(&CRYD1, (crykey_t)0, 16U, data, out, iv);

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -147,19 +147,22 @@
 #error "invalid STM32_USB_HOST_WAKEUP_DURATION setting, it must be between 2 and 15"
 #endif
 
-#if (STM32_USB_48MHZ_DELTA < 0) || (STM32_USB_48MHZ_DELTA > 120000)
-#error "invalid STM32_USB_48MHZ_DELTA setting, it must not exceed 120000"
-#endif
-
 /* Clock-related checks.*/
 #if !defined(STM32_USBCLK)
 #error "STM32_USBCLK not defined"
 #endif
 
-/* Allowing for a small tolerance.*/
+/* Maximum clock delta, note, clock is not just checked here but also at
+   runtime because the source could be dynamic.*/
+#if (STM32_USB_48MHZ_DELTA < 0) || (STM32_USB_48MHZ_DELTA > 120000)
+#error "invalid STM32_USB_48MHZ_DELTA setting, it must not exceed 120000"
+#endif
+
+#if !defined(HAL_LLD_USE_CLOCK_MANAGEMENT)
 #if (STM32_USBCLK < (48000000 - STM32_USB_48MHZ_DELTA)) ||                  \
     (STM32_USBCLK > (48000000 + STM32_USB_48MHZ_DELTA))
 #error "the USB USBv1 driver requires a 48MHz clock"
+#endif
 #endif
 
 /*===========================================================================*/
@@ -324,12 +327,14 @@ typedef struct {
    * @note    This callback is mandatory and cannot be set to @p NULL.
    */
   usbgetdescriptor_t            get_descriptor_cb;
+#if (USB_USE_EP0_THREAD == FALSE) || defined(__DOXYGEN__)
   /**
    * @brief   Requests hook callback.
    * @details This hook allows to be notified of standard requests or to
    *          handle non standard requests.
    */
   usbreqhandler_t               requests_hook_cb;
+#endif
   /**
    * @brief   Start Of Frame callback.
    */
@@ -391,6 +396,28 @@ struct USBDriver {
    * @brief   Endpoint 0 end transaction callback.
    */
   usbcallback_t                 ep0endcb;
+#if (USB_USE_EP0_THREAD == TRUE) || defined(__DOXYGEN__)
+  /**
+   * @brief   Waiting thread for EP0 operations.
+   */
+  thread_reference_t            ep0thread;
+  /**
+   * @brief   Current EP0 sequence number.
+   */
+  uint8_t                       ep0seq;
+  /**
+   * @brief   EP0 sequence number owned by the worker thread.
+   */
+  uint8_t                       ep0rseq;
+  /**
+   * @brief   Pending setup notification for the worker thread.
+   */
+  uint8_t                       ep0setup;
+  /**
+   * @brief   Pending reset notification for the worker thread.
+   */
+  uint8_t                       ep0reset;
+#endif
   /**
    * @brief   Setup packet buffer.
    */
@@ -437,7 +464,7 @@ struct USBDriver {
  *
  * @notapi
  */
-#define usb_lld_get_frame_number(usbp) (STM32_USB->FNR & FNR_FN_MASK)
+#define usb_lld_get_frame_number(usbp) (STM32_USB->FNR & USB_FNR_FN_Msk)
 
 /**
  * @brief   Returns the exact size of a receive transaction.

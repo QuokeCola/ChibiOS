@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -52,14 +52,14 @@
 /*===========================================================================*/
 
 /**
- * @brief   Enables IRQ sources.
+ * @brief   IRQ subsystem initialization.
+ * @details Puts the IRQ controller in a known clean state before any
+ *          HAL drivers enable their individual interrupts.
  *
  * @notapi
  */
 void irqInit(void) {
 
-//  uart0_irq_init();
-//  uart1_irq_init();
 }
 
 /**
@@ -69,8 +69,6 @@ void irqInit(void) {
  */
 void irqDeinit(void) {
 
-//  uart0_irq_deinit();
-//  uart1_irq_deinit();
 }
 
 /** @} */

@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -72,6 +72,17 @@
 #define STM32_ADC3_NUMBER                   47
 #define STM32_ADC4_NUMBER                   61
 #define STM32_ADC5_NUMBER                   62
+
+/*
+ * RTC unit.
+ */
+#define STM32_RTC_TAMP_STAMP_HANDLER        Vector48
+#define STM32_RTC_WKUP_HANDLER              Vector4C
+#define STM32_RTC_ALARM_HANDLER             VectorE4
+
+#define STM32_RTC_TAMP_STAMP_NUMBER         2
+#define STM32_RTC_WKUP_NUMBER               3
+#define STM32_RTC_ALARM_NUMBER              41
 
 /*
  * DMA unit.
@@ -173,23 +184,23 @@
 /*
  * I2C units.
  */
-#define STM32_I2C1_EVENT_HANDLER            VectorBC
-#define STM32_I2C1_ERROR_HANDLER            VectorC0
-#define STM32_I2C2_EVENT_HANDLER            VectorC4
-#define STM32_I2C2_ERROR_HANDLER            VectorC8
-#define STM32_I2C3_EVENT_HANDLER            Vector1B0
-#define STM32_I2C3_ERROR_HANDLER            Vector1B4
-#define STM32_I2C4_EVENT_HANDLER            Vector188
-#define STM32_I2C4_ERROR_HANDLER            Vector18C
+#define STM32_I2C1_EV_HANDLER               VectorBC
+#define STM32_I2C1_ER_HANDLER               VectorC0
+#define STM32_I2C2_EV_HANDLER               VectorC4
+#define STM32_I2C2_ER_HANDLER               VectorC8
+#define STM32_I2C3_EV_HANDLER               Vector1B0
+#define STM32_I2C3_ER_HANDLER               Vector1B4
+#define STM32_I2C4_EV_HANDLER               Vector188
+#define STM32_I2C4_ER_HANDLER               Vector18C
 
-#define STM32_I2C1_EVENT_NUMBER             31
-#define STM32_I2C1_ERROR_NUMBER             32
-#define STM32_I2C2_EVENT_NUMBER             33
-#define STM32_I2C2_ERROR_NUMBER             34
-#define STM32_I2C3_EVENT_NUMBER             92
-#define STM32_I2C3_ERROR_NUMBER             93
-#define STM32_I2C4_EVENT_NUMBER             82
-#define STM32_I2C4_ERROR_NUMBER             83
+#define STM32_I2C1_EV_NUMBER                31
+#define STM32_I2C1_ER_NUMBER                32
+#define STM32_I2C2_EV_NUMBER                33
+#define STM32_I2C2_ER_NUMBER                34
+#define STM32_I2C3_EV_NUMBER                92
+#define STM32_I2C3_ER_NUMBER                93
+#define STM32_I2C4_EV_NUMBER                82
+#define STM32_I2C4_ER_NUMBER                83
 
 /*
  * QUADSPI unit.

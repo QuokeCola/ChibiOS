@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2018 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -129,14 +129,15 @@ typedef uint32_t iopadid_t;
  * @name    Generic port identifiers.
  * @{
  */
-#define IOPORT1         VPIO0
-#define IOPORT2         VPIO1
-#define IOPORT3         VPIO2
-#define IOPORT4         VPIO3
-#define IOPORT5         VPIO4
-#define IOPORT6         VPIO5
-#define IOPORT7         VPIO6
-#define IOPORT8         VPIO7
+#define VIO_PORT(n)      ((ioportid_t)(n))
+#define IOPORT1         VIO_PORT(0U)
+#define IOPORT2         VIO_PORT(1U)
+#define IOPORT3         VIO_PORT(2U)
+#define IOPORT4         VIO_PORT(3U)
+#define IOPORT5         VIO_PORT(4U)
+#define IOPORT6         VIO_PORT(5U)
+#define IOPORT7         VIO_PORT(6U)
+#define IOPORT8         VIO_PORT(7U)
 /** @} */
 
 /*===========================================================================*/
@@ -222,6 +223,19 @@ typedef uint32_t iopadid_t;
  */
 #define pal_lld_toggleport(port, bits) __pal_lld_toggleport(port, bits)
 
+/**
+ * @brief   Programs a group mode.
+ *
+ * @param[in] port      port identifier
+ * @param[in] mask      group mask
+ * @param[in] offset    group bit offset within the port
+ * @param[in] mode      group mode
+ *
+ * @notapi
+ */
+#define pal_lld_setgroupmode(port, mask, offset, mode)                      \
+  __pal_lld_setgroupmode(port, mask, offset, mode)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -266,6 +280,15 @@ __attribute__((always_inline))
 static inline void __pal_lld_toggleport(ioportid_t port, uint32_t bits) {
 
   __syscall2r(96, VIO_CALL(SB_VGPIO_TOGGLE, port), bits);
+}
+
+__attribute__((always_inline))
+static inline void __pal_lld_setgroupmode(ioportid_t port,
+                                          ioportmask_t mask,
+                                          uint32_t offset,
+                                          iomode_t mode) {
+
+  __syscall4r(96, VIO_CALL(SB_VGPIO_SETMODE, port), mask, offset, mode);
 }
 
 #endif /* HAL_USE_PAL == TRUE */

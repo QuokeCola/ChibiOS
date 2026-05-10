@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2024 Giovanni Di Sirio.
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     This file is part of ChibiOS.
 
@@ -62,20 +62,16 @@
 /* Calculating the MPU regions array offset within the port_context
    structure.*/
 #if CORTEX_USE_FPU
-  #if PORT_SAVE_PSPLIM && PORT_SAVE_CONTROL
+  #if PORT_SAVE_CONTROL
     #define MPU_OFFSET  116
-  #elif PORT_SAVE_PSPLIM || PORT_SAVE_CONTROL
-    #define MPU_OFFSET  112
   #else
-    #define MPU_OFFSET  108
+    #define MPU_OFFSET  112
   #endif
 #else
-  #if PORT_SAVE_PSPLIM && PORT_SAVE_CONTROL
+  #if PORT_SAVE_CONTROL
     #define MPU_OFFSET  52
-  #elif PORT_SAVE_PSPLIM || PORT_SAVE_CONTROL
-    #define MPU_OFFSET  48
   #else
-    #define MPU_OFFSET  44
+    #define MPU_OFFSET  48
   #endif
 #endif
 
@@ -110,25 +106,16 @@
                 /* Store special registers context through R1.
                    On entry R12=CONTROL.*/
                 .macro  PORT_STORE_SPECIAL_CONTEXT
-#if PORT_SAVE_PSPLIM
                 mrs     r2, PSPLIM
 #if PORT_SAVE_CONTROL
                 stmia   r1!, {r2, r12}
 #else
                 stmia   r1!, {r2}
 #endif
-#else /* !PORT_SAVE_PSPLIM */
-#if PORT_SAVE_CONTROL
-                stmia   r1!, {r12}
-#else
-                /* Nothing.*/
-#endif
-#endif /* !PORT_SAVE_PSPLIM */
                 .endm
 
                 /* Load special context through R0.*/
                 .macro  PORT_LOAD_SPECIAL_CONTEXT
-#if PORT_SAVE_PSPLIM
 #if PORT_SAVE_CONTROL
                 ldmia   r0!, {r2, r12}
                 msr     PSPLIM, r2
@@ -137,14 +124,6 @@
                 ldmia   r0!, {r2}
                 msr     PSPLIM, r2
 #endif
-#else /* !PORT_SAVE_PSPLIM */
-#if PORT_SAVE_CONTROL
-                ldmia   r0!, {r12}
-                msr     CONTROL, r12
-#else
-                /* Nothing.*/
-#endif
-#endif /* !PORT_SAVE_PSPLIM */
                 .endm
 
                 /* Store float context through R1.*/
@@ -275,9 +254,8 @@ SVC_Handler:
                 /* SVC called from privileged mode for unprivileged return.*/
                 mrs     r2, PSP             /* Position of the exc.frame.*/
                 ldr     r3, [r2, #24]       /* PC position.*/
-                ldrh    r3, [r3, #-2]       /* SVC opcode.*/
-                ands    r3, #255
-                beq     .Lctxswitch
+                ldrb    r3, [r3, #-2]       /* SVC immediate.*/
+                cbz     r3, .Lctxswitch
                 /* Called for non-privileged mode change.*/
                 orr     r12, #1
                 msr     CONTROL, r12        /* Switching to non-privileged. */
@@ -286,13 +264,15 @@ SVC_Handler:
 .Lctxswitch:
                 /* SVC called from privilege mode for context switch.*/
 #else
+#if PORT_SAVE_CONTROL
+                mrs     r12, CONTROL
+#endif
                 mrs     r2, PSP             /* Position of the exc.frame.*/
 #endif
                 /* Retrieving pointers to old and new context from the
                    saved stack frame.*/
-                ldr     r1, [r2, #4]        /* R1 on SVC context (otp) */
+                ldmia   r2, {r0, r1}        /* R0/R1 on SVC context (ntp/otp) */
                 adds    r1, #CONTEXT_OFFSET
-                ldr     r0, [r2, #0]        /* R0 on SVC context (ntp) */
                 adds    r0, #CONTEXT_OFFSET
 
                 /* Context store for old thread through R1.*/
@@ -302,22 +282,25 @@ SVC_Handler:
                 PORT_STORE_FLOAT_CONTEXT
                 PORT_STORE_MPU_CONTEXT
 
-#if CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS
+#if CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS || CH_CFG_SMP_MODE
                 ldr     r3, [r0, #4]        /* BASEPRI offset */
                 cmp     r3, #0              /* CORTEX_BASEPRI_DISABLED */
                 bne     1f
                 mov     r4, r0
                 /* Returning to a preempted thread, performing a logical
-                   "unlock" and handling statistics.*/
+                   "unlock", handling statistics and releasing spinlock.*/
 #if CH_DBG_SYSTEM_STATE_CHECK
                 bl      __dbg_check_unlock
 #endif
 #if CH_DBG_STATISTICS
                 bl      __stats_stop_measure_crit_thd
 #endif
+#if CH_CFG_SMP_MODE == TRUE
+                bl      __port_spinlock_release
+#endif
                 mov     r0, r4
 1:
-#endif /* CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS */
+#endif /* CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS || CH_CFG_SMP_MODE */
 
                 /* Context load for new thread through R0.*/
                 PORT_LOAD_MPU_CONTEXT
@@ -331,8 +314,16 @@ SVC_Handler:
  * Tail preemption check using PENDSV.
  *--------------------------------------------------------------------------*/
                 .thumb_func
-                .globl  port_pendsv_tail
-port_pendsv_tail:
+                .globl  PendSV_Handler
+PendSV_Handler:
+                push    {r3, lr}
+
+                bl      __port_schedule_next
+                cmp     r0, #0
+                it      eq
+                popeq   {r3, pc}
+                pop     {r3, lr}
+
                 /* Context store for old thread through R1.*/
                 adds    r1, #CONTEXT_OFFSET
 
@@ -349,22 +340,25 @@ port_pendsv_tail:
                 /* Context load for new thread through R0.*/
                 adds    r0, #CONTEXT_OFFSET
 
-#if CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS
+#if CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS || CH_CFG_SMP_MODE
                 ldr     r3, [r0, #4]        /* BASEPRI offset */
-                cmp     r3, #CORTEX_BASEPRI_DISABLED
+                cmp     r3, #0              /* CORTEX_BASEPRI_DISABLED */
                 bne     1f
                 mov     r4, r0
                 /* Returning to a preempted thread, performing a logical
-                   "unlock" and handling statistics.*/
+                   "unlock", handling statistics and releasing spinlock.*/
 #if CH_DBG_SYSTEM_STATE_CHECK
                 bl      __dbg_check_unlock
 #endif
 #if CH_DBG_STATISTICS
                 bl      __stats_stop_measure_crit_thd
 #endif
+#if CH_CFG_SMP_MODE == TRUE
+                bl      __port_spinlock_release
+#endif
                 mov     r0, r4
 1:
-#endif /* CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS */
+#endif /* CH_DBG_SYSTEM_STATE_CHECK || CH_DBG_STATISTICS || CH_CFG_SMP_MODE */
 
                 PORT_LOAD_MPU_CONTEXT
                 PORT_LOAD_INTEGER_CONTEXT
@@ -395,6 +389,9 @@ __port_thread_start:
 #endif
 #if CH_DBG_STATISTICS
                 bl      __stats_stop_measure_crit_thd
+#endif
+#if CH_CFG_SMP_MODE == TRUE
+                bl      __port_spinlock_release
 #endif
                 movs    r3, #0              /* CORTEX_BASEPRI_DISABLED */
                 msr     BASEPRI, r3

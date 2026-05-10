@@ -1,5 +1,5 @@
 /*
-    ChibiOS - Copyright (C) 2006..2023 Giovanni Di Sirio
+    ChibiOS - Copyright (C) 2006-2026 Giovanni Di Sirio.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -81,21 +81,21 @@ REGION_ALIAS("BSS_RAM", ram0);
 /* RAM region to be used for the default heap.*/
 REGION_ALIAS("HEAP_RAM", ram0);
 
-/* RAM region to be used for GPDMA link structures.*/
-REGION_ALIAS("GPDMA_RAM", ram0);
+/* RAM region to be used for DMA3 link structures.*/
+REGION_ALIAS("DMA3_RAM", ram0);
 
 SECTIONS
 {
     /* Special section for GPDMA links, it must not exceed 64kB in size.*/
-    .gpdma (NOLOAD) : ALIGN(16)
+    .dma3 (NOLOAD) : ALIGN(16)
     {
-        __gpdma_base__ = .;
-        *(.gpdma)
-        *(.gpdma.*)
-        *(.bss.__gpdma_*)
+        __dma3_base__ = .;
+        *(.dma3)
+        *(.dma3.*)
+        *(.bss.__dma3_*)
         . = ALIGN(4);
-        __gpdma_end__ = .;
-    } > GPDMA_RAM
+        __dma3_end__ = .;
+    } > DMA3_RAM
 }
 
 /* Generic rules inclusion.*/
